@@ -12,7 +12,7 @@ export const IntrantOrderSchema = new mongoose.Schema({
   lab: {
     type: mongoose.Schema.ObjectId,
     ref: 'Lab',
-    required: true,
+    default: null,
   },
   supplier: {
     type: mongoose.Schema.ObjectId,
@@ -43,6 +43,10 @@ export const IntrantOrderSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 1,
+  },
+  batchNumber: {
+    type: String,
+    unique: true,
   },
   status: {
     type: String,

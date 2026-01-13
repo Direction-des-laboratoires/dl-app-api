@@ -1,31 +1,18 @@
-import {
-  IsOptional,
-  IsString,
-  IsNumber,
-  IsMongoId,
-  IsEnum,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import {
-  MaintenanceType,
-  MaintenanceStatus,
-  ScheduleFrequency,
-} from '../schemas/maintenance.schema';
+import { IsOptional, IsString, IsNumberString, IsMongoId, IsEnum } from 'class-validator';
+import { MaintenanceType, MaintenanceStatus, ScheduleFrequency } from '../schemas/maintenance.schema';
 
 export class FindMaintenanceDto {
   @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
+  @IsNumberString()
   page?: number;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
+  @IsNumberString()
   limit?: number;
 
   @IsOptional()
   @IsMongoId()
-  labEquipment?: string;
+  equipment?: string;
 
   @IsOptional()
   @IsEnum(MaintenanceType)
@@ -36,14 +23,14 @@ export class FindMaintenanceDto {
   status?: MaintenanceStatus;
 
   @IsOptional()
+  @IsMongoId()
+  technician?: string;
+
+  @IsOptional()
   @IsEnum(ScheduleFrequency)
   frequency?: ScheduleFrequency;
 
   @IsOptional()
   @IsString()
   search?: string;
-
-  @IsOptional()
-  @IsMongoId()
-  technician?: string;
 }

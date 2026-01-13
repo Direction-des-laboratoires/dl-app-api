@@ -8,6 +8,9 @@ import { FindIntrantOrderDto } from './dto/find-intrant-order.dto';
 import { IntrantOrderStatusEnum } from './schemas/intrant-order.schema';
 import { IntrantStocksService } from '../intrant-stocks/intrant-stocks.service';
 import logger from 'src/utils/logger';
+import { User } from '../user/interfaces/user.interface';
+import { Role } from 'src/utils/enums/roles.enum';
+import { generateBatchNumber } from 'src/utils/functions/code_generation';
 
 @Injectable()
 export class IntrantOrdersService {
@@ -19,10 +22,21 @@ export class IntrantOrdersService {
 
   async create(
     createIntrantOrderDto: CreateIntrantOrderDto,
+    user: User,
   ): Promise<IntrantOrder> {
     try {
       logger.info(`---INTRANT_ORDERS.SERVICE.CREATE INIT---`);
-      const order = await this.intrantOrderModel.create(createIntrantOrderDto);
+
+      if (user.role !== Role.SuperAdmin) {
+        createIntrantOrderDto.lab = user.lab ? user.lab.toString() : null;
+      }
+
+      const batchNumber = generateBatchNumber(12);
+
+      const order = await this.intrantOrderModel.create({
+        ...createIntrantOrderDto,
+        batchNumber,
+      });
 
       if (order.status === IntrantOrderStatusEnum.COMPLETED) {
         await this.intrantStocksService.updateQuantity(
@@ -30,6 +44,7 @@ export class IntrantOrdersService {
           order.intrant.toString(),
           order.quantity,
           order.unit,
+          order.batchNumber,
         );
       }
 
@@ -58,24 +73,56 @@ export class IntrantOrdersService {
 
   async findAll(query: FindIntrantOrderDto): Promise<any> {
     try {
-      const { lab, intrant, supplier, status, search } = query;
+      const {
+        lab,
+        intrant,
+        supplier,
+        status,
+        batchNumber,
+        search,
+        page = 1,
+        limit = 10,
+      } = query;
+      const skip = (page - 1) * limit;
+
       const filters: any = {};
       if (lab) filters.lab = lab;
       if (intrant) filters.intrant = intrant;
       if (supplier) filters.supplier = supplier;
       if (status) filters.status = status;
+      if (batchNumber) filters.batchNumber = batchNumber;
 
-      const data = await this.intrantOrderModel
-        .find(filters)
-        .populate('lab', 'name')
-        .populate('supplier', 'name')
-        .populate('intrant', 'name code')
-        .populate('validatedBy', 'firstname lastname phoneNumber email')
-        .populate('completedBy', 'firstname lastname phoneNumber email')
-        .sort({ created_at: -1 })
-        .exec();
+      if (search) {
+        filters.$or = [
+          { notes: { $regex: search, $options: 'i' } },
+          { batchNumber: { $regex: search, $options: 'i' } },
+        ];
+      }
 
-      return { data };
+      const [data, total] = await Promise.all([
+        this.intrantOrderModel
+          .find(filters)
+          .populate('lab', 'name')
+          .populate('supplier', 'name')
+          .populate('intrant', 'name code')
+          .populate('validatedBy', 'firstname lastname phoneNumber email')
+          .populate('completedBy', 'firstname lastname phoneNumber email')
+          .sort({ created_at: -1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.intrantOrderModel.countDocuments(filters).exec(),
+      ]);
+
+      return {
+        data,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages: Math.ceil(total / limit),
+        },
+      };
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -106,21 +153,41 @@ export class IntrantOrdersService {
   async update(
     id: string,
     updateIntrantOrderDto: UpdateIntrantOrderDto,
+    user: User,
   ): Promise<IntrantOrder> {
     try {
       const current = await this.intrantOrderModel.findById(id);
       if (!current)
         throw new HttpException('Commande non trouvée', HttpStatus.NOT_FOUND);
 
+      if (current.status === IntrantOrderStatusEnum.COMPLETED) {
+        throw new HttpException(
+          'Une commande déjà complétée ne peut plus être modifiée',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const oldStatus = current.status;
       const newStatus = updateIntrantOrderDto.status;
 
+      const updateData: any = {
+        ...updateIntrantOrderDto,
+        updated_at: new Date(),
+      };
+
+      if (
+        newStatus === IntrantOrderStatusEnum.VALIDATED &&
+        oldStatus !== IntrantOrderStatusEnum.VALIDATED
+      ) {
+        updateData.validatedBy = user._id;
+      }
+
+      if (newStatus === IntrantOrderStatusEnum.COMPLETED) {
+        updateData.completedBy = user._id;
+      }
+
       const updated = await this.intrantOrderModel
-        .findByIdAndUpdate(
-          id,
-          { ...updateIntrantOrderDto, updated_at: new Date() },
-          { new: true },
-        )
+        .findByIdAndUpdate(id, updateData, { new: true })
         .populate('lab', 'name')
         .populate('supplier', 'name')
         .populate('intrant', 'name code')
@@ -129,26 +196,13 @@ export class IntrantOrdersService {
         .exec();
 
       // Logique de stock
-      if (
-        newStatus === IntrantOrderStatusEnum.COMPLETED &&
-        oldStatus !== IntrantOrderStatusEnum.COMPLETED
-      ) {
+      if (newStatus === IntrantOrderStatusEnum.COMPLETED) {
         await this.intrantStocksService.updateQuantity(
           current.lab.toString(),
           current.intrant.toString(),
           current.quantity,
           current.unit,
-        );
-      } else if (
-        oldStatus === IntrantOrderStatusEnum.COMPLETED &&
-        newStatus !== IntrantOrderStatusEnum.COMPLETED &&
-        newStatus !== undefined
-      ) {
-        await this.intrantStocksService.updateQuantity(
-          current.lab.toString(),
-          current.intrant.toString(),
-          -current.quantity,
-          current.unit,
+          current.batchNumber,
         );
       }
 

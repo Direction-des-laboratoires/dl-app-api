@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { IntrantCategory } from './interfaces/intrant-category.interface';
 import { CreateIntrantCategoryDto } from './dto/create-intrant-category.dto';
 import { UpdateIntrantCategoryDto } from './dto/update-intrant-category.dto';
+import { FindIntrantCategoryDto } from './dto/find-intrant-category.dto';
 import logger from 'src/utils/logger';
 
 @Injectable()
@@ -41,9 +42,35 @@ export class IntrantCategoriesService {
     }
   }
 
-  async findAll(): Promise<IntrantCategory[]> {
+  async findAll(query: FindIntrantCategoryDto): Promise<any> {
     try {
-      return await this.intrantCategoryModel.find().sort({ name: 1 }).exec();
+      const { page = 1, limit = 10, search } = query;
+      const skip = (page - 1) * limit;
+
+      const filters: any = {};
+      if (search) {
+        filters.name = { $regex: search, $options: 'i' };
+      }
+
+      const [data, total] = await Promise.all([
+        this.intrantCategoryModel
+          .find(filters)
+          .sort({ name: 1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.intrantCategoryModel.countDocuments(filters).exec(),
+      ]);
+
+      return {
+        data,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages: Math.ceil(total / limit),
+        },
+      };
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }

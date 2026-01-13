@@ -25,7 +25,7 @@ export class FindEquipmentOrderDto {
 
   @IsOptional()
   @IsMongoId()
-  equipment?: string;
+  equipmentType?: string;
 
   @IsOptional()
   @IsMongoId()
@@ -34,6 +34,10 @@ export class FindEquipmentOrderDto {
   @IsOptional()
   @IsEnum(OrderStatusEnum)
   status?: OrderStatusEnum;
+
+  @IsOptional()
+  @IsMongoId()
+  equipmentCategory?: string;
 
   @IsOptional()
   @IsString()

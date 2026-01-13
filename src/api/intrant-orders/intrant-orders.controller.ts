@@ -9,6 +9,7 @@ import {
   Res,
   HttpStatus,
   Query,
+  Req,
 } from '@nestjs/common';
 import { IntrantOrdersService } from './intrant-orders.service';
 import { CreateIntrantOrderDto } from './dto/create-intrant-order.dto';
@@ -25,11 +26,13 @@ export class IntrantOrdersController {
   @Post()
   async create(
     @Body() createIntrantOrderDto: CreateIntrantOrderDto,
+    @Req() req,
     @Res() res,
   ) {
     try {
       const order = await this.intrantOrdersService.create(
         createIntrantOrderDto,
+        req.user,
       );
       return res.status(HttpStatus.CREATED).json({
         message: 'Commande créée avec succès',
@@ -75,12 +78,14 @@ export class IntrantOrdersController {
   async update(
     @Param('id') id: string,
     @Body() updateIntrantOrderDto: UpdateIntrantOrderDto,
+    @Req() req,
     @Res() res,
   ) {
     try {
       const order = await this.intrantOrdersService.update(
         id,
         updateIntrantOrderDto,
+        req.user,
       );
       return res.status(HttpStatus.OK).json({
         message: 'Commande mise à jour avec succès',
@@ -109,4 +114,5 @@ export class IntrantOrdersController {
     }
   }
 }
+
 

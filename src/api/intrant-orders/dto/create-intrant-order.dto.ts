@@ -12,7 +12,7 @@ import { UnitEnum } from 'src/utils/enums/unit.enum';
 import { IntrantOrderStatusEnum } from '../schemas/intrant-order.schema';
 
 export class CreateIntrantOrderDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsMongoId()
   lab: string;
 

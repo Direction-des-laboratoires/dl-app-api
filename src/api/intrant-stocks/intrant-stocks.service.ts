@@ -6,18 +6,28 @@ import { CreateIntrantStockDto } from './dto/create-intrant-stock.dto';
 import { UpdateIntrantStockDto } from './dto/update-intrant-stock.dto';
 import { FindIntrantStockDto } from './dto/find-intrant-stock.dto';
 import logger from 'src/utils/logger';
+import { User } from '../user/interfaces/user.interface';
+import { Role } from 'src/utils/enums/roles.enum';
+import { generateBatchNumber } from 'src/utils/functions/code_generation';
 
 @Injectable()
 export class IntrantStocksService {
   constructor(
     @InjectModel('IntrantStock')
     private intrantStockModel: Model<IntrantStock>,
+    @InjectModel('IntrantOrder')
+    private intrantOrderModel: Model<any>,
   ) {}
 
   async create(
     createIntrantStockDto: CreateIntrantStockDto,
+    user: User,
   ): Promise<IntrantStock> {
     try {
+      if (user.role !== Role.SuperAdmin) {
+        createIntrantStockDto.lab = user.lab ? user.lab.toString() : null;
+      }
+
       const { lab, intrant } = createIntrantStockDto;
       const existing = await this.intrantStockModel.findOne({ lab, intrant });
       if (existing) {
@@ -26,6 +36,11 @@ export class IntrantStocksService {
           HttpStatus.CONFLICT,
         );
       }
+
+      if (!createIntrantStockDto.batchNumber) {
+        createIntrantStockDto.batchNumber = generateBatchNumber(12);
+      }
+
       return await this.intrantStockModel.create(createIntrantStockDto);
     } catch (error) {
       throw new HttpException(
@@ -40,11 +55,13 @@ export class IntrantStocksService {
     intrant: string,
     quantity: number,
     unit: string,
+    batchNumber?: string,
   ): Promise<void> {
     try {
       const stock = await this.intrantStockModel.findOne({ lab, intrant });
       if (stock) {
         stock.initialQuantity += quantity;
+        if (batchNumber) stock.batchNumber = batchNumber;
         await stock.save();
       } else {
         await this.intrantStockModel.create({
@@ -52,6 +69,7 @@ export class IntrantStocksService {
           intrant,
           initialQuantity: quantity,
           unit,
+          batchNumber: batchNumber || generateBatchNumber(12),
         });
       }
     } catch (error) {
@@ -63,19 +81,40 @@ export class IntrantStocksService {
 
   async findAll(query: FindIntrantStockDto): Promise<any> {
     try {
-      const { lab, intrant } = query;
+      const { lab, intrant, batchNumber, page = 1, limit = 10, search } = query;
+      const skip = (page - 1) * limit;
+
       const filters: any = {};
       if (lab) filters.lab = lab;
       if (intrant) filters.intrant = intrant;
+      if (batchNumber) filters.batchNumber = batchNumber;
 
-      const data = await this.intrantStockModel
-        .find(filters)
-        .populate('lab', 'name')
-        .populate('intrant', 'name code unit')
-        .sort({ updated_at: -1 })
-        .exec();
+      if (search) {
+        // Recherche dans le numéro de lot
+        filters.batchNumber = { $regex: search, $options: 'i' };
+      }
 
-      return { data };
+      const [data, total] = await Promise.all([
+        this.intrantStockModel
+          .find(filters)
+          .populate('lab', 'name')
+          .populate('intrant', 'name code unit')
+          .sort({ updated_at: -1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.intrantStockModel.countDocuments(filters).exec(),
+      ]);
+
+      return {
+        data,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages: Math.ceil(total / limit),
+        },
+      };
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -131,6 +170,91 @@ export class IntrantStocksService {
     } catch (error) {
       throw new HttpException(
         error.message,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getStatistics(user: User): Promise<any> {
+    try {
+      logger.info(`---INTRANT_STOCKS.SERVICE.GET_STATISTICS INIT---`);
+      const filters: any = {};
+      if (user.role !== Role.SuperAdmin) {
+        filters.lab = user.lab;
+      }
+
+      const [
+        totalIntrants,
+        totalStockItems,
+        lowStockItems,
+        byCategory,
+        ordersByStatus,
+      ] = await Promise.all([
+        this.intrantStockModel
+          .distinct('intrant', filters)
+          .then((res) => res.length),
+        this.intrantStockModel.countDocuments(filters),
+        this.intrantStockModel.countDocuments({
+          ...filters,
+          $expr: { $lte: ['$remainingQuantity', '$minThreshold'] },
+        }),
+        this.intrantStockModel.aggregate([
+          { $match: filters },
+          {
+            $lookup: {
+              from: 'intrants',
+              localField: 'intrant',
+              foreignField: '_id',
+              as: 'intrantData',
+            },
+          },
+          { $unwind: '$intrantData' },
+          {
+            $lookup: {
+              from: 'intranttypes',
+              localField: 'intrantData.type',
+              foreignField: '_id',
+              as: 'typeData',
+            },
+          },
+          { $unwind: '$typeData' },
+          {
+            $lookup: {
+              from: 'intrantcategories',
+              localField: 'typeData.category',
+              foreignField: '_id',
+              as: 'categoryData',
+            },
+          },
+          { $unwind: '$categoryData' },
+          { $group: { _id: '$categoryData.name', count: { $sum: 1 } } },
+        ]),
+        this.intrantOrderModel.aggregate([
+          { $match: filters },
+          { $group: { _id: '$status', count: { $sum: 1 } } },
+        ]),
+      ]);
+
+      logger.info(`---INTRANT_STOCKS.SERVICE.GET_STATISTICS SUCCESS---`);
+      return {
+        totalIntrants,
+        totalStockItems,
+        lowStockItems,
+        byCategory: byCategory.reduce((acc, curr) => {
+          acc[curr._id] = curr.count;
+          return acc;
+        }, {}),
+        ordersByStatus: ordersByStatus.reduce((acc, curr) => {
+          acc[curr._id] = curr.count;
+          return acc;
+        }, {}),
+      };
+    } catch (error) {
+      logger.error(
+        `---INTRANT_STOCKS.SERVICE.GET_STATISTICS ERROR ${error}---`,
+      );
+      throw new HttpException(
+        error.message || 'Erreur serveur',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

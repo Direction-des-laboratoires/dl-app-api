@@ -22,16 +22,7 @@ export class CreateIntrantDto {
   @IsMongoId()
   type: string;
 
-  @IsNotEmpty()
-  @IsEnum(UnitEnum)
-  unit: UnitEnum;
-
   @IsOptional()
   @IsString()
   description?: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  minThreshold?: number;
 }

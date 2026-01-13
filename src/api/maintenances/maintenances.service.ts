@@ -11,11 +11,16 @@ import {
   ScheduleFrequency,
 } from './schemas/maintenance.schema';
 
+import { Role } from 'src/utils/enums/roles.enum';
+import { User } from '../user/interfaces/user.interface';
+
 @Injectable()
 export class MaintenancesService {
   constructor(
     @InjectModel('Maintenance')
     private maintenanceModel: Model<Maintenance>,
+    @InjectModel('Equipment')
+    private equipmentModel: Model<any>,
   ) {}
 
   private calculateNextDate(
@@ -77,9 +82,9 @@ export class MaintenancesService {
         createMaintenanceDto,
       );
       await maintenance.populate({
-        path: 'labEquipment',
+        path: 'equipment',
         populate: {
-          path: 'equipment',
+          path: 'equipmentType',
           select: 'name model brand serialNumber',
         },
       });
@@ -105,7 +110,7 @@ export class MaintenancesService {
         page = 1,
         limit = 10,
         search,
-        labEquipment,
+        equipment,
         maintenanceType,
         status,
         technician,
@@ -114,7 +119,7 @@ export class MaintenancesService {
       const skip = (page - 1) * limit;
 
       const filters: any = {};
-      if (labEquipment) filters.labEquipment = labEquipment;
+      if (equipment) filters.equipment = equipment;
       if (maintenanceType) filters.maintenanceType = maintenanceType;
       if (status) filters.status = status;
       if (technician) filters.technician = technician;
@@ -131,9 +136,9 @@ export class MaintenancesService {
         this.maintenanceModel
           .find(filters)
           .populate({
-            path: 'labEquipment',
+            path: 'equipment',
             populate: {
-              path: 'equipment',
+              path: 'equipmentType',
               select: 'name model brand serialNumber',
             },
           })
@@ -170,9 +175,9 @@ export class MaintenancesService {
       const maintenance = await this.maintenanceModel
         .findById(id)
         .populate({
-          path: 'labEquipment',
+          path: 'equipment',
           populate: {
-            path: 'equipment',
+            path: 'equipmentType',
             select: 'name model brand serialNumber',
           },
         })
@@ -243,9 +248,9 @@ export class MaintenancesService {
           { new: true },
         )
         .populate({
-          path: 'labEquipment',
+          path: 'equipment',
           populate: {
-            path: 'equipment',
+            path: 'equipmentType',
             select: 'name model brand',
           },
         })
@@ -277,6 +282,107 @@ export class MaintenancesService {
       return deleted;
     } catch (error) {
       logger.error(`---MAINTENANCES.SERVICE.REMOVE ERROR ${error}---`);
+      throw new HttpException(
+        error.message || 'Erreur serveur',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getStatistics(user: User): Promise<any> {
+    try {
+      logger.info(`---MAINTENANCES.SERVICE.GET_STATISTICS INIT---`);
+
+      const pipeline: any[] = [];
+
+      // Si l'utilisateur n'est pas SuperAdmin, on filtre par laboratoire
+      if (user.role !== Role.SuperAdmin) {
+        pipeline.push(
+          {
+            $lookup: {
+              from: 'equipments',
+              localField: 'equipment',
+              foreignField: '_id',
+              as: 'equipmentData',
+            },
+          },
+          { $unwind: '$equipmentData' },
+          {
+            $match: {
+              'equipmentData.lab': user.lab,
+            },
+          },
+        );
+      }
+
+      const [
+        total,
+        byStatus,
+        byType,
+        byFrequency,
+        upcomingCount,
+        overdueCount,
+      ] = await Promise.all([
+        this.maintenanceModel.aggregate([...pipeline, { $count: 'count' }]),
+        this.maintenanceModel.aggregate([
+          ...pipeline,
+          { $group: { _id: '$status', count: { $sum: 1 } } },
+        ]),
+        this.maintenanceModel.aggregate([
+          ...pipeline,
+          { $group: { _id: '$maintenanceType', count: { $sum: 1 } } },
+        ]),
+        this.maintenanceModel.aggregate([
+          ...pipeline,
+          { $group: { _id: '$frequency', count: { $sum: 1 } } },
+        ]),
+        // Maintenances prévues dans les 30 prochains jours
+        this.maintenanceModel.aggregate([
+          ...pipeline,
+          {
+            $match: {
+              status: MaintenanceStatus.SCHEDULED,
+              nextMaintenanceDate: {
+                $gte: new Date(),
+                $lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              },
+            },
+          },
+          { $count: 'count' },
+        ]),
+        // Maintenances en retard (SCHEDULED et date dépassée)
+        this.maintenanceModel.aggregate([
+          ...pipeline,
+          {
+            $match: {
+              status: MaintenanceStatus.SCHEDULED,
+              nextMaintenanceDate: { $lt: new Date() },
+            },
+          },
+          { $count: 'count' },
+        ]),
+      ]);
+
+      logger.info(`---MAINTENANCES.SERVICE.GET_STATISTICS SUCCESS---`);
+      return {
+        total: total[0]?.count || 0,
+        byStatus: byStatus.reduce((acc, curr) => {
+          acc[curr._id] = curr.count;
+          return acc;
+        }, {}),
+        byType: byType.reduce((acc, curr) => {
+          acc[curr._id] = curr.count;
+          return acc;
+        }, {}),
+        byFrequency: byFrequency.reduce((acc, curr) => {
+          acc[curr._id] = curr.count;
+          return acc;
+        }, {}),
+        upcomingCount: upcomingCount[0]?.count || 0,
+        overdueCount: overdueCount[0]?.count || 0,
+      };
+    } catch (error) {
+      logger.error(`---MAINTENANCES.SERVICE.GET_STATISTICS ERROR ${error}---`);
       throw new HttpException(
         error.message || 'Erreur serveur',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,

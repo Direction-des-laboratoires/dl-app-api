@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { IntrantType } from './interfaces/intrant-type.interface';
 import { CreateIntrantTypeDto } from './dto/create-intrant-type.dto';
 import { UpdateIntrantTypeDto } from './dto/update-intrant-type.dto';
+import { FindIntrantTypeDto } from './dto/find-intrant-type.dto';
 import logger from 'src/utils/logger';
 
 @Injectable()
@@ -31,15 +32,37 @@ export class IntrantTypesService {
     }
   }
 
-  async findAll(query: { category?: string }): Promise<IntrantType[]> {
+  async findAll(query: FindIntrantTypeDto): Promise<any> {
     try {
-      const filter: any = {};
-      if (query.category) filter.category = query.category;
-      return await this.intrantTypeModel
-        .find(filter)
-        .populate('category', 'name')
-        .sort({ name: 1 })
-        .exec();
+      const { page = 1, limit = 10, category, search } = query;
+      const skip = (page - 1) * limit;
+
+      const filters: any = {};
+      if (category) filters.category = category;
+      if (search) {
+        filters.name = { $regex: search, $options: 'i' };
+      }
+
+      const [data, total] = await Promise.all([
+        this.intrantTypeModel
+          .find(filters)
+          .populate('category', 'name')
+          .sort({ name: 1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.intrantTypeModel.countDocuments(filters).exec(),
+      ]);
+
+      return {
+        data,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages: Math.ceil(total / limit),
+        },
+      };
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }

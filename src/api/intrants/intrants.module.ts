@@ -4,6 +4,7 @@ import { IntrantsController } from './intrants.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { IntrantSchema } from './schemas/intrant.schema';
 import { IntrantTypeSchema } from '../intrant-types/schemas/intrant-type.schema';
+import { IntrantStocksModule } from '../intrant-stocks/intrant-stocks.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { IntrantTypeSchema } from '../intrant-types/schemas/intrant-type.schema'
       { name: 'Intrant', schema: IntrantSchema },
       { name: 'IntrantType', schema: IntrantTypeSchema },
     ]),
+    IntrantStocksModule,
   ],
   controllers: [IntrantsController],
   providers: [IntrantsService],

@@ -11,7 +11,7 @@ import {
 import { UnitEnum } from 'src/utils/enums/unit.enum';
 
 export class CreateIntrantStockDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsMongoId()
   lab: string;
 

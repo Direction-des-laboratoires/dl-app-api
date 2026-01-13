@@ -8,10 +8,12 @@ import {
   Delete,
   Res,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { IntrantCategoriesService } from './intrant-categories.service';
 import { CreateIntrantCategoryDto } from './dto/create-intrant-category.dto';
 import { UpdateIntrantCategoryDto } from './dto/update-intrant-category.dto';
+import { FindIntrantCategoryDto } from './dto/find-intrant-category.dto';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
@@ -45,11 +47,11 @@ export class IntrantCategoriesController {
   }
 
   @Get()
-  async findAll(@Res() res) {
+  async findAll(@Query() query: FindIntrantCategoryDto, @Res() res) {
     try {
-      const categories = await this.intrantCategoriesService.findAll();
+      const result = await this.intrantCategoriesService.findAll(query);
       return res.status(HttpStatus.OK).json({
-        data: categories,
+        ...result,
       });
     } catch (error) {
       return res

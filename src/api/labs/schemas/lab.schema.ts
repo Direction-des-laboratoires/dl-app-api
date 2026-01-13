@@ -68,14 +68,14 @@ LabSchema.pre(
       if (labId) {
         const mongoose = require('mongoose');
 
-        // Delete related LabEquipments
-        await mongoose.model('LabEquipment').deleteMany({ lab: labId });
+        // Delete related Equipments
+        await mongoose.model('Equipment').deleteMany({ lab: labId });
 
         // Delete related EquipmentOrders
         await mongoose.model('EquipmentOrder').deleteMany({ lab: labId });
 
-        // Delete related LabEquipmentStocks
-        await mongoose.model('LabEquipmentStock').deleteMany({ lab: labId });
+        // Delete related EquipmentStocks
+        await mongoose.model('EquipmentStock').deleteMany({ lab: labId });
 
         // Delete related Users (staff)
         await mongoose.model('User').deleteMany({ lab: labId });

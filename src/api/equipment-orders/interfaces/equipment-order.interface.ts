@@ -5,7 +5,8 @@ import { UnitEnum } from 'src/utils/enums/unit.enum';
 export interface EquipmentOrder extends Document {
   lab: string;
   supplier: any;
-  equipment: any;
+  equipmentType: any;
+  description: string;
   purchaseDate: Date;
   purchasePrice: number;
   quantity: number;

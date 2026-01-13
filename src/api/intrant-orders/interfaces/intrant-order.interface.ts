@@ -10,6 +10,7 @@ export interface IntrantOrder extends Document {
   purchasePrice: number;
   unit: UnitEnum;
   quantity: number;
+  batchNumber: string;
   status: IntrantOrderStatusEnum;
   notes?: string;
   validatedBy?: any;

@@ -19,7 +19,7 @@ export class InventoryTransactionsService {
       const inventoryTransaction = await this.inventoryTransactionModel.create(
         createInventoryTransactionDto,
       );
-      await inventoryTransaction.populate('equipment', 'name serialNumber');
+      await inventoryTransaction.populate('equipmentType', 'name serialNumber');
       await inventoryTransaction.populate(
         'user',
         'firstname lastname phoneNumber email',
@@ -42,7 +42,7 @@ export class InventoryTransactionsService {
       logger.info(`---INVENTORY_TRANSACTIONS.SERVICE.FIND_ALL INIT---`);
       const inventoryTransactions = await this.inventoryTransactionModel
         .find()
-        .populate('equipment', 'name serialNumber')
+        .populate('equipmentType', 'name serialNumber')
         .populate('user', 'firstname lastname phoneNumber email')
         .sort({ created_at: -1 })
         .exec();
@@ -64,7 +64,7 @@ export class InventoryTransactionsService {
       logger.info(`---INVENTORY_TRANSACTIONS.SERVICE.FIND_ONE INIT---`);
       const inventoryTransaction = await this.inventoryTransactionModel
         .findById(id)
-        .populate('equipment', 'name serialNumber')
+        .populate('equipmentType', 'name serialNumber')
         .populate('user', 'firstname lastname phoneNumber email')
         .exec();
       if (!inventoryTransaction) {
@@ -98,7 +98,7 @@ export class InventoryTransactionsService {
           { ...updateInventoryTransactionDto, updated_at: new Date() },
           { new: true },
         )
-        .populate('equipment', 'name serialNumber')
+        .populate('equipmentType', 'name serialNumber')
         .populate('user', 'firstname lastname phoneNumber email')
         .exec();
       if (!updated) {

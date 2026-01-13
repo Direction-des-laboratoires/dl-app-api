@@ -1,7 +1,15 @@
-import { IsOptional, IsMongoId, IsEnum, IsString } from 'class-validator';
+import { IsOptional, IsMongoId, IsEnum, IsString, IsNumberString } from 'class-validator';
 import { IntrantOrderStatusEnum } from '../schemas/intrant-order.schema';
 
 export class FindIntrantOrderDto {
+  @IsOptional()
+  @IsNumberString()
+  page?: number;
+
+  @IsOptional()
+  @IsNumberString()
+  limit?: number;
+
   @IsOptional()
   @IsMongoId()
   lab?: string;
@@ -17,6 +25,10 @@ export class FindIntrantOrderDto {
   @IsOptional()
   @IsEnum(IntrantOrderStatusEnum)
   status?: IntrantOrderStatusEnum;
+
+  @IsOptional()
+  @IsString()
+  batchNumber?: string;
 
   @IsOptional()
   @IsString()

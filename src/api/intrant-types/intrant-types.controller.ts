@@ -13,6 +13,7 @@ import {
 import { IntrantTypesService } from './intrant-types.service';
 import { CreateIntrantTypeDto } from './dto/create-intrant-type.dto';
 import { UpdateIntrantTypeDto } from './dto/update-intrant-type.dto';
+import { FindIntrantTypeDto } from './dto/find-intrant-type.dto';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
@@ -39,11 +40,11 @@ export class IntrantTypesController {
   }
 
   @Get()
-  async findAll(@Query('category') category: string, @Res() res) {
+  async findAll(@Query() query: FindIntrantTypeDto, @Res() res) {
     try {
-      const types = await this.intrantTypesService.findAll({ category });
+      const result = await this.intrantTypesService.findAll(query);
       return res.status(HttpStatus.OK).json({
-        data: types,
+        ...result,
       });
     } catch (error) {
       return res

@@ -6,25 +6,36 @@ import {
   Patch,
   Param,
   Delete,
-  Query,
   Res,
   HttpStatus,
+  Query,
+  Req,
 } from '@nestjs/common';
 import { EquipmentsService } from './equipments.service';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { FindEquipmentDto } from './dto/find-equipment.dto';
+import { Roles } from 'src/utils/decorators/role.decorator';
+import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
 
 @Controller('equipments')
 export class EquipmentsController {
   constructor(private readonly equipmentsService: EquipmentsService) {}
 
+  @Roles(Role.SuperAdmin, Role.LabAdmin)
   @Post()
-  async create(@Body() createEquipmentDto: CreateEquipmentDto, @Res() res) {
+  async create(
+    @Body() createEquipmentDto: CreateEquipmentDto,
+    @Req() req,
+    @Res() res,
+  ) {
     try {
       logger.info(`---EQUIPMENTS.CONTROLLER.CREATE INIT---`);
-      const equipment = await this.equipmentsService.create(createEquipmentDto);
+      const equipment = await this.equipmentsService.create(
+        createEquipmentDto,
+        req.user._id,
+      );
       logger.info(`---EQUIPMENTS.CONTROLLER.CREATE SUCCESS---`);
       return res.status(HttpStatus.CREATED).json({
         message: 'Équipement créé avec succès',
@@ -56,6 +67,24 @@ export class EquipmentsController {
     }
   }
 
+  @Get('statistics')
+  async getStatistics(@Req() req, @Res() res) {
+    try {
+      logger.info(`---EQUIPMENTS.CONTROLLER.GET_STATISTICS INIT---`);
+      const stats = await this.equipmentsService.getStatistics(req.user);
+      logger.info(`---EQUIPMENTS.CONTROLLER.GET_STATISTICS SUCCESS---`);
+      return res.status(HttpStatus.OK).json({
+        message: 'Statistiques des équipements récupérées avec succès',
+        data: stats,
+      });
+    } catch (error) {
+      logger.error(`---EQUIPMENT.CONTROLLER.GET_STATISTICS ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @Res() res) {
     try {
@@ -63,7 +92,7 @@ export class EquipmentsController {
       const equipment = await this.equipmentsService.findOne(id);
       logger.info(`---EQUIPMENTS.CONTROLLER.FIND_ONE SUCCESS--- id=${id}`);
       return res.status(HttpStatus.OK).json({
-        message: 'Équipement récupéré avec succès',
+        message: `Équipement ${id}`,
         data: equipment,
       });
     } catch (error) {
@@ -74,10 +103,12 @@ export class EquipmentsController {
     }
   }
 
+  @Roles(Role.SuperAdmin, Role.LabAdmin)
   @Patch(':id')
   async update(
     @Param('id') id: string,
     @Body() updateEquipmentDto: UpdateEquipmentDto,
+    @Req() req,
     @Res() res,
   ) {
     try {
@@ -85,10 +116,11 @@ export class EquipmentsController {
       const updated = await this.equipmentsService.update(
         id,
         updateEquipmentDto,
+        req.user,
       );
       logger.info(`---EQUIPMENTS.CONTROLLER.UPDATE SUCCESS--- id=${id}`);
       return res.status(HttpStatus.OK).json({
-        message: 'Équipement mis à jour avec succès',
+        message: `Équipement ${id} mis à jour`,
         data: updated,
       });
     } catch (error) {
@@ -99,6 +131,7 @@ export class EquipmentsController {
     }
   }
 
+  @Roles(Role.SuperAdmin)
   @Delete(':id')
   async remove(@Param('id') id: string, @Res() res) {
     try {
@@ -106,11 +139,30 @@ export class EquipmentsController {
       const deleted = await this.equipmentsService.remove(id);
       logger.info(`---EQUIPMENTS.CONTROLLER.REMOVE SUCCESS--- id=${id}`);
       return res.status(HttpStatus.OK).json({
-        message: 'Équipement supprimé avec succès',
+        message: `Équipement ${id} supprimé`,
         data: deleted,
       });
     } catch (error) {
       logger.error(`---EQUIPMENTS.CONTROLLER.REMOVE ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  @Roles(Role.SuperAdmin, Role.LabAdmin)
+  @Post(':id/receive')
+  async receive(@Param('id') id: string, @Req() req, @Res() res) {
+    try {
+      logger.info(`---EQUIPMENTS.CONTROLLER.RECEIVE INIT--- id=${id}`);
+      const result = await this.equipmentsService.receive(id, req.user._id);
+      logger.info(`---EQUIPMENTS.CONTROLLER.RECEIVE SUCCESS--- id=${id}`);
+      return res.status(HttpStatus.OK).json({
+        message: 'Équipement reçu et marqué comme disponible',
+        data: result,
+      });
+    } catch (error) {
+      logger.error(`---EQUIPMENTS.CONTROLLER.RECEIVE ERROR ${error}---`);
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: error.message });

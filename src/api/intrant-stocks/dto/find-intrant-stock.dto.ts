@@ -1,6 +1,14 @@
-import { IsOptional, IsMongoId } from 'class-validator';
+import { IsOptional, IsMongoId, IsNumberString, IsString } from 'class-validator';
 
 export class FindIntrantStockDto {
+  @IsOptional()
+  @IsNumberString()
+  page?: number;
+
+  @IsOptional()
+  @IsNumberString()
+  limit?: number;
+
   @IsOptional()
   @IsMongoId()
   lab?: string;
@@ -8,4 +16,12 @@ export class FindIntrantStockDto {
   @IsOptional()
   @IsMongoId()
   intrant?: string;
+
+  @IsOptional()
+  @IsString()
+  batchNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

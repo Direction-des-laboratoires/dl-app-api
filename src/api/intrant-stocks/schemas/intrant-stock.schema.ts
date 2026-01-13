@@ -54,6 +54,8 @@ export const IntrantStockSchema = new mongoose.Schema({
   },
 });
 
+IntrantStockSchema.index({ lab: 1, intrant: 1 }, { unique: true });
+
 IntrantStockSchema.pre('save', function (next) {
   this.updated_at = new Date();
   this.remainingQuantity = this.initialQuantity - this.usedQuantity;

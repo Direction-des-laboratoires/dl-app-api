@@ -8,27 +8,17 @@ export const IntrantSchema = new mongoose.Schema({
   },
   code: {
     type: String,
-    required: true,
     unique: true,
+    sparse: true,
   },
   type: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'IntrantType',
     required: true,
   },
-  unit: {
-    type: String,
-    enum: Object.values(UnitEnum),
-    required: true,
-    default: UnitEnum.UNIT,
-  },
   description: {
     type: String,
     default: null,
-  },
-  minThreshold: {
-    type: Number,
-    default: 0,
   },
   created_at: {
     type: Date,

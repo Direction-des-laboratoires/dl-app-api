@@ -5,7 +5,7 @@ import { Model } from 'mongoose';
 import { AlertStatus, AlertType } from 'src/api/alerts/schemas/alert.schema';
 import { Maintenance } from 'src/api/maintenances/entities/maintenance.entity';
 import { MaintenanceStatus } from 'src/api/maintenances/schemas/maintenance.schema';
-import { Equipment } from 'src/api/equipments/interfaces/equipment.interface';
+import { EquipmentType } from 'src/api/equipment-types/interfaces/equipment-type.interface';
 import { MailService } from 'src/providers/mail-service/mail.service';
 import logger from 'src/utils/logger';
 
@@ -15,7 +15,7 @@ export class AlertsJobService {
     @InjectModel('Alert') private alertModel: Model<any>,
     @InjectModel('Maintenance')
     private maintenanceModel: Model<Maintenance>,
-    @InjectModel('Equipment') private equipmentModel: Model<Equipment>,
+    @InjectModel('EquipmentType') private equipmentTypeModel: Model<EquipmentType>,
     private mailService: MailService,
   ) {}
 
@@ -38,9 +38,9 @@ export class AlertsJobService {
           active: true,
         })
         .populate({
-          path: 'labEquipment',
+          path: 'equipment',
           populate: {
-            path: 'equipment',
+            path: 'equipmentType',
           },
         })
         .populate('technician', 'firstname lastname phoneNumber email')
@@ -61,7 +61,7 @@ export class AlertsJobService {
             message: `Une maintenance ${
               schedule.maintenanceType
             } est prévue pour l'équipement ${
-              schedule.labEquipment?.equipment?.name
+              schedule.equipment?.equipmentType?.name
             } le ${schedule.nextMaintenanceDate.toLocaleDateString()}.`,
             recipient: schedule.technician?._id,
             relatedId: schedule._id,

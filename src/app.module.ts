@@ -30,19 +30,19 @@ import { MessageModule } from './api/message/message.module';
 import { OtpModule } from './api/otp/otp.module';
 import { RequestCommentModule } from './api/request-comment/request-comment.module';
 import { SdrModule } from './api/sdr/sdr.module';
+import { EquipmentCategoriesModule } from './api/equipment-categories/equipment-categories.module';
+import { EquipmentTypesModule } from './api/equipment-types/equipment-types.module';
 import { EquipmentsModule } from './api/equipments/equipments.module';
+import { EquipmentStocksModule } from './api/equipment-stocks/equipment-stocks.module';
+import { EquipmentOrdersModule } from './api/equipment-orders/equipment-orders.module';
 import { SuppliersModule } from './api/suppliers/suppliers.module';
 import { MaintenancesModule } from './api/maintenances/maintenances.module';
-import { EquipmentOrdersModule } from './api/equipment-orders/equipment-orders.module';
-import { LabEquipmentStocksModule } from './api/lab-equipment-stocks/lab-equipment-stocks.module';
-import { LabEquipmentsModule } from './api/lab-equipments/lab-equipments.module';
-import { EquipmentTypesModule } from './api/equipment_types/equipment_types.module';
-
 import { IntrantCategoriesModule } from './api/intrant-categories/intrant-categories.module';
 import { IntrantTypesModule } from './api/intrant-types/intrant-types.module';
 import { IntrantsModule } from './api/intrants/intrants.module';
 import { IntrantOrdersModule } from './api/intrant-orders/intrant-orders.module';
 import { IntrantStocksModule } from './api/intrant-stocks/intrant-stocks.module';
+import { IntrantUsagesModule } from './api/intrant-usages/intrant-usages.module';
 
 @Module({
   imports: [
@@ -100,18 +100,19 @@ import { IntrantStocksModule } from './api/intrant-stocks/intrant-stocks.module'
     OtpModule,
     RequestCommentModule,
     SdrModule,
-    EquipmentsModule,
     SuppliersModule,
     MaintenancesModule,
+    EquipmentCategoriesModule,
     EquipmentTypesModule,
+    EquipmentsModule,
+    EquipmentStocksModule,
     EquipmentOrdersModule,
-    LabEquipmentStocksModule,
-    LabEquipmentsModule,
     IntrantCategoriesModule,
     IntrantTypesModule,
     IntrantsModule,
     IntrantOrdersModule,
     IntrantStocksModule,
+    IntrantUsagesModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

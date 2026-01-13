@@ -9,6 +9,7 @@ import {
   Res,
   HttpStatus,
   Query,
+  Req,
 } from '@nestjs/common';
 import { MaintenancesService } from './maintenances.service';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
@@ -56,6 +57,27 @@ export class MaintenancesController {
       });
     } catch (error) {
       logger.error(`---MAINTENANCES.CONTROLLER.FIND_ALL ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff)
+  @Get('statistics')
+  async getStatistics(@Req() req, @Res() res) {
+    try {
+      logger.info(`---MAINTENANCES.CONTROLLER.GET_STATISTICS INIT---`);
+      const stats = await this.maintenancesService.getStatistics(req.user);
+      logger.info(`---MAINTENANCES.CONTROLLER.GET_STATISTICS SUCCESS---`);
+      return res.status(HttpStatus.OK).json({
+        message: 'Statistiques des maintenances récupérées avec succès',
+        data: stats,
+      });
+    } catch (error) {
+      logger.error(
+        `---MAINTENANCES.CONTROLLER.GET_STATISTICS ERROR ${error}---`,
+      );
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: error.message });

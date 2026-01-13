@@ -9,6 +9,7 @@ import {
   Query,
   Res,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { EquipmentOrdersService } from './equipment-orders.service';
 import { CreateEquipmentOrderDto } from './dto/create-equipment-order.dto';
@@ -28,12 +29,15 @@ export class EquipmentOrdersController {
   @Post()
   async create(
     @Body() createEquipmentOrderDto: CreateEquipmentOrderDto,
+    @Req() req,
     @Res() res,
   ) {
     try {
       logger.info(`---EQUIPMENT_ORDERS.CONTROLLER.CREATE INIT---`);
+      const user = req.user;
       const order = await this.equipmentOrdersService.create(
         createEquipmentOrderDto,
+        user,
       );
       logger.info(`---EQUIPMENT_ORDERS.CONTROLLER.CREATE SUCCESS---`);
       return res.status(HttpStatus.CREATED).json({
@@ -50,10 +54,11 @@ export class EquipmentOrdersController {
 
   @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff)
   @Get()
-  async findAll(@Query() query: FindEquipmentOrderDto, @Res() res) {
+  async findAll(@Query() query: FindEquipmentOrderDto, @Req() req, @Res() res) {
     try {
       logger.info(`---EQUIPMENT_ORDERS.CONTROLLER.FIND_ALL INIT---`);
-      const result = await this.equipmentOrdersService.findAll(query);
+      const user = req.user;
+      const result = await this.equipmentOrdersService.findAll(query, user);
       logger.info(`---EQUIPMENT_ORDERS.CONTROLLER.FIND_ALL SUCCESS---`);
       return res.status(HttpStatus.OK).json({
         message: 'Liste des commandes',
@@ -93,13 +98,16 @@ export class EquipmentOrdersController {
   async update(
     @Param('id') id: string,
     @Body() updateEquipmentOrderDto: UpdateEquipmentOrderDto,
+    @Req() req,
     @Res() res,
   ) {
     try {
       logger.info(`---EQUIPMENT_ORDERS.CONTROLLER.UPDATE INIT--- id=${id}`);
+      const user = req.user;
       const updated = await this.equipmentOrdersService.update(
         id,
         updateEquipmentOrderDto,
+        user,
       );
       logger.info(`---EQUIPMENT_ORDERS.CONTROLLER.UPDATE SUCCESS--- id=${id}`);
       return res.status(HttpStatus.OK).json({

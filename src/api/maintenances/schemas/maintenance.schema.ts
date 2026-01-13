@@ -25,9 +25,9 @@ export enum ScheduleFrequency {
 }
 
 export const MaintenanceSchema = new mongoose.Schema({
-  labEquipment: {
+  equipment: {
     type: mongoose.Schema.ObjectId,
-    ref: 'LabEquipment',
+    ref: 'Equipment',
     required: true,
   },
   maintenanceType: {

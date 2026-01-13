@@ -19,9 +19,13 @@ export const EquipmentOrderSchema = new mongoose.Schema({
     ref: 'Supplier',
     default: null,
   },
-  equipment: {
+  equipmentType: {
     type: mongoose.Schema.ObjectId,
-    ref: 'Equipment',
+    ref: 'EquipmentType',
+    required: true,
+  },
+  description: {
+    type: String,
     required: true,
   },
   purchaseDate: {

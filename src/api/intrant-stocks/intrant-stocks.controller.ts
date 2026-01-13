@@ -9,6 +9,7 @@ import {
   Res,
   HttpStatus,
   Query,
+  Req,
 } from '@nestjs/common';
 import { IntrantStocksService } from './intrant-stocks.service';
 import { CreateIntrantStockDto } from './dto/create-intrant-stock.dto';
@@ -23,9 +24,16 @@ export class IntrantStocksController {
 
   @Roles(Role.SuperAdmin, Role.LabAdmin)
   @Post()
-  async create(@Body() createIntrantStockDto: CreateIntrantStockDto, @Res() res) {
+  async create(
+    @Body() createIntrantStockDto: CreateIntrantStockDto,
+    @Req() req,
+    @Res() res,
+  ) {
     try {
-      const stock = await this.intrantStocksService.create(createIntrantStockDto);
+      const stock = await this.intrantStocksService.create(
+        createIntrantStockDto,
+        req.user,
+      );
       return res.status(HttpStatus.CREATED).json({
         message: 'Stock créé avec succès',
         data: stock,

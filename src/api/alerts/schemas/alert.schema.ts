@@ -2,7 +2,7 @@ import * as mongoose from 'mongoose';
 
 export enum AlertType {
   MAINTENANCE_REMINDER = 'maintenance_reminder',
-  EQUIPMENT_EXPIRY = 'equipment_expiry',
+  EQUIPMENT_EXPIRY = 'equipment-type_expiry',
   LOW_STOCK = 'low_stock',
   SYSTEM = 'system',
 }

@@ -17,7 +17,7 @@ import {
 export class CreateMaintenanceDto {
   @IsNotEmpty()
   @IsMongoId()
-  labEquipment: string;
+  equipment: string;
 
   @IsNotEmpty()
   @IsEnum(MaintenanceType)

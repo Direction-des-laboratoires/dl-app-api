@@ -6,7 +6,7 @@ import {
 } from '../schemas/maintenance.schema';
 
 export interface Maintenance extends Document {
-  labEquipment: any;
+  equipment: any;
   maintenanceType: MaintenanceType;
   technician: any;
   date: Date;

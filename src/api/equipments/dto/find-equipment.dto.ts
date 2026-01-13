@@ -1,18 +1,43 @@
-import { IsOptional, IsMongoId, IsString } from 'class-validator';
-import { Transform } from 'class-transformer';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsMongoId,
+  IsEnum,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { EquipmentStatus, InventoryStatus } from '../schemas/equipment.schema';
 
 export class FindEquipmentDto {
   @IsOptional()
-  @Transform(({ value }) => parseInt(value))
+  @Type(() => Number)
+  @IsNumber()
   page?: number;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value))
+  @Type(() => Number)
+  @IsNumber()
   limit?: number;
 
   @IsOptional()
   @IsMongoId()
+  lab?: string;
+
+  @IsOptional()
+  @IsMongoId()
   equipmentType?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  equipmentCategory?: string;
+
+  @IsOptional()
+  @IsEnum(EquipmentStatus)
+  status?: EquipmentStatus;
+
+  @IsOptional()
+  @IsEnum(InventoryStatus)
+  inventoryStatus?: InventoryStatus;
 
   @IsOptional()
   @IsString()

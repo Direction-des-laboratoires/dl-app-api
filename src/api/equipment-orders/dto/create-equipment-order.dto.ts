@@ -22,7 +22,11 @@ export class CreateEquipmentOrderDto {
 
   @IsNotEmpty()
   @IsMongoId()
-  equipment: string;
+  equipmentType: string;
+
+  @IsNotEmpty()
+  @IsString()
+  description: string;
 
   @IsNotEmpty()
   @IsDateString()

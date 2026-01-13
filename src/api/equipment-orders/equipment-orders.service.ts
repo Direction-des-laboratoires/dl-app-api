@@ -7,31 +7,40 @@ import { FindEquipmentOrderDto } from './dto/find-equipment-order.dto';
 import logger from 'src/utils/logger';
 import { UpdateEquipmentOrderDto } from './dto/update-equipment-order.dto';
 import { OrderStatusEnum } from './schemas/equipment-order.schema';
-import { LabEquipmentStocksService } from '../lab-equipment-stocks/lab-equipment-stocks.service';
+import { EquipmentStocksService } from '../equipment-stocks/equipment-stocks.service';
+import { User } from '../user/interfaces/user.interface';
+import { Role } from 'src/utils/enums/roles.enum';
 
 @Injectable()
 export class EquipmentOrdersService {
   constructor(
     @InjectModel('EquipmentOrder')
     private equipmentOrderModel: Model<EquipmentOrder>,
-    @InjectModel('Equipment') private equipmentModel: Model<any>,
-    private labEquipmentStocksService: LabEquipmentStocksService,
+    @InjectModel('EquipmentType') private equipmentTypeModel: Model<any>,
+    private equipmentStocksService: EquipmentStocksService,
   ) {}
 
   async create(
     createEquipmentOrderDto: CreateEquipmentOrderDto,
+    user?: User,
   ): Promise<EquipmentOrder> {
     try {
       logger.info(`---EQUIPMENT_ORDERS.SERVICE.CREATE INIT---`);
+
+      // Logique de labo
+      if (user && user.role !== Role.SuperAdmin) {
+        createEquipmentOrderDto.lab = user.lab.toString();
+      }
+
       const order = await this.equipmentOrderModel.create(
         createEquipmentOrderDto,
       );
 
       // Si le statut est COMPLETED à la création, on met à jour le stock
       if (order.status === OrderStatusEnum.COMPLETED && order.lab) {
-        await this.labEquipmentStocksService.updateQuantity(
+        await this.equipmentStocksService.updateQuantity(
           order.lab.toString(),
-          order.equipment.toString(),
+          order.equipmentType.toString(),
           order.quantity,
           order.unit,
         );
@@ -39,7 +48,7 @@ export class EquipmentOrdersService {
 
       await order.populate('lab', 'name');
       await order.populate('supplier', 'name');
-      await order.populate('equipment', 'name');
+      await order.populate('equipmentType', 'name');
       await order.populate(
         'validatedBy',
         'firstname lastname phoneNumber email',
@@ -59,7 +68,7 @@ export class EquipmentOrdersService {
     }
   }
 
-  async findAll(query: FindEquipmentOrderDto): Promise<any> {
+  async findAll(query: FindEquipmentOrderDto, user?: User): Promise<any> {
     try {
       logger.info(`---EQUIPMENT_ORDERS.SERVICE.FIND_ALL INIT---`);
       const {
@@ -67,7 +76,8 @@ export class EquipmentOrdersService {
         limit = 10,
         search,
         supplier,
-        equipment,
+        equipmentType,
+        equipmentCategory,
         lab,
         status,
         validatedBy,
@@ -77,14 +87,33 @@ export class EquipmentOrdersService {
 
       const filters: any = {};
       if (supplier) filters.supplier = supplier;
-      if (equipment) filters.equipment = equipment;
+      if (equipmentType) filters.equipmentType = equipmentType;
       if (lab) filters.lab = lab;
+
+      // Filtre par labo si non SuperAdmin
+      if (user && user.role !== Role.SuperAdmin) {
+        filters.lab = user.lab.toString();
+      }
+
       if (status) filters.status = status;
       if (validatedBy) filters.validatedBy = validatedBy;
       if (completedBy) filters.completedBy = completedBy;
 
+      // Filtrer par catégorie d'équipement
+      if (equipmentCategory) {
+        const equipmentTypes = await this.equipmentTypeModel
+          .find({ equipmentCategory })
+          .select('_id')
+          .lean();
+        const equipmentTypeIds = equipmentTypes.map((e) => e._id);
+        filters.equipmentType = { $in: equipmentTypeIds };
+      }
+
       if (search) {
-        filters.$or = [{ notes: { $regex: search, $options: 'i' } }];
+        filters.$or = [
+          { notes: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+        ];
       }
 
       const [data, total] = await Promise.all([
@@ -92,7 +121,7 @@ export class EquipmentOrdersService {
           .find(filters)
           .populate('lab', 'name')
           .populate('supplier', 'name email phoneNumber')
-          .populate('equipment', 'name')
+          .populate('equipmentType', 'name')
           .populate('validatedBy', 'firstname lastname phoneNumber email')
           .populate('completedBy', 'firstname lastname phoneNumber email')
           .sort({ purchaseDate: -1 })
@@ -128,7 +157,7 @@ export class EquipmentOrdersService {
         .findById(id)
         .populate('lab', 'name')
         .populate('supplier', 'name email phoneNumber address')
-        .populate('equipment', 'name')
+        .populate('equipmentType', 'name')
         .populate('validatedBy', 'firstname lastname phoneNumber email')
         .populate('completedBy', 'firstname lastname phoneNumber email')
         .lean();
@@ -150,6 +179,7 @@ export class EquipmentOrdersService {
   async update(
     id: string,
     updateEquipmentOrderDto: UpdateEquipmentOrderDto,
+    user?: User,
   ): Promise<any> {
     try {
       logger.info(`---EQUIPMENT_ORDERS.SERVICE.UPDATE INIT--- id=${id}`);
@@ -157,64 +187,60 @@ export class EquipmentOrdersService {
       // Récupérer la commande actuelle pour comparer le statut
       const currentOrder = await this.equipmentOrderModel
         .findById(id)
-        .populate('equipment');
+        .populate('equipmentType');
       if (!currentOrder) {
         throw new HttpException('Commande non trouvée', HttpStatus.NOT_FOUND);
+      }
+
+      if (currentOrder.status === OrderStatusEnum.COMPLETED) {
+        throw new HttpException(
+          'Une commande déjà complétée ne peut plus être modifiée',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const oldStatus = currentOrder.status;
       const newStatus = updateEquipmentOrderDto.status;
 
+      const updateData: any = {
+        ...updateEquipmentOrderDto,
+        updated_at: new Date(),
+      };
+
+      if (user) {
+        if (
+          newStatus === OrderStatusEnum.VALIDATED &&
+          oldStatus !== OrderStatusEnum.VALIDATED
+        ) {
+          updateData.validatedBy = user._id;
+        }
+
+        if (newStatus === OrderStatusEnum.COMPLETED) {
+          updateData.completedBy = user._id;
+        }
+      }
+
       const updated = await this.equipmentOrderModel
-        .findByIdAndUpdate(
-          id,
-          { ...updateEquipmentOrderDto, updated_at: new Date() },
-          { new: true },
-        )
+        .findByIdAndUpdate(id, updateData, { new: true })
         .populate('lab', 'name')
         .populate('supplier', 'name')
-        .populate('equipment', 'name')
+        .populate('equipmentType', 'name')
         .populate('validatedBy', 'firstname lastname phoneNumber email')
         .populate('completedBy', 'firstname lastname phoneNumber email')
         .lean();
 
       // Si le statut passe à COMPLETED, on augmente le stock du labo
-      if (
-        newStatus === OrderStatusEnum.COMPLETED &&
-        oldStatus !== OrderStatusEnum.COMPLETED
-      ) {
+      if (newStatus === OrderStatusEnum.COMPLETED) {
         logger.info(
           `---EQUIPMENT_ORDERS.SERVICE.UPDATE STATUS COMPLETED--- updating stock quantity`,
         );
 
-        // currentOrder.equipment est déjà peuplé car on a fait .populate('equipment') plus haut
-        const equipment = currentOrder.equipment;
-        console.log('---EQUIPMENT---', equipment);
-
-        if (equipment && equipment.equipmentType && currentOrder.lab) {
-          await this.labEquipmentStocksService.updateQuantity(
+        const equipmentType = currentOrder.equipmentType;
+        if (equipmentType && currentOrder.lab) {
+          await this.equipmentStocksService.updateQuantity(
             currentOrder.lab.toString(),
-            equipment._id.toString(),
+            equipmentType._id.toString(),
             currentOrder.quantity,
-            currentOrder.unit,
-          );
-        }
-      }
-      // Si le statut était COMPLETED et qu'il change vers autre chose
-      else if (
-        oldStatus === OrderStatusEnum.COMPLETED &&
-        newStatus !== OrderStatusEnum.COMPLETED &&
-        newStatus !== undefined
-      ) {
-        logger.info(
-          `---EQUIPMENT_ORDERS.SERVICE.UPDATE STATUS FROM COMPLETED--- updating stock quantity`,
-        );
-        const equipment = currentOrder.equipment;
-        if (equipment && equipment.equipmentType && currentOrder.lab) {
-          await this.labEquipmentStocksService.updateQuantity(
-            currentOrder.lab.toString(),
-            equipment._id.toString(),
-            -currentOrder.quantity,
             currentOrder.unit,
           );
         }
@@ -245,9 +271,9 @@ export class EquipmentOrdersService {
 
       // Si la commande était COMPLETED, on décrémente le stock du labo
       if (order.status === OrderStatusEnum.COMPLETED && order.lab) {
-        await this.labEquipmentStocksService.updateQuantity(
+        await this.equipmentStocksService.updateQuantity(
           order.lab.toString(),
-          order.equipment.toString(),
+          order.equipmentType.toString(),
           -order.quantity,
           order.unit,
         );
