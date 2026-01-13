@@ -17,6 +17,8 @@ export class EquipmentOrdersService {
     @InjectModel('EquipmentOrder')
     private equipmentOrderModel: Model<EquipmentOrder>,
     @InjectModel('EquipmentType') private equipmentTypeModel: Model<any>,
+    @InjectModel('Lab') private labModel: Model<any>,
+    @InjectModel('Supplier') private supplierModel: Model<any>,
     private equipmentStocksService: EquipmentStocksService,
   ) {}
 
@@ -110,9 +112,27 @@ export class EquipmentOrdersService {
       }
 
       if (search) {
+        const [typeIds, labIds, supplierIds] = await Promise.all([
+          this.equipmentTypeModel
+            .find({ name: { $regex: search, $options: 'i' } })
+            .select('_id')
+            .lean(),
+          this.labModel
+            .find({ name: { $regex: search, $options: 'i' } })
+            .select('_id')
+            .lean(),
+          this.supplierModel
+            .find({ name: { $regex: search, $options: 'i' } })
+            .select('_id')
+            .lean(),
+        ]);
+
         filters.$or = [
           { notes: { $regex: search, $options: 'i' } },
           { description: { $regex: search, $options: 'i' } },
+          { equipmentType: { $in: typeIds.map((t) => t._id) } },
+          { lab: { $in: labIds.map((l) => l._id) } },
+          { supplier: { $in: supplierIds.map((s) => s._id) } },
         ];
       }
 

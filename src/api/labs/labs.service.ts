@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateLabDto } from './dto/create-lab.dto';
 import { UpdateLabDto } from './dto/update-lab.dto';
+import { FindLabsDto } from './dto/find-lab.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Lab } from './interfaces/labs.interface';
@@ -127,17 +128,7 @@ export class LabsService {
     }
   }
 
-  async findAll(query: {
-    page?: number;
-    limit?: number;
-    structure?: string;
-    type?: string;
-    region?: string;
-    department?: string;
-    district?: string;
-    name?: string;
-    specialities?: string[];
-  }): Promise<any> {
+  async findAll(query: FindLabsDto): Promise<any> {
     try {
       const {
         page = 1,
@@ -148,6 +139,7 @@ export class LabsService {
         department,
         district,
         name,
+        search,
         specialities,
       } = query;
 
@@ -158,6 +150,25 @@ export class LabsService {
       if (structure) labFilters.structure = structure;
       if (type) labFilters.type = type;
       if (name) labFilters.name = { $regex: name, $options: 'i' }; // recherche insensible à la casse
+
+      if (search) {
+        const structureIdsFromSearch = await this.structureModel
+          .find({ name: { $regex: search, $options: 'i' } })
+          .select('_id')
+          .exec();
+
+        labFilters.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { code: { $regex: search, $options: 'i' } },
+          { phoneNumber: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { address: { $regex: search, $options: 'i' } },
+          {
+            structure: { $in: structureIdsFromSearch.map((s) => s._id) },
+          },
+        ];
+      }
+
       if (specialities && specialities.length > 0) {
         // Filtrer les labs qui ont au moins une des spécialités fournies
         // Convertir les strings en ObjectId si nécessaire
@@ -475,90 +486,10 @@ export class LabsService {
 
   async findLabsByRegion(
     regionId: string,
-    query: {
-      page?: number;
-      limit?: number;
-    },
+    query: FindLabsDto,
   ): Promise<any> {
     try {
-      const { page = 1, limit = 10 } = query;
-      const skip = (page - 1) * limit;
-
-      // Récupérer d'abord les IDs des structures de cette région
-      const matchingStructures = await this.structureModel
-        .find({ region: regionId })
-        .select('_id')
-        .exec();
-
-      const structureIds = matchingStructures.map((s) => s._id);
-
-      if (structureIds.length === 0) {
-        return {
-          data: [],
-          total: 0,
-          page,
-          limit,
-          totalPages: 0,
-        };
-      }
-
-      const [labs, total] = await Promise.all([
-        this.labModel
-          .find({ structure: { $in: structureIds } })
-          .populate({
-            path: 'structure',
-            populate: [
-              { path: 'region', select: 'name code' },
-              { path: 'department', select: 'name code' },
-            ],
-          })
-          .populate({
-            path: 'director',
-            select: 'email firstname lastname phoneNumber level specialities',
-            populate: [
-              { path: 'level', select: 'name description' },
-              { path: 'specialities', select: 'name description' },
-            ],
-          })
-          .populate({
-            path: 'responsible',
-            select: 'email firstname lastname phoneNumber level specialities',
-            populate: [
-              { path: 'level', select: 'name description' },
-              { path: 'specialities', select: 'name description' },
-            ],
-          })
-          .populate({
-            path: 'specialities',
-            select: 'name description',
-          })
-          .skip(skip)
-          .limit(limit)
-          .sort({ created_at: -1 })
-          .lean(),
-        this.labModel.countDocuments({ structure: { $in: structureIds } }),
-      ]);
-
-      // Sanitizer les utilisateurs dans les résultats
-      const sanitizedLabs = labs.map((lab: any) => {
-        if (lab.director) {
-          lab.director = sanitizeUserObject(lab.director);
-        }
-        if (lab.responsible) {
-          lab.responsible = sanitizeUserObject(lab.responsible);
-        }
-        return lab;
-      });
-
-      return {
-        data: sanitizedLabs,
-        pagination: {
-          total,
-          page: Number(page),
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
+      return await this.findAll({ ...query, region: regionId });
     } catch (error) {
       throw new HttpException(error.message, 500);
     }

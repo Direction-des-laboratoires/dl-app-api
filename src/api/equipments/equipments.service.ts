@@ -22,6 +22,7 @@ export class EquipmentsService {
     private equipmentStockModel: Model<EquipmentStock>,
     @InjectModel('EquipmentType') private equipmentTypeModel: Model<EquipmentType>,
     @InjectModel('EquipmentOrder') private equipmentOrderModel: Model<any>,
+    @InjectModel('Lab') private labModel: Model<any>,
   ) {}
 
   async create(
@@ -92,11 +93,24 @@ export class EquipmentsService {
       }
 
       if (search) {
+        const [typeIds, labIds] = await Promise.all([
+          this.equipmentTypeModel
+            .find({ name: { $regex: search, $options: 'i' } })
+            .select('_id')
+            .lean(),
+          this.labModel
+            .find({ name: { $regex: search, $options: 'i' } })
+            .select('_id')
+            .lean(),
+        ]);
+
         filters.$or = [
           { serialNumber: { $regex: search, $options: 'i' } },
           { modelName: { $regex: search, $options: 'i' } },
           { brand: { $regex: search, $options: 'i' } },
           { notes: { $regex: search, $options: 'i' } },
+          { equipmentType: { $in: typeIds.map((t) => t._id) } },
+          { lab: { $in: labIds.map((l) => l._id) } },
         ];
       }
 

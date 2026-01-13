@@ -33,6 +33,9 @@ export class FindLabsDto {
   name?: string;
 
   @IsOptional()
+  search?: string;
+
+  @IsOptional()
   @Transform(({ value }) => {
     // Si c'est déjà un tableau, le retourner tel quel
     if (Array.isArray(value)) {

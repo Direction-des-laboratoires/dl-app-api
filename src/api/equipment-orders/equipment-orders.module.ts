@@ -6,6 +6,8 @@ import { EquipmentOrderSchema } from './schemas/equipment-order.schema';
 import { EquipmentCategorySchema } from '../equipment-categories/schemas/equipment-category.schema';
 import { EquipmentTypeSchema } from '../equipment-types/schemas/equipment-type.schema';
 import { EquipmentStocksModule } from '../equipment-stocks/equipment-stocks.module';
+import { LabSchema } from '../labs/schemas/lab.schema';
+import { SupplierSchema } from '../suppliers/schemas/supplier.schema';
 
 @Module({
   imports: [
@@ -13,6 +15,8 @@ import { EquipmentStocksModule } from '../equipment-stocks/equipment-stocks.modu
       { name: 'EquipmentOrder', schema: EquipmentOrderSchema },
       { name: 'EquipmentCategory', schema: EquipmentCategorySchema },
       { name: 'EquipmentType', schema: EquipmentTypeSchema },
+      { name: 'Lab', schema: LabSchema },
+      { name: 'Supplier', schema: SupplierSchema },
     ]),
     EquipmentStocksModule,
   ],

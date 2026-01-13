@@ -15,6 +15,7 @@ export class EquipmentStocksService {
     @InjectModel('EquipmentStock')
     private equipmentStockModel: Model<EquipmentStock>,
     @InjectModel('EquipmentType') private equipmentTypeModel: Model<any>,
+    @InjectModel('Lab') private labModel: Model<any>,
   ) {}
 
   async create(
@@ -89,9 +90,21 @@ export class EquipmentStocksService {
       }
 
       if (search) {
-        // La recherche peut être plus complexe si on veut chercher dans les noms peuplés
-        // Pour l'instant, on reste simple ou on ne met rien si pas de champ texte direct
-        // filters.$or = [...];
+        const [typeIds, labIds] = await Promise.all([
+          this.equipmentTypeModel
+            .find({ name: { $regex: search, $options: 'i' } })
+            .select('_id')
+            .lean(),
+          this.labModel
+            .find({ name: { $regex: search, $options: 'i' } })
+            .select('_id')
+            .lean(),
+        ]);
+
+        filters.$or = [
+          { equipmentType: { $in: typeIds.map((t) => t._id) } },
+          { lab: { $in: labIds.map((l) => l._id) } },
+        ];
       }
 
       const [data, total] = await Promise.all([

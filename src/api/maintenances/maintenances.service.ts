@@ -21,6 +21,8 @@ export class MaintenancesService {
     private maintenanceModel: Model<Maintenance>,
     @InjectModel('Equipment')
     private equipmentModel: Model<any>,
+    @InjectModel('User')
+    private userModel: Model<any>,
   ) {}
 
   private calculateNextDate(
@@ -126,9 +128,34 @@ export class MaintenancesService {
       if (frequency) filters.frequency = frequency;
 
       if (search) {
+        const [equipmentIds, technicianIds] = await Promise.all([
+          this.equipmentModel
+            .find({
+              $or: [
+                { serialNumber: { $regex: search, $options: 'i' } },
+                { modelName: { $regex: search, $options: 'i' } },
+                { brand: { $regex: search, $options: 'i' } },
+              ],
+            })
+            .select('_id')
+            .lean(),
+          this.userModel
+            .find({
+              $or: [
+                { firstname: { $regex: search, $options: 'i' } },
+                { lastname: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+              ],
+            })
+            .select('_id')
+            .lean(),
+        ]);
+
         filters.$or = [
           { description: { $regex: search, $options: 'i' } },
           { notes: { $regex: search, $options: 'i' } },
+          { equipment: { $in: equipmentIds.map((e) => e._id) } },
+          { technician: { $in: technicianIds.map((t) => t._id) } },
         ];
       }
 
