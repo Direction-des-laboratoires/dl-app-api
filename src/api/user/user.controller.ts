@@ -133,6 +133,30 @@ export class UserController {
     }
   }
 
+  @Roles(Role.SuperAdmin, Role.LabAdmin)
+  @Get('sdrs')
+  async findSDRs(@Query() query: FindUsersDto, @Req() req, @Res() res) {
+    try {
+      logger.info(`---USER.CONTROLLER.FIND_SDRS INIT---`);
+      const result = await this.userService.findSDRs(query);
+      return res.status(HttpStatus.OK).json({
+        message: 'Liste des SDRs',
+        data: result.data,
+        pagination: {
+          total: result.total,
+          page: parseInt(result.page as any),
+          limit: parseInt(result.limit as any),
+          totalPages: result.totalPages,
+        },
+      });
+    } catch (error: any) {
+      logger.error(`---USER.CONTROLLER.FIND_SDRS ERROR ${error}---`);
+      return res.status(error.status || 500).json({
+        message: error.message || 'Erreur serveur',
+      });
+    }
+  }
+
   /**
    * Récupère le personnel d'un laboratoire spécifique
    * Doit être défini avant @Get(':userId') pour éviter les conflits de routes

@@ -179,7 +179,14 @@ export class UserService {
       if (lab) filters.lab = lab;
       if (level) filters.level = level;
       if (region) filters.region = region;
-      if (role) filters.role = role;
+
+      if (role && role !== Role.SdrAdmin) {
+        filters.role = role;
+      } else {
+        // Toujours exclure les SDR de la liste générale des utilisateurs
+        filters.role = { $ne: Role.SdrAdmin };
+      }
+
       if (active !== undefined) filters.active = active;
       if (specialities && specialities.length > 0) {
         // Filtrer les users qui ont au moins une des spécialités fournies
@@ -214,6 +221,59 @@ export class UserService {
             path: 'specialities',
             select: 'name description',
           })
+          .lean(),
+        this.userModel.countDocuments(filters),
+      ]);
+
+      return {
+        data,
+        limit,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        error.message || 'Erreur serveur',
+        error.status || 500,
+      );
+    }
+  }
+
+  async findSDRs(query: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    active?: boolean;
+    region?: string;
+  }): Promise<any> {
+    try {
+      const { page = 1, limit = 10, search, active, region } = query;
+
+      const filters: any = { role: Role.SdrAdmin };
+
+      if (search) {
+        filters.$or = [
+          { firstname: { $regex: search, $options: 'i' } },
+          { lastname: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { phoneNumber: { $regex: search, $options: 'i' } },
+        ];
+      }
+
+      if (active !== undefined) filters.active = active;
+      if (region) filters.region = region;
+
+      const skip = (page - 1) * limit;
+
+      const [data, total] = await Promise.all([
+        this.userModel
+          .find(filters)
+          .skip(skip)
+          .limit(limit)
+          .sort({ created_at: -1 })
+          .select('-password')
+          .populate('region', 'name code')
           .lean(),
         this.userModel.countDocuments(filters),
       ]);
