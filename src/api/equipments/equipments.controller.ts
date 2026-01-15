@@ -152,10 +152,19 @@ export class EquipmentsController {
 
   @Roles(Role.SuperAdmin, Role.LabAdmin)
   @Post(':id/receive')
-  async receive(@Param('id') id: string, @Req() req, @Res() res) {
+  async receive(
+    @Param('id') id: string,
+    @Body('receivedDate') receivedDate: Date,
+    @Req() req,
+    @Res() res,
+  ) {
     try {
       logger.info(`---EQUIPMENTS.CONTROLLER.RECEIVE INIT--- id=${id}`);
-      const result = await this.equipmentsService.receive(id, req.user._id);
+      const result = await this.equipmentsService.receive(
+        id,
+        req.user._id,
+        receivedDate,
+      );
       logger.info(`---EQUIPMENTS.CONTROLLER.RECEIVE SUCCESS--- id=${id}`);
       return res.status(HttpStatus.OK).json({
         message: 'Équipement reçu et marqué comme disponible',

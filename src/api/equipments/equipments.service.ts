@@ -7,10 +7,7 @@ import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { FindEquipmentDto } from './dto/find-equipment.dto';
 import { EquipmentStock } from '../equipment-stocks/interfaces/equipment-stock.interface';
 import { EquipmentType } from '../equipment-types/interfaces/equipment-type.interface';
-import {
-  EquipmentStatus,
-  InventoryStatus,
-} from './schemas/equipment.schema';
+import { EquipmentStatus, InventoryStatus } from './schemas/equipment.schema';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
 
@@ -20,7 +17,8 @@ export class EquipmentsService {
     @InjectModel('Equipment') private equipmentModel: Model<Equipment>,
     @InjectModel('EquipmentStock')
     private equipmentStockModel: Model<EquipmentStock>,
-    @InjectModel('EquipmentType') private equipmentTypeModel: Model<EquipmentType>,
+    @InjectModel('EquipmentType')
+    private equipmentTypeModel: Model<EquipmentType>,
     @InjectModel('EquipmentOrder') private equipmentOrderModel: Model<any>,
     @InjectModel('Lab') private labModel: Model<any>,
   ) {}
@@ -177,10 +175,7 @@ export class EquipmentsService {
         .exec();
 
       if (!equipment) {
-        throw new HttpException(
-          'Équipement non trouvé',
-          HttpStatus.NOT_FOUND,
-        );
+        throw new HttpException('Équipement non trouvé', HttpStatus.NOT_FOUND);
       }
       logger.info(`---EQUIPMENTS.SERVICE.FIND_ONE SUCCESS--- id=${id}`);
       return equipment;
@@ -203,10 +198,7 @@ export class EquipmentsService {
 
       const existing = await this.equipmentModel.findById(id);
       if (!existing) {
-        throw new HttpException(
-          'Équipement non trouvé',
-          HttpStatus.NOT_FOUND,
-        );
+        throw new HttpException('Équipement non trouvé', HttpStatus.NOT_FOUND);
       }
 
       // Restriction sur affectedTo
@@ -272,10 +264,7 @@ export class EquipmentsService {
       logger.info(`---EQUIPMENTS.SERVICE.REMOVE INIT--- id=${id}`);
       const equipment = await this.equipmentModel.findById(id);
       if (!equipment) {
-        throw new HttpException(
-          'Équipement non trouvé',
-          HttpStatus.NOT_FOUND,
-        );
+        throw new HttpException('Équipement non trouvé', HttpStatus.NOT_FOUND);
       }
 
       const deleted = await this.equipmentModel.findByIdAndDelete(id).exec();
@@ -302,16 +291,17 @@ export class EquipmentsService {
     }
   }
 
-  async receive(id: string, userId: string): Promise<Equipment> {
+  async receive(
+    id: string,
+    userId: string,
+    receivedDate?: Date,
+  ): Promise<Equipment> {
     try {
       logger.info(`---EQUIPMENTS.SERVICE.RECEIVE INIT--- id=${id}`);
       const equipment = await this.equipmentModel.findById(id);
 
       if (!equipment) {
-        throw new HttpException(
-          'Équipement non trouvé',
-          HttpStatus.NOT_FOUND,
-        );
+        throw new HttpException('Équipement non trouvé', HttpStatus.NOT_FOUND);
       }
 
       if (equipment.inventoryStatus !== InventoryStatus.IN_DELIVERY) {
@@ -323,7 +313,9 @@ export class EquipmentsService {
 
       equipment.inventoryStatus = InventoryStatus.AVAILABLE;
       equipment.receivedBy = userId as any;
-      equipment.receivedDate = new Date();
+      equipment.receivedDate = receivedDate
+        ? new Date(receivedDate)
+        : new Date();
       equipment.updated_at = new Date();
 
       const updated = await equipment.save();
@@ -351,49 +343,44 @@ export class EquipmentsService {
         filters.lab = user.lab;
       }
 
-      const [
-        total,
-        byStatus,
-        byInventoryStatus,
-        byCategory,
-        ordersByStatus,
-      ] = await Promise.all([
-        this.equipmentModel.countDocuments(filters),
-        this.equipmentModel.aggregate([
-          { $match: filters },
-          { $group: { _id: '$status', count: { $sum: 1 } } },
-        ]),
-        this.equipmentModel.aggregate([
-          { $match: filters },
-          { $group: { _id: '$inventoryStatus', count: { $sum: 1 } } },
-        ]),
-        this.equipmentModel.aggregate([
-          { $match: filters },
-          {
-            $lookup: {
-              from: 'equipmenttypes',
-              localField: 'equipmentType',
-              foreignField: '_id',
-              as: 'type',
+      const [total, byStatus, byInventoryStatus, byCategory, ordersByStatus] =
+        await Promise.all([
+          this.equipmentModel.countDocuments(filters),
+          this.equipmentModel.aggregate([
+            { $match: filters },
+            { $group: { _id: '$status', count: { $sum: 1 } } },
+          ]),
+          this.equipmentModel.aggregate([
+            { $match: filters },
+            { $group: { _id: '$inventoryStatus', count: { $sum: 1 } } },
+          ]),
+          this.equipmentModel.aggregate([
+            { $match: filters },
+            {
+              $lookup: {
+                from: 'equipmenttypes',
+                localField: 'equipmentType',
+                foreignField: '_id',
+                as: 'type',
+              },
             },
-          },
-          { $unwind: '$type' },
-          {
-            $lookup: {
-              from: 'equipmentcategories',
-              localField: 'type.equipmentCategory',
-              foreignField: '_id',
-              as: 'category',
+            { $unwind: '$type' },
+            {
+              $lookup: {
+                from: 'equipmentcategories',
+                localField: 'type.equipmentCategory',
+                foreignField: '_id',
+                as: 'category',
+              },
             },
-          },
-          { $unwind: '$category' },
-          { $group: { _id: '$category.name', count: { $sum: 1 } } },
-        ]),
-        this.equipmentOrderModel.aggregate([
-          { $match: filters },
-          { $group: { _id: '$status', count: { $sum: 1 } } },
-        ]),
-      ]);
+            { $unwind: '$category' },
+            { $group: { _id: '$category.name', count: { $sum: 1 } } },
+          ]),
+          this.equipmentOrderModel.aggregate([
+            { $match: filters },
+            { $group: { _id: '$status', count: { $sum: 1 } } },
+          ]),
+        ]);
 
       logger.info(`---EQUIPMENTS.SERVICE.GET_STATISTICS SUCCESS---`);
       return {
