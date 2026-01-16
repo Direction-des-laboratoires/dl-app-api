@@ -44,7 +44,7 @@ export class MaintenancesController {
     }
   }
 
-  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff)
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff, Role.Technician)
   @Get()
   async findAll(@Query() query: FindMaintenanceDto, @Res() res) {
     try {
@@ -63,7 +63,7 @@ export class MaintenancesController {
     }
   }
 
-  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff)
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff, Role.Technician)
   @Get('statistics')
   async getStatistics(@Req() req, @Res() res) {
     try {
@@ -84,7 +84,7 @@ export class MaintenancesController {
     }
   }
 
-  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff)
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff, Role.Technician)
   @Get(':id')
   async findOne(@Param('id') id: string, @Res() res) {
     try {
@@ -103,7 +103,7 @@ export class MaintenancesController {
     }
   }
 
-  @Roles(Role.SuperAdmin, Role.LabAdmin)
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.Technician)
   @Patch(':id')
   async update(
     @Param('id') id: string,
