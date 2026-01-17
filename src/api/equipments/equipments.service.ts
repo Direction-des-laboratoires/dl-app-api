@@ -8,6 +8,7 @@ import { FindEquipmentDto } from './dto/find-equipment.dto';
 import { EquipmentStock } from '../equipment-stocks/interfaces/equipment-stock.interface';
 import { EquipmentType } from '../equipment-types/interfaces/equipment-type.interface';
 import { EquipmentStatus, InventoryStatus } from './schemas/equipment.schema';
+import { OrderStatusEnum } from '../equipment-orders/schemas/equipment-order.schema';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
 
@@ -385,22 +386,31 @@ export class EquipmentsService {
       logger.info(`---EQUIPMENTS.SERVICE.GET_STATISTICS SUCCESS---`);
       return {
         total,
-        byStatus: byStatus.reduce((acc, curr) => {
+        byStatus: Object.values(EquipmentStatus).reduce((acc: any, status) => {
+          const found = byStatus.find((s) => s._id === status);
+          acc[status] = found ? found.count : 0;
+          return acc;
+        }, {}),
+        byInventoryStatus: Object.values(InventoryStatus).reduce(
+          (acc: any, status) => {
+            const found = byInventoryStatus.find((s) => s._id === status);
+            acc[status] = found ? found.count : 0;
+            return acc;
+          },
+          {},
+        ),
+        byCategory: byCategory.reduce((acc: any, curr) => {
           acc[curr._id] = curr.count;
           return acc;
         }, {}),
-        byInventoryStatus: byInventoryStatus.reduce((acc, curr) => {
-          acc[curr._id] = curr.count;
-          return acc;
-        }, {}),
-        byCategory: byCategory.reduce((acc, curr) => {
-          acc[curr._id] = curr.count;
-          return acc;
-        }, {}),
-        ordersByStatus: ordersByStatus.reduce((acc, curr) => {
-          acc[curr._id] = curr.count;
-          return acc;
-        }, {}),
+        ordersByStatus: Object.values(OrderStatusEnum).reduce(
+          (acc: any, status) => {
+            const found = ordersByStatus.find((s) => s._id === status);
+            acc[status] = found ? found.count : 0;
+            return acc;
+          },
+          {},
+        ),
       };
     } catch (error) {
       logger.error(`---EQUIPMENTS.SERVICE.GET_STATISTICS ERROR ${error}---`);

@@ -7,9 +7,44 @@ import {
   IsEnum,
   IsDateString,
   Min,
+  IsArray,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { OrderStatusEnum } from '../schemas/equipment-order.schema';
 import { UnitEnum } from 'src/utils/enums/unit.enum';
+
+export class EquipmentOrderItemDto {
+  @IsNotEmpty()
+  @IsMongoId()
+  equipmentType: string;
+
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @IsOptional()
+  @IsString()
+  modelName?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  description: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  @Min(1)
+  quantity: number;
+
+  @IsNotEmpty()
+  @IsEnum(UnitEnum)
+  unit: UnitEnum;
+
+  @IsNotEmpty()
+  @IsNumber()
+  @Min(0)
+  purchasePrice: number;
+}
 
 export class CreateEquipmentOrderDto {
   @IsOptional()
@@ -21,30 +56,14 @@ export class CreateEquipmentOrderDto {
   supplier: string;
 
   @IsNotEmpty()
-  @IsMongoId()
-  equipmentType: string;
-
-  @IsNotEmpty()
-  @IsString()
-  description: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EquipmentOrderItemDto)
+  cart: EquipmentOrderItemDto[];
 
   @IsNotEmpty()
   @IsDateString()
   purchaseDate: Date;
-
-  @IsNotEmpty()
-  @IsNumber()
-  @Min(0)
-  purchasePrice: number;
-
-  @IsNotEmpty()
-  @IsNumber()
-  @Min(1)
-  quantity: number;
-
-  @IsNotEmpty()
-  @IsEnum(UnitEnum)
-  unit: UnitEnum;
 
   @IsOptional()
   @IsEnum(OrderStatusEnum)

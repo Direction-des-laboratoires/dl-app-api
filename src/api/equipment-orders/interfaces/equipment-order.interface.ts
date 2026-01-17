@@ -2,15 +2,22 @@ import { Document } from 'mongoose';
 import { OrderStatusEnum } from '../schemas/equipment-order.schema';
 import { UnitEnum } from 'src/utils/enums/unit.enum';
 
+export interface EquipmentOrderItem {
+  equipmentType: any;
+  brand?: string;
+  modelName?: string;
+  description: string;
+  quantity: number;
+  unit: UnitEnum;
+  purchasePrice: number;
+}
+
 export interface EquipmentOrder extends Document {
   lab: string;
   supplier: any;
-  equipmentType: any;
-  description: string;
+  cart: EquipmentOrderItem[];
+  totalPrice: number;
   purchaseDate: Date;
-  purchasePrice: number;
-  quantity: number;
-  unit: UnitEnum;
   status: OrderStatusEnum;
   notes?: string;
   validatedBy?: any;

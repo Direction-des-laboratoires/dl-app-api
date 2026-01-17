@@ -73,6 +73,28 @@ export class EquipmentOrdersController {
   }
 
   @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff)
+  @Get('statistics')
+  async getStatistics(@Req() req, @Res() res) {
+    try {
+      logger.info(`---EQUIPMENT_ORDERS.CONTROLLER.GET_STATISTICS INIT---`);
+      const user = req.user;
+      const stats = await this.equipmentOrdersService.getStatistics(user);
+      logger.info(`---EQUIPMENT_ORDERS.CONTROLLER.GET_STATISTICS SUCCESS---`);
+      return res.status(HttpStatus.OK).json({
+        message: 'Statistiques des commandes récupérées avec succès',
+        data: stats,
+      });
+    } catch (error) {
+      logger.error(
+        `---EQUIPMENT_ORDERS.CONTROLLER.GET_STATISTICS ERROR ${error}---`,
+      );
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff)
   @Get(':id')
   async findOne(@Param('id') id: string, @Res() res) {
     try {

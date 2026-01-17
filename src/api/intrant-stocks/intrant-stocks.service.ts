@@ -9,6 +9,7 @@ import logger from 'src/utils/logger';
 import { User } from '../user/interfaces/user.interface';
 import { Role } from 'src/utils/enums/roles.enum';
 import { generateBatchNumber } from 'src/utils/functions/code_generation';
+import { IntrantOrderStatusEnum } from '../intrant-orders/schemas/intrant-order.schema';
 
 @Injectable()
 export class IntrantStocksService {
@@ -240,14 +241,18 @@ export class IntrantStocksService {
         totalIntrants,
         totalStockItems,
         lowStockItems,
-        byCategory: byCategory.reduce((acc, curr) => {
+        byCategory: byCategory.reduce((acc: any, curr) => {
           acc[curr._id] = curr.count;
           return acc;
         }, {}),
-        ordersByStatus: ordersByStatus.reduce((acc, curr) => {
-          acc[curr._id] = curr.count;
-          return acc;
-        }, {}),
+        ordersByStatus: Object.values(IntrantOrderStatusEnum).reduce(
+          (acc: any, status) => {
+            const found = ordersByStatus.find((s) => s._id === status);
+            acc[status] = found ? found.count : 0;
+            return acc;
+          },
+          {},
+        ),
       };
     } catch (error) {
       logger.error(

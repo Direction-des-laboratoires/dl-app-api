@@ -19,35 +19,49 @@ export const EquipmentOrderSchema = new mongoose.Schema({
     ref: 'Supplier',
     default: null,
   },
-  equipmentType: {
-    type: mongoose.Schema.ObjectId,
-    ref: 'EquipmentType',
-    required: true,
-  },
-  description: {
-    type: String,
-    required: true,
+  cart: [
+    {
+      equipmentType: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'EquipmentType',
+        required: true,
+      },
+      brand: {
+        type: String,
+      },
+      modelName: {
+        type: String,
+      },
+      description: {
+        type: String,
+        required: true,
+      },
+      quantity: {
+        type: Number,
+        required: true,
+        min: 1,
+      },
+      unit: {
+        type: String,
+        enum: Object.values(UnitEnum),
+        required: true,
+        default: UnitEnum.UNIT,
+      },
+      purchasePrice: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+    },
+  ],
+  totalPrice: {
+    type: Number,
+    default: 0,
   },
   purchaseDate: {
     type: Date,
     required: true,
     default: Date.now,
-  },
-  purchasePrice: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-  unit: {
-    type: String,
-    enum: Object.values(UnitEnum),
-    required: true,
-    default: UnitEnum.UNIT,
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    min: 1,
   },
   status: {
     type: String,

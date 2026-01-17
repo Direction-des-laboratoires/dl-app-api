@@ -12,6 +12,14 @@ export const EquipmentStockSchema = new mongoose.Schema({
     ref: 'EquipmentType',
     required: true,
   },
+  brand: {
+    type: String,
+    default: null,
+  },
+  modelName: {
+    type: String,
+    default: null,
+  },
   initialQuantity: {
     type: Number,
     required: true,
@@ -54,7 +62,10 @@ export const EquipmentStockSchema = new mongoose.Schema({
   },
 });
 
-EquipmentStockSchema.index({ lab: 1, equipmentType: 1 }, { unique: true });
+EquipmentStockSchema.index(
+  { lab: 1, equipmentType: 1, brand: 1, modelName: 1 },
+  { unique: true },
+);
 
 // Hook pour calculer remainingQuantity automatiquement
 EquipmentStockSchema.pre('save', function (next) {

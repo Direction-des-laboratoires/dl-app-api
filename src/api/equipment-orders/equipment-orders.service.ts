@@ -34,23 +34,34 @@ export class EquipmentOrdersService {
         createEquipmentOrderDto.lab = user.lab.toString();
       }
 
-      const order = await this.equipmentOrderModel.create(
-        createEquipmentOrderDto,
-      );
+      // Calcul du prix total
+      const totalPrice = createEquipmentOrderDto.cart.reduce((acc, item) => {
+        return acc + item.purchasePrice * item.quantity;
+      }, 0);
 
-      // Si le statut est COMPLETED à la création, on met à jour le stock
+      const order = await this.equipmentOrderModel.create({
+        ...createEquipmentOrderDto,
+        totalPrice,
+      });
+
+      // Si le statut est COMPLETED à la création, on met à jour le stock pour chaque article du panier
       if (order.status === OrderStatusEnum.COMPLETED && order.lab) {
-        await this.equipmentStocksService.updateQuantity(
-          order.lab.toString(),
-          order.equipmentType.toString(),
-          order.quantity,
-          order.unit,
-        );
+        for (const item of order.cart) {
+          await this.equipmentStocksService.updateQuantity(
+            order.lab.toString(),
+            item.equipmentType.toString(),
+            item.quantity,
+            item.unit,
+            order._id.toString(),
+            item.brand,
+            item.modelName,
+          );
+        }
       }
 
       await order.populate('lab', 'name');
       await order.populate('supplier', 'name');
-      await order.populate('equipmentType', 'name');
+      await order.populate('cart.equipmentType', 'name');
       await order.populate(
         'validatedBy',
         'firstname lastname phoneNumber email',
@@ -89,7 +100,7 @@ export class EquipmentOrdersService {
 
       const filters: any = {};
       if (supplier) filters.supplier = supplier;
-      if (equipmentType) filters.equipmentType = equipmentType;
+      if (equipmentType) filters['cart.equipmentType'] = equipmentType;
       if (lab) filters.lab = lab;
 
       // Filtre par labo si non SuperAdmin
@@ -108,7 +119,7 @@ export class EquipmentOrdersService {
           .select('_id')
           .lean();
         const equipmentTypeIds = equipmentTypes.map((e) => e._id);
-        filters.equipmentType = { $in: equipmentTypeIds };
+        filters['cart.equipmentType'] = { $in: equipmentTypeIds };
       }
 
       if (search) {
@@ -129,8 +140,9 @@ export class EquipmentOrdersService {
 
         filters.$or = [
           { notes: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } },
-          { equipmentType: { $in: typeIds.map((t) => t._id) } },
+          { 'cart.description': { $regex: search, $options: 'i' } },
+          { 'cart.brand': { $regex: search, $options: 'i' } },
+          { 'cart.equipmentType': { $in: typeIds.map((t) => t._id) } },
           { lab: { $in: labIds.map((l) => l._id) } },
           { supplier: { $in: supplierIds.map((s) => s._id) } },
         ];
@@ -141,7 +153,7 @@ export class EquipmentOrdersService {
           .find(filters)
           .populate('lab', 'name')
           .populate('supplier', 'name email phoneNumber')
-          .populate('equipmentType', 'name')
+          .populate('cart.equipmentType', 'name')
           .populate('validatedBy', 'firstname lastname phoneNumber email')
           .populate('completedBy', 'firstname lastname phoneNumber email')
           .sort({ purchaseDate: -1 })
@@ -177,7 +189,7 @@ export class EquipmentOrdersService {
         .findById(id)
         .populate('lab', 'name')
         .populate('supplier', 'name email phoneNumber address')
-        .populate('equipmentType', 'name')
+        .populate('cart.equipmentType', 'name')
         .populate('validatedBy', 'firstname lastname phoneNumber email')
         .populate('completedBy', 'firstname lastname phoneNumber email')
         .lean();
@@ -205,9 +217,7 @@ export class EquipmentOrdersService {
       logger.info(`---EQUIPMENT_ORDERS.SERVICE.UPDATE INIT--- id=${id}`);
 
       // Récupérer la commande actuelle pour comparer le statut
-      const currentOrder = await this.equipmentOrderModel
-        .findById(id)
-        .populate('equipmentType');
+      const currentOrder = await this.equipmentOrderModel.findById(id);
       if (!currentOrder) {
         throw new HttpException('Commande non trouvée', HttpStatus.NOT_FOUND);
       }
@@ -227,6 +237,16 @@ export class EquipmentOrdersService {
         updated_at: new Date(),
       };
 
+      // Recalculer le prix total si le panier est présent dans l'update
+      if (updateEquipmentOrderDto.cart) {
+        updateData.totalPrice = updateEquipmentOrderDto.cart.reduce(
+          (acc, item) => {
+            return acc + item.purchasePrice * item.quantity;
+          },
+          0,
+        );
+      }
+
       if (user) {
         if (
           newStatus === OrderStatusEnum.VALIDATED &&
@@ -244,25 +264,29 @@ export class EquipmentOrdersService {
         .findByIdAndUpdate(id, updateData, { new: true })
         .populate('lab', 'name')
         .populate('supplier', 'name')
-        .populate('equipmentType', 'name')
+        .populate('cart.equipmentType', 'name')
         .populate('validatedBy', 'firstname lastname phoneNumber email')
         .populate('completedBy', 'firstname lastname phoneNumber email')
         .lean();
 
-      // Si le statut passe à COMPLETED, on augmente le stock du labo
+      // Si le statut passe à COMPLETED, on augmente le stock du labo pour chaque article
       if (newStatus === OrderStatusEnum.COMPLETED) {
         logger.info(
-          `---EQUIPMENT_ORDERS.SERVICE.UPDATE STATUS COMPLETED--- updating stock quantity`,
+          `---EQUIPMENT_ORDERS.SERVICE.UPDATE STATUS COMPLETED--- updating stock quantities`,
         );
 
-        const equipmentType = currentOrder.equipmentType;
-        if (equipmentType && currentOrder.lab) {
-          await this.equipmentStocksService.updateQuantity(
-            currentOrder.lab.toString(),
-            equipmentType._id.toString(),
-            currentOrder.quantity,
-            currentOrder.unit,
-          );
+        if (currentOrder.lab) {
+          for (const item of currentOrder.cart) {
+            await this.equipmentStocksService.updateQuantity(
+              currentOrder.lab.toString(),
+              item.equipmentType.toString(),
+              item.quantity,
+              item.unit,
+              currentOrder._id.toString(),
+              item.brand,
+              item.modelName,
+            );
+          }
         }
       }
 
@@ -289,20 +313,78 @@ export class EquipmentOrdersService {
         .findByIdAndDelete(id)
         .exec();
 
-      // Si la commande était COMPLETED, on décrémente le stock du labo
+      // Si la commande était COMPLETED, on décrémente le stock du labo pour chaque article
       if (order.status === OrderStatusEnum.COMPLETED && order.lab) {
-        await this.equipmentStocksService.updateQuantity(
-          order.lab.toString(),
-          order.equipmentType.toString(),
-          -order.quantity,
-          order.unit,
-        );
+        for (const item of order.cart) {
+          await this.equipmentStocksService.updateQuantity(
+            order.lab.toString(),
+            item.equipmentType.toString(),
+            -item.quantity,
+            item.unit,
+          );
+        }
       }
 
       logger.info(`---EQUIPMENT_ORDERS.SERVICE.REMOVE SUCCESS--- id=${id}`);
       return deleted as unknown as EquipmentOrder;
     } catch (error) {
       logger.error(`---EQUIPMENT_ORDERS.SERVICE.REMOVE ERROR ${error}---`);
+      throw new HttpException(
+        error.message || 'Erreur serveur',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getStatistics(user: User): Promise<any> {
+    try {
+      logger.info(`---EQUIPMENT_ORDERS.SERVICE.GET_STATISTICS INIT---`);
+      const filters: any = {};
+      if (user.role !== Role.SuperAdmin) {
+        filters.lab = user.lab;
+      }
+
+      const [totalOrders, totalAmount, byStatus, itemsStats] =
+        await Promise.all([
+          this.equipmentOrderModel.countDocuments(filters),
+          this.equipmentOrderModel.aggregate([
+            { $match: filters },
+            { $group: { _id: null, total: { $sum: '$totalPrice' } } },
+          ]),
+          this.equipmentOrderModel.aggregate([
+            { $match: filters },
+            { $group: { _id: '$status', count: { $sum: 1 } } },
+          ]),
+          this.equipmentOrderModel.aggregate([
+            { $match: filters },
+            { $unwind: '$cart' },
+            {
+              $group: {
+                _id: null,
+                totalItems: { $sum: '$cart.quantity' },
+                uniqueEquipmentTypes: { $addToSet: '$cart.equipmentType' },
+              },
+            },
+          ]),
+        ]);
+
+      logger.info(`---EQUIPMENT_ORDERS.SERVICE.GET_STATISTICS SUCCESS---`);
+      return {
+        totalOrders,
+        totalAmount: totalAmount[0]?.total || 0,
+        byStatus: Object.values(OrderStatusEnum).reduce((acc: any, status) => {
+          const found = byStatus.find((s) => s._id === status);
+          acc[status] = found ? found.count : 0;
+          return acc;
+        }, {}),
+        totalItemsOrdered: itemsStats[0]?.totalItems || 0,
+        uniqueEquipmentTypesCount:
+          itemsStats[0]?.uniqueEquipmentTypes?.length || 0,
+      };
+    } catch (error) {
+      logger.error(
+        `---EQUIPMENT_ORDERS.SERVICE.GET_STATISTICS ERROR ${error}---`,
+      );
       throw new HttpException(
         error.message || 'Erreur serveur',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,

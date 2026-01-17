@@ -44,7 +44,9 @@ export class EquipmentStocksService {
         );
       }
 
-      const stock = await this.equipmentStockModel.create(createEquipmentStockDto);
+      const stock = await this.equipmentStockModel.create(
+        createEquipmentStockDto,
+      );
       logger.info(`---EQUIPMENT_STOCKS.SERVICE.CREATE SUCCESS---`);
       return stock;
     } catch (error) {
@@ -102,6 +104,8 @@ export class EquipmentStocksService {
         ]);
 
         filters.$or = [
+          { brand: { $regex: search, $options: 'i' } },
+          { modelName: { $regex: search, $options: 'i' } },
           { equipmentType: { $in: typeIds.map((t) => t._id) } },
           { lab: { $in: labIds.map((l) => l._id) } },
         ];
@@ -216,7 +220,9 @@ export class EquipmentStocksService {
   async remove(id: string): Promise<EquipmentStock> {
     try {
       logger.info(`---EQUIPMENT_STOCKS.SERVICE.REMOVE INIT--- id=${id}`);
-      const deleted = await this.equipmentStockModel.findByIdAndDelete(id).exec();
+      const deleted = await this.equipmentStockModel
+        .findByIdAndDelete(id)
+        .exec();
       if (!deleted) {
         throw new HttpException('Stock non trouvé', HttpStatus.NOT_FOUND);
       }
@@ -237,10 +243,17 @@ export class EquipmentStocksService {
     quantity: number,
     unit: string,
     orderId?: string,
+    brand?: string,
+    modelName?: string,
   ): Promise<void> {
     try {
       logger.info(`---EQUIPMENT_STOCKS.SERVICE.UPDATE_QUANTITY INIT---`);
-      const stock = await this.equipmentStockModel.findOne({ lab, equipmentType });
+      const stock = await this.equipmentStockModel.findOne({
+        lab,
+        equipmentType,
+        brand,
+        modelName,
+      });
 
       if (stock) {
         stock.initialQuantity += quantity;
@@ -253,11 +266,15 @@ export class EquipmentStocksService {
           unit,
           minThreshold: 1, // Default threshold
           order: orderId,
+          brand,
+          modelName,
         });
       }
       logger.info(`---EQUIPMENT_STOCKS.SERVICE.UPDATE_QUANTITY SUCCESS---`);
     } catch (error) {
-      logger.error(`---EQUIPMENT_STOCKS.SERVICE.UPDATE_QUANTITY ERROR ${error}---`);
+      logger.error(
+        `---EQUIPMENT_STOCKS.SERVICE.UPDATE_QUANTITY ERROR ${error}---`,
+      );
     }
   }
 }

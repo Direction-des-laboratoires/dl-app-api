@@ -8,6 +8,7 @@ import { Maintenance } from './entities/maintenance.entity';
 import logger from 'src/utils/logger';
 import {
   MaintenanceStatus,
+  MaintenanceType,
   ScheduleFrequency,
 } from './schemas/maintenance.schema';
 
@@ -393,18 +394,24 @@ export class MaintenancesService {
       logger.info(`---MAINTENANCES.SERVICE.GET_STATISTICS SUCCESS---`);
       return {
         total: total[0]?.count || 0,
-        byStatus: byStatus.reduce((acc, curr) => {
-          acc[curr._id] = curr.count;
+        byStatus: Object.values(MaintenanceStatus).reduce((acc: any, status) => {
+          const found = byStatus.find((s) => s._id === status);
+          acc[status] = found ? found.count : 0;
           return acc;
         }, {}),
-        byType: byType.reduce((acc, curr) => {
-          acc[curr._id] = curr.count;
+        byType: Object.values(MaintenanceType).reduce((acc: any, type) => {
+          const found = byType.find((t) => t._id === type);
+          acc[type] = found ? found.count : 0;
           return acc;
         }, {}),
-        byFrequency: byFrequency.reduce((acc, curr) => {
-          acc[curr._id] = curr.count;
-          return acc;
-        }, {}),
+        byFrequency: Object.values(ScheduleFrequency).reduce(
+          (acc: any, frequency) => {
+            const found = byFrequency.find((f) => f._id === frequency);
+            acc[frequency] = found ? found.count : 0;
+            return acc;
+          },
+          {},
+        ),
         upcomingCount: upcomingCount[0]?.count || 0,
         overdueCount: overdueCount[0]?.count || 0,
       };

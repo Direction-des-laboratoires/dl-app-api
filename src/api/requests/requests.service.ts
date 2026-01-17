@@ -5,6 +5,8 @@ import { Request } from './entities/request.entity';
 import { RequestComment } from '../request-comment/interfaces/request-comment.interface';
 import { FindRequestsDto } from './dto/find-requests.dto';
 import logger from 'src/utils/logger';
+import { RequestStatusEnum } from 'src/utils/enums/request-status.enum';
+import { RequestTypeEnum } from 'src/utils/enums/request-type.enum';
 
 @Injectable()
 export class RequestsService {
@@ -142,12 +144,14 @@ export class RequestsService {
 
       const statistics = {
         total,
-        byType: byType.reduce((acc, item) => {
-          acc[item._id] = item.count;
+        byType: Object.values(RequestTypeEnum).reduce((acc: any, type) => {
+          const found = byType.find((t) => t._id === type);
+          acc[type] = found ? found.count : 0;
           return acc;
         }, {}),
-        byStatus: byStatus.reduce((acc, item) => {
-          acc[item._id] = item.count;
+        byStatus: Object.values(RequestStatusEnum).reduce((acc: any, status) => {
+          const found = byStatus.find((s) => s._id === status);
+          acc[status] = found ? found.count : 0;
           return acc;
         }, {}),
       };
