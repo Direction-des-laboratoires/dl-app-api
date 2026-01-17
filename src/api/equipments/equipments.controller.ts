@@ -50,10 +50,11 @@ export class EquipmentsController {
   }
 
   @Get()
-  async findAll(@Query() query: FindEquipmentDto, @Res() res) {
+  async findAll(@Query() query: FindEquipmentDto, @Req() req, @Res() res) {
     try {
       logger.info(`---EQUIPMENTS.CONTROLLER.FIND_ALL INIT---`);
-      const result = await this.equipmentsService.findAll(query);
+      const user = req.user;
+      const result = await this.equipmentsService.findAll(query, user);
       logger.info(`---EQUIPMENTS.CONTROLLER.FIND_ALL SUCCESS---`);
       return res.status(HttpStatus.OK).json({
         message: 'Liste des équipements',

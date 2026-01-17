@@ -10,6 +10,7 @@ import { EquipmentType } from '../equipment-types/interfaces/equipment-type.inte
 import { EquipmentStatus, InventoryStatus } from './schemas/equipment.schema';
 import { OrderStatusEnum } from '../equipment-orders/schemas/equipment-order.schema';
 import { Role } from 'src/utils/enums/roles.enum';
+import { User } from '../user/interfaces/user.interface';
 import logger from 'src/utils/logger';
 
 @Injectable()
@@ -60,7 +61,7 @@ export class EquipmentsService {
     }
   }
 
-  async findAll(query: FindEquipmentDto): Promise<any> {
+  async findAll(query: FindEquipmentDto, user?: User): Promise<any> {
     try {
       logger.info(`---EQUIPMENTS.SERVICE.FIND_ALL INIT---`);
       const {
@@ -71,15 +72,27 @@ export class EquipmentsService {
         equipmentCategory,
         status,
         inventoryStatus,
+        affectedTo,
+        brand,
+        modelName,
         search,
       } = query;
       const skip = (page - 1) * limit;
 
       const filters: any = {};
       if (lab) filters.lab = lab;
+
+      // Filtre par labo si non SuperAdmin
+      if (user && user.role !== Role.SuperAdmin) {
+        filters.lab = user.lab.toString();
+      }
+
       if (equipmentType) filters.equipmentType = equipmentType;
       if (status) filters.status = status;
       if (inventoryStatus) filters.inventoryStatus = inventoryStatus;
+      if (affectedTo) filters.affectedTo = affectedTo;
+      if (brand) filters.brand = { $regex: brand, $options: 'i' };
+      if (modelName) filters.modelName = { $regex: modelName, $options: 'i' };
 
       // Filtrer par catégorie d'équipement
       if (equipmentCategory) {

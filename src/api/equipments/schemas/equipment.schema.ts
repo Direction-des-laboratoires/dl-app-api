@@ -10,6 +10,7 @@ export enum EquipmentStatus {
 export enum InventoryStatus {
   IN_DELIVERY = 'in_delivery',
   AVAILABLE = 'available',
+  IN_STOCK = 'in_stock',
   IN_USE = 'in_use',
   RETIRED = 'retired',
 }
@@ -28,7 +29,7 @@ export const EquipmentSchema = new mongoose.Schema({
   serialNumber: {
     type: String,
     unique: true,
-    required: true,
+    default: null,
   },
   modelName: {
     type: String,

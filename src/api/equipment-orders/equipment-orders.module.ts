@@ -8,6 +8,7 @@ import { EquipmentTypeSchema } from '../equipment-types/schemas/equipment-type.s
 import { EquipmentStocksModule } from '../equipment-stocks/equipment-stocks.module';
 import { LabSchema } from '../labs/schemas/lab.schema';
 import { SupplierSchema } from '../suppliers/schemas/supplier.schema';
+import { EquipmentsModule } from '../equipments/equipments.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { SupplierSchema } from '../suppliers/schemas/supplier.schema';
       { name: 'Supplier', schema: SupplierSchema },
     ]),
     EquipmentStocksModule,
+    EquipmentsModule,
   ],
   controllers: [EquipmentOrdersController],
   providers: [EquipmentOrdersService],

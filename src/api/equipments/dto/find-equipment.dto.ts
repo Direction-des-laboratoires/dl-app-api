@@ -40,6 +40,18 @@ export class FindEquipmentDto {
   inventoryStatus?: InventoryStatus;
 
   @IsOptional()
+  @IsMongoId()
+  affectedTo?: string;
+
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @IsOptional()
+  @IsString()
+  modelName?: string;
+
+  @IsOptional()
   @IsString()
   search?: string;
 }

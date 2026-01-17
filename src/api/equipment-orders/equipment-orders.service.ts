@@ -10,6 +10,9 @@ import { OrderStatusEnum } from './schemas/equipment-order.schema';
 import { EquipmentStocksService } from '../equipment-stocks/equipment-stocks.service';
 import { User } from '../user/interfaces/user.interface';
 import { Role } from 'src/utils/enums/roles.enum';
+import { EquipmentsService } from '../equipments/equipments.service';
+import { InventoryStatus } from '../equipments/schemas/equipment.schema';
+import { generateBatchNumber } from 'src/utils/functions/code_generation';
 
 @Injectable()
 export class EquipmentOrdersService {
@@ -20,6 +23,7 @@ export class EquipmentOrdersService {
     @InjectModel('Lab') private labModel: Model<any>,
     @InjectModel('Supplier') private supplierModel: Model<any>,
     private equipmentStocksService: EquipmentStocksService,
+    private equipmentsService: EquipmentsService,
   ) {}
 
   async create(
@@ -44,7 +48,7 @@ export class EquipmentOrdersService {
         totalPrice,
       });
 
-      // Si le statut est COMPLETED à la création, on met à jour le stock pour chaque article du panier
+      // Si le statut est COMPLETED à la création, on met à jour le stock et on crée les équipements
       if (order.status === OrderStatusEnum.COMPLETED && order.lab) {
         for (const item of order.cart) {
           await this.equipmentStocksService.updateQuantity(
@@ -57,6 +61,7 @@ export class EquipmentOrdersService {
             item.modelName,
           );
         }
+        await this.createEquipmentsFromOrder(order, user?._id as string);
       }
 
       await order.populate('lab', 'name');
@@ -269,10 +274,10 @@ export class EquipmentOrdersService {
         .populate('completedBy', 'firstname lastname phoneNumber email')
         .lean();
 
-      // Si le statut passe à COMPLETED, on augmente le stock du labo pour chaque article
+      // Si le statut passe à COMPLETED, on augmente le stock du labo pour chaque article et on crée les équipements
       if (newStatus === OrderStatusEnum.COMPLETED) {
         logger.info(
-          `---EQUIPMENT_ORDERS.SERVICE.UPDATE STATUS COMPLETED--- updating stock quantities`,
+          `---EQUIPMENT_ORDERS.SERVICE.UPDATE STATUS COMPLETED--- updating stock and creating equipments`,
         );
 
         if (currentOrder.lab) {
@@ -287,6 +292,7 @@ export class EquipmentOrdersService {
               item.modelName,
             );
           }
+          await this.createEquipmentsFromOrder(updated, user?._id as string);
         }
       }
 
@@ -388,6 +394,38 @@ export class EquipmentOrdersService {
       throw new HttpException(
         error.message || 'Erreur serveur',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  private async createEquipmentsFromOrder(order: any, userId?: string) {
+    try {
+      for (const item of order.cart) {
+        for (let i = 0; i < item.quantity; i++) {
+          await this.equipmentsService.create(
+            {
+              lab: order.lab?._id
+                ? order.lab._id.toString()
+                : order.lab
+                ? order.lab.toString()
+                : null,
+              equipmentType: item.equipmentType._id
+                ? item.equipmentType._id.toString()
+                : item.equipmentType.toString(),
+              serialNumber: `SN-${generateBatchNumber(8)}`,
+              brand: item.brand,
+              modelName: item.modelName,
+              purchaseDate: order.purchaseDate,
+              inventoryStatus: InventoryStatus.IN_STOCK,
+              notes: `Créé automatiquement depuis la commande ${order._id}`,
+            },
+            userId,
+          );
+        }
+      }
+    } catch (error) {
+      logger.error(
+        `---EQUIPMENT_ORDERS.SERVICE.CREATE_EQUIPMENTS_FROM_ORDER ERROR ${error}---`,
       );
     }
   }
