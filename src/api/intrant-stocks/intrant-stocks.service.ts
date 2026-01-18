@@ -10,6 +10,8 @@ import { User } from '../user/interfaces/user.interface';
 import { Role } from 'src/utils/enums/roles.enum';
 import { generateBatchNumber } from 'src/utils/functions/code_generation';
 import { IntrantOrderStatusEnum } from '../intrant-orders/schemas/intrant-order.schema';
+import { buildStatisticsFilters } from 'src/utils/functions/filter-builder';
+import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
 
 @Injectable()
 export class IntrantStocksService {
@@ -18,6 +20,8 @@ export class IntrantStocksService {
     private intrantStockModel: Model<IntrantStock>,
     @InjectModel('IntrantOrder')
     private intrantOrderModel: Model<any>,
+    @InjectModel('Lab') private labModel: Model<any>,
+    @InjectModel('Structure') private structureModel: Model<any>,
   ) {}
 
   async create(
@@ -176,13 +180,15 @@ export class IntrantStocksService {
     }
   }
 
-  async getStatistics(user: User): Promise<any> {
+  async getStatistics(user: User, query: StatisticsFilterDto): Promise<any> {
     try {
       logger.info(`---INTRANT_STOCKS.SERVICE.GET_STATISTICS INIT---`);
-      const filters: any = {};
-      if (user.role !== Role.SuperAdmin) {
-        filters.lab = user.lab;
-      }
+      const filters = await buildStatisticsFilters(
+        user,
+        query,
+        this.labModel,
+        this.structureModel,
+      );
 
       const [
         totalIntrants,

@@ -7,6 +7,8 @@ import { FindRequestsDto } from './dto/find-requests.dto';
 import logger from 'src/utils/logger';
 import { RequestStatusEnum } from 'src/utils/enums/request-status.enum';
 import { RequestTypeEnum } from 'src/utils/enums/request-type.enum';
+import { buildStatisticsFilters } from 'src/utils/functions/filter-builder';
+import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
 
 @Injectable()
 export class RequestsService {
@@ -14,6 +16,8 @@ export class RequestsService {
     @InjectModel('Request') private requestModel: Model<Request>,
     @InjectModel('RequestComment')
     private requestCommentModel: Model<RequestComment>,
+    @InjectModel('Lab') private labModel: Model<any>,
+    @InjectModel('Structure') private structureModel: Model<any>,
   ) {}
 
   async findAll(filters: FindRequestsDto) {
@@ -115,32 +119,81 @@ export class RequestsService {
     }
   }
 
-  async getStatistics() {
+  async getStatistics(user: any, query: StatisticsFilterDto) {
     try {
       logger.info('-----REQUESTS.SERVICE.GETSTATISTICS-----INIT');
-      const [total, byType, byStatus] = await Promise.all([
-        this.requestModel.countDocuments().exec(),
-        this.requestModel
-          .aggregate([
-            {
-              $group: {
-                _id: '$type',
-                count: { $sum: 1 },
-              },
+
+      const filters = await buildStatisticsFilters(
+        user,
+        query,
+        this.labModel,
+        this.structureModel,
+      );
+
+      const matchFilters: any = {};
+      if (filters.created_at) matchFilters.created_at = filters.created_at;
+
+      let total: number;
+      let byType: any[];
+      let byStatus: any[];
+
+      if (filters.lab) {
+        const pipeline = [
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: '_id',
+              as: 'userData',
             },
-          ])
-          .exec(),
-        this.requestModel
-          .aggregate([
-            {
-              $group: {
-                _id: '$status',
-                count: { $sum: 1 },
-              },
+          },
+          { $unwind: '$userData' },
+          {
+            $match: {
+              'userData.lab': filters.lab,
+              ...(filters.created_at ? { created_at: filters.created_at } : {}),
             },
-          ])
-          .exec(),
-      ]);
+          },
+        ];
+
+        const [totalRes, byTypeRes, byStatusRes] = await Promise.all([
+          this.requestModel
+            .aggregate([...pipeline, { $count: 'count' }])
+            .exec(),
+          this.requestModel
+            .aggregate([
+              ...pipeline,
+              { $group: { _id: '$type', count: { $sum: 1 } } },
+            ])
+            .exec(),
+          this.requestModel
+            .aggregate([
+              ...pipeline,
+              { $group: { _id: '$status', count: { $sum: 1 } } },
+            ])
+            .exec(),
+        ]);
+
+        total = totalRes[0]?.count || 0;
+        byType = byTypeRes;
+        byStatus = byStatusRes;
+      } else {
+        [total, byType, byStatus] = await Promise.all([
+          this.requestModel.countDocuments(matchFilters).exec(),
+          this.requestModel
+            .aggregate([
+              { $match: matchFilters },
+              { $group: { _id: '$type', count: { $sum: 1 } } },
+            ])
+            .exec(),
+          this.requestModel
+            .aggregate([
+              { $match: matchFilters },
+              { $group: { _id: '$status', count: { $sum: 1 } } },
+            ])
+            .exec(),
+        ]);
+      }
 
       const statistics = {
         total,

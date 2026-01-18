@@ -1,6 +1,7 @@
-import { Controller, Get, Query, Param, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Query, Param, Res, HttpStatus, Req } from '@nestjs/common';
 import { RequestsService } from './requests.service';
 import { FindRequestsDto } from './dto/find-requests.dto';
+import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
 import logger from 'src/utils/logger';
 
 @Controller('requests')
@@ -30,10 +31,10 @@ export class RequestsController {
   }
 
   @Get('statistics')
-  async getStatistics(@Res() res) {
+  async getStatistics(@Query() query: StatisticsFilterDto, @Req() req, @Res() res) {
     try {
       logger.info('-----REQUESTS.CONTROLLER.GETSTATISTICS-----INIT');
-      const statistics = await this.requestsService.getStatistics();
+      const statistics = await this.requestsService.getStatistics(req.user, query);
       logger.info('-----REQUESTS.CONTROLLER.GETSTATISTICS-----SUCCESS');
       return res.status(HttpStatus.OK).json({
         message: 'Statistiques des demandes',

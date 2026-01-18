@@ -5,6 +5,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { MaintenanceSchema } from './schemas/maintenance.schema';
 import { EquipmentSchema } from '../equipments/schemas/equipment.schema';
 import { UserSchema } from '../user/schemas/user.schema';
+import { LabSchema } from '../labs/schemas/lab.schema';
+import { StructureSchema } from '../structure/schemas/structure.schema';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { UserSchema } from '../user/schemas/user.schema';
       { name: 'Maintenance', schema: MaintenanceSchema },
       { name: 'Equipment', schema: EquipmentSchema },
       { name: 'User', schema: UserSchema },
+      { name: 'Lab', schema: LabSchema },
+      { name: 'Structure', schema: StructureSchema },
     ]),
   ],
   controllers: [MaintenancesController],

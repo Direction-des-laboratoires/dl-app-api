@@ -13,6 +13,8 @@ import { Role } from 'src/utils/enums/roles.enum';
 import { EquipmentsService } from '../equipments/equipments.service';
 import { InventoryStatus } from '../equipments/schemas/equipment.schema';
 import { generateBatchNumber } from 'src/utils/functions/code_generation';
+import { buildStatisticsFilters } from 'src/utils/functions/filter-builder';
+import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
 
 @Injectable()
 export class EquipmentOrdersService {
@@ -22,6 +24,7 @@ export class EquipmentOrdersService {
     @InjectModel('EquipmentType') private equipmentTypeModel: Model<any>,
     @InjectModel('Lab') private labModel: Model<any>,
     @InjectModel('Supplier') private supplierModel: Model<any>,
+    @InjectModel('Structure') private structureModel: Model<any>,
     private equipmentStocksService: EquipmentStocksService,
     private equipmentsService: EquipmentsService,
   ) {}
@@ -342,13 +345,16 @@ export class EquipmentOrdersService {
     }
   }
 
-  async getStatistics(user: User): Promise<any> {
+  async getStatistics(user: User, query: StatisticsFilterDto): Promise<any> {
     try {
       logger.info(`---EQUIPMENT_ORDERS.SERVICE.GET_STATISTICS INIT---`);
-      const filters: any = {};
-      if (user.role !== Role.SuperAdmin) {
-        filters.lab = user.lab;
-      }
+      const filters = await buildStatisticsFilters(
+        user,
+        query,
+        this.labModel,
+        this.structureModel,
+        'purchaseDate',
+      );
 
       const [totalOrders, totalAmount, byStatus, itemsStats] =
         await Promise.all([

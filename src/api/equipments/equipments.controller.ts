@@ -15,6 +15,7 @@ import { EquipmentsService } from './equipments.service';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { FindEquipmentDto } from './dto/find-equipment.dto';
+import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
@@ -69,10 +70,10 @@ export class EquipmentsController {
   }
 
   @Get('statistics')
-  async getStatistics(@Req() req, @Res() res) {
+  async getStatistics(@Query() query: StatisticsFilterDto, @Req() req, @Res() res) {
     try {
       logger.info(`---EQUIPMENTS.CONTROLLER.GET_STATISTICS INIT---`);
-      const stats = await this.equipmentsService.getStatistics(req.user);
+      const stats = await this.equipmentsService.getStatistics(req.user, query);
       logger.info(`---EQUIPMENTS.CONTROLLER.GET_STATISTICS SUCCESS---`);
       return res.status(HttpStatus.OK).json({
         message: 'Statistiques des équipements récupérées avec succès',

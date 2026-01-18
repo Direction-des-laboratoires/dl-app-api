@@ -15,6 +15,7 @@ import { IntrantStocksService } from '../intrant-stocks/intrant-stocks.service';
 import { CreateIntrantDto } from './dto/create-intrant.dto';
 import { UpdateIntrantDto } from './dto/update-intrant.dto';
 import { FindIntrantDto } from './dto/find-intrant.dto';
+import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
@@ -45,10 +46,10 @@ export class IntrantsController {
   }
 
   @Get('statistics')
-  async getStatistics(@Req() req, @Res() res) {
+  async getStatistics(@Query() query: StatisticsFilterDto, @Req() req, @Res() res) {
     try {
       logger.info(`---INTRANTS.CONTROLLER.GET_STATISTICS INIT---`);
-      const stats = await this.intrantStocksService.getStatistics(req.user);
+      const stats = await this.intrantStocksService.getStatistics(req.user, query);
       return res.status(HttpStatus.OK).json({
         message: 'Statistiques des intrants récupérées avec succès',
         data: stats,

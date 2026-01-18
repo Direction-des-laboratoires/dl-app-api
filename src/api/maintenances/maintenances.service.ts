@@ -14,6 +14,8 @@ import {
 
 import { Role } from 'src/utils/enums/roles.enum';
 import { User } from '../user/interfaces/user.interface';
+import { buildStatisticsFilters } from 'src/utils/functions/filter-builder';
+import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
 
 @Injectable()
 export class MaintenancesService {
@@ -24,6 +26,10 @@ export class MaintenancesService {
     private equipmentModel: Model<any>,
     @InjectModel('User')
     private userModel: Model<any>,
+    @InjectModel('Lab')
+    private labModel: Model<any>,
+    @InjectModel('Structure')
+    private structureModel: Model<any>,
   ) {}
 
   private calculateNextDate(
@@ -317,30 +323,40 @@ export class MaintenancesService {
     }
   }
 
-  async getStatistics(user: User): Promise<any> {
+  async getStatistics(user: User, query: StatisticsFilterDto): Promise<any> {
     try {
       logger.info(`---MAINTENANCES.SERVICE.GET_STATISTICS INIT---`);
 
+      const filters = await buildStatisticsFilters(
+        user,
+        query,
+        this.labModel,
+        this.structureModel,
+        'date',
+      );
+
       const pipeline: any[] = [];
 
-      // Si l'utilisateur n'est pas SuperAdmin, on filtre par laboratoire
-      if (user.role !== Role.SuperAdmin) {
-        pipeline.push(
-          {
-            $lookup: {
-              from: 'equipments',
-              localField: 'equipment',
-              foreignField: '_id',
-              as: 'equipmentData',
-            },
+      // Toujours faire le lookup pour pouvoir filtrer par lab via l'équipement
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'equipments',
+            localField: 'equipment',
+            foreignField: '_id',
+            as: 'equipmentData',
           },
-          { $unwind: '$equipmentData' },
-          {
-            $match: {
-              'equipmentData.lab': user.lab,
-            },
-          },
-        );
+        },
+        { $unwind: '$equipmentData' },
+      );
+
+      // Appliquer les filtres
+      const matchFilters: any = {};
+      if (filters.date) matchFilters.date = filters.date;
+      if (filters.lab) matchFilters['equipmentData.lab'] = filters.lab;
+
+      if (Object.keys(matchFilters).length > 0) {
+        pipeline.push({ $match: matchFilters });
       }
 
       const [

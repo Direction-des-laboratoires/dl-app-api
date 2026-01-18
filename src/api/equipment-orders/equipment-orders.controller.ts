@@ -15,6 +15,7 @@ import { EquipmentOrdersService } from './equipment-orders.service';
 import { CreateEquipmentOrderDto } from './dto/create-equipment-order.dto';
 import { UpdateEquipmentOrderDto } from './dto/update-equipment-order.dto';
 import { FindEquipmentOrderDto } from './dto/find-equipment-order.dto';
+import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
 import logger from 'src/utils/logger';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
@@ -74,11 +75,11 @@ export class EquipmentOrdersController {
 
   @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff)
   @Get('statistics')
-  async getStatistics(@Req() req, @Res() res) {
+  async getStatistics(@Query() query: StatisticsFilterDto, @Req() req, @Res() res) {
     try {
       logger.info(`---EQUIPMENT_ORDERS.CONTROLLER.GET_STATISTICS INIT---`);
       const user = req.user;
-      const stats = await this.equipmentOrdersService.getStatistics(user);
+      const stats = await this.equipmentOrdersService.getStatistics(user, query);
       logger.info(`---EQUIPMENT_ORDERS.CONTROLLER.GET_STATISTICS SUCCESS---`);
       return res.status(HttpStatus.OK).json({
         message: 'Statistiques des commandes récupérées avec succès',

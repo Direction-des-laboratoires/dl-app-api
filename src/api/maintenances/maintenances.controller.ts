@@ -15,6 +15,7 @@ import { MaintenancesService } from './maintenances.service';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
 import { FindMaintenanceDto } from './dto/find-maintenance.dto';
+import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
 import logger from 'src/utils/logger';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
@@ -65,10 +66,10 @@ export class MaintenancesController {
 
   @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff, Role.Technician)
   @Get('statistics')
-  async getStatistics(@Req() req, @Res() res) {
+  async getStatistics(@Query() query: StatisticsFilterDto, @Req() req, @Res() res) {
     try {
       logger.info(`---MAINTENANCES.CONTROLLER.GET_STATISTICS INIT---`);
-      const stats = await this.maintenancesService.getStatistics(req.user);
+      const stats = await this.maintenancesService.getStatistics(req.user, query);
       logger.info(`---MAINTENANCES.CONTROLLER.GET_STATISTICS SUCCESS---`);
       return res.status(HttpStatus.OK).json({
         message: 'Statistiques des maintenances récupérées avec succès',

@@ -8,6 +8,7 @@ import { EquipmentTypeSchema } from '../equipment-types/schemas/equipment-type.s
 import { EquipmentStocksModule } from '../equipment-stocks/equipment-stocks.module';
 import { LabSchema } from '../labs/schemas/lab.schema';
 import { SupplierSchema } from '../suppliers/schemas/supplier.schema';
+import { StructureSchema } from '../structure/schemas/structure.schema';
 import { EquipmentsModule } from '../equipments/equipments.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { EquipmentsModule } from '../equipments/equipments.module';
       { name: 'EquipmentType', schema: EquipmentTypeSchema },
       { name: 'Lab', schema: LabSchema },
       { name: 'Supplier', schema: SupplierSchema },
+      { name: 'Structure', schema: StructureSchema },
     ]),
     EquipmentStocksModule,
     EquipmentsModule,
