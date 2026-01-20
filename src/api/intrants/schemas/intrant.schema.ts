@@ -21,7 +21,7 @@ export const IntrantSchema = new mongoose.Schema({
     default: null,
   },
   created_at: {
-    type: Date,
+    type: Date, 
     default: Date.now,
   },
   updated_at: {

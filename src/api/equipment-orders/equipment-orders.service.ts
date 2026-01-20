@@ -64,7 +64,7 @@ export class EquipmentOrdersService {
             item.modelName,
           );
         }
-        await this.createEquipmentsFromOrder(order, user?._id as string);
+        await this.createEquipmentsFromOrder(order, user?._id?.toString());
       }
 
       await order.populate('lab', 'name');
@@ -295,7 +295,7 @@ export class EquipmentOrdersService {
               item.modelName,
             );
           }
-          await this.createEquipmentsFromOrder(updated, user?._id as string);
+          await this.createEquipmentsFromOrder(updated, user?._id?.toString());
         }
       }
 

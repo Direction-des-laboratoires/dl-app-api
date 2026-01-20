@@ -165,7 +165,7 @@ export class SdrService {
       }
 
       logger.info(`---SDR.SERVICE.FIND_ONE SUCCESS--- id=${id}`);
-      return sdr as Sdr;
+      return sdr as unknown as Sdr;
     } catch (error) {
       logger.error(`---SDR.SERVICE.FIND_ONE ERROR--- ${error.message}`);
       throw new HttpException(
@@ -206,7 +206,7 @@ export class SdrService {
       }
 
       logger.info(`---SDR.SERVICE.UPDATE SUCCESS--- id=${id}`);
-      return updated as Sdr;
+      return updated as unknown as Sdr;
     } catch (error) {
       logger.error(`---SDR.SERVICE.UPDATE ERROR--- ${error.message}`);
       throw new HttpException(
@@ -234,7 +234,7 @@ export class SdrService {
       }
 
       logger.info(`---SDR.SERVICE.REMOVE SUCCESS--- id=${id}`);
-      return deleted as Sdr;
+      return deleted as unknown as Sdr;
     } catch (error) {
       logger.error(`---SDR.SERVICE.REMOVE ERROR--- ${error.message}`);
       throw new HttpException(
