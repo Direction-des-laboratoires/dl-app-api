@@ -17,6 +17,18 @@ export class CreateUserDto {
   @IsOptional()
   lab: string;
 
+  @IsOptional()
+  @IsMongoId()
+  environment: string;
+
+  @IsOptional()
+  @IsMongoId()
+  environmentPosition: string;
+
+  @IsOptional()
+  @IsMongoId()
+  contractType: string;
+
   @IsNotEmpty()
   @IsMongoId()
   level: string;
@@ -65,6 +77,18 @@ export class CreateLabStaffDto {
   @IsOptional()
   @IsMongoId()
   lab: string;
+
+  @IsOptional()
+  @IsMongoId()
+  environment: string;
+
+  @IsOptional()
+  @IsMongoId()
+  environmentPosition: string;
+
+  @IsOptional()
+  @IsMongoId()
+  contractType: string;
 
   @IsNotEmpty()
   identificationType: string;

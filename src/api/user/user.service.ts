@@ -133,12 +133,15 @@ export class UserService {
     bloodGroup?: string;
     email?: string;
     lab?: string;
+    environment?: string;
+    environmentPosition?: string;
     level?: string;
     region?: string;
     role?: string;
     active?: boolean;
     specialities?: string[];
     search?: string;
+    contractType?: string;
   }): Promise<any> {
     try {
       const {
@@ -149,12 +152,15 @@ export class UserService {
         bloodGroup,
         email,
         lab,
+        environment,
+        environmentPosition,
         level,
         region,
         role,
         active,
         specialities,
         search,
+        contractType,
       } = query;
 
       const filters: any = {};
@@ -177,8 +183,11 @@ export class UserService {
       if (bloodGroup)
         filters.bloodGroup = { $regex: `^${bloodGroup}$`, $options: 'i' };
       if (lab) filters.lab = lab;
+      if (environment) filters.environment = environment;
+      if (environmentPosition) filters.environmentPosition = environmentPosition;
       if (level) filters.level = level;
       if (region) filters.region = region;
+      if (contractType) filters.contractType = contractType;
 
       if (role && role !== Role.SdrAdmin) {
         filters.role = role;
@@ -212,6 +221,19 @@ export class UserService {
             path: 'lab',
             select: 'structure name',
             populate: [{ path: 'structure', select: 'name type' }],
+          })
+          .populate({
+            path: 'environment',
+            select: 'name code description',
+          })
+          .populate({
+            path: 'environmentPosition',
+            select: 'title description',
+            populate: [{ path: 'environment', select: 'name code' }],
+          })
+          .populate({
+            path: 'contractType',
+            select: 'name code',
           })
           .populate({
             path: 'level',
@@ -302,6 +324,19 @@ export class UserService {
           path: 'lab',
           select: 'structure',
           populate: [{ path: 'structure', select: 'name' }],
+        })
+        .populate({
+          path: 'environment',
+          select: 'name code description',
+        })
+        .populate({
+          path: 'environmentPosition',
+          select: 'title description',
+          populate: [{ path: 'environment', select: 'name code' }],
+        })
+        .populate({
+          path: 'contractType',
+          select: 'name code',
         })
         .populate({
           path: 'level',
@@ -471,6 +506,19 @@ export class UserService {
           path: 'lab',
           select: 'structure',
           populate: [{ path: 'structure', select: 'name' }],
+        })
+        .populate({
+          path: 'environment',
+          select: 'name code description',
+        })
+        .populate({
+          path: 'environmentPosition',
+          select: 'title description',
+          populate: [{ path: 'environment', select: 'name code' }],
+        })
+        .populate({
+          path: 'contractType',
+          select: 'name code',
         })
         .populate({
           path: 'level',
@@ -676,6 +724,12 @@ export class UserService {
       const user = await this.userModel
         .findById(userId)
         .populate('lab', 'name')
+        .populate('environment', 'name code')
+        .populate({
+          path: 'environmentPosition',
+          select: 'title',
+          populate: [{ path: 'environment', select: 'name' }],
+        })
         .populate('level', 'name description')
         .populate('specialities', 'name description')
         .populate('region', 'name code')

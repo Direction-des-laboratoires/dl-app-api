@@ -58,6 +58,21 @@ export const UserSchema = new mongoose.Schema({
     },
     default: null,
   },
+  environment: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Environment',
+    default: null,
+  },
+  environmentPosition: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'EnvironmentPosition',
+    default: null,
+  },
+  contractType: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'ContractType',
+    default: null,
+  },
   specialities: {
     type: [mongoose.Schema.Types.ObjectId],
     ref: 'Speciality',

@@ -43,6 +43,8 @@ import { IntrantsModule } from './api/intrants/intrants.module';
 import { IntrantOrdersModule } from './api/intrant-orders/intrant-orders.module';
 import { IntrantStocksModule } from './api/intrant-stocks/intrant-stocks.module';
 import { IntrantUsagesModule } from './api/intrant-usages/intrant-usages.module';
+import { EnvironmentModule } from './api/environment/environment.module';
+import { EnvironmentPositionModule } from './api/environment-position/environment-position.module';
 
 @Module({
   imports: [
@@ -113,6 +115,8 @@ import { IntrantUsagesModule } from './api/intrant-usages/intrant-usages.module'
     IntrantOrdersModule,
     IntrantStocksModule,
     IntrantUsagesModule,
+    EnvironmentModule,
+    EnvironmentPositionModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

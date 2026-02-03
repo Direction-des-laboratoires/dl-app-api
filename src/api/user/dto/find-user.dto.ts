@@ -42,6 +42,18 @@ export class FindUsersDto {
 
   @IsOptional()
   @IsMongoId()
+  environment?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  environmentPosition?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  contractType?: string;
+
+  @IsOptional()
+  @IsMongoId()
   level?: string;
 
   @IsOptional()

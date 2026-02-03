@@ -10,6 +10,9 @@ export interface User extends Document {
   email: string;
   lab: any;
   role: string;
+  environment: any;
+  environmentPosition: any;
+  contractType: any;
   specialities: string[];
   password: string;
   region: string;
