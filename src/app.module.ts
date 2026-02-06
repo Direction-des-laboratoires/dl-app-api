@@ -45,6 +45,7 @@ import { IntrantStocksModule } from './api/intrant-stocks/intrant-stocks.module'
 import { IntrantUsagesModule } from './api/intrant-usages/intrant-usages.module';
 import { EnvironmentModule } from './api/environment/environment.module';
 import { EnvironmentPositionModule } from './api/environment-position/environment-position.module';
+import { ContractTypeModule } from './api/contract-type/contract-type.module';
 
 @Module({
   imports: [
@@ -117,6 +118,7 @@ import { EnvironmentPositionModule } from './api/environment-position/environmen
     IntrantUsagesModule,
     EnvironmentModule,
     EnvironmentPositionModule,
+    ContractTypeModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
