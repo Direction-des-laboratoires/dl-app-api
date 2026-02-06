@@ -104,7 +104,7 @@ export class UserController {
         }
       }
       // LabAdmin ne peut voir que les utilisateurs de son labo
-      else if (requester.role === Role.LabAdmin) {
+      else if (requester.role === Role.LabAdmin) { 
         if (requester.lab) {
           query.lab = requester.lab.toString();
         } else {
