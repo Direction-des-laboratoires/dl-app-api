@@ -379,6 +379,11 @@ export class UserService {
       const user = await this.userModel
         .findOne({ email, active: true })
         .populate({
+          path: 'lab',
+          select: 'structure name',
+          populate: [{ path: 'structure', select: 'name type' }],
+        })
+        .populate({
           path: 'level',
           select: 'name description',
         })
