@@ -53,6 +53,8 @@ export class AuthService {
     try {
       logger.info(`---AUTH.SERVICE.LOGIN INIT---`);
       const user = await this.userService.findLogin(createAuthDto);
+      console.log('USER', user);
+      
       const token = await this.generateToken(user);
       logger.info(`---AUTH.SERVICE.LOGIN SUCCESS---`);
       return {
