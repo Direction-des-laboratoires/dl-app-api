@@ -44,6 +44,7 @@ export class UserController {
   ) {
     try {
       logger.info(`---USER.CONTROLLER.CREATE INIT---`);
+      // Le SuperAdmin peut choisir n'importe quel labo via le DTO
       const user = await this.userService.create(createUserDto, files || []);
       logger.info(`---USER.CONTROLLER.CREATE SUCCESS---`);
       return res.status(HttpStatus.CREATED).json(user);
@@ -55,7 +56,7 @@ export class UserController {
     }
   }
 
-  @Roles(Role.LabAdmin)
+  @Roles(Role.LabAdmin, Role.SuperAdmin)
   @UseInterceptors(
     AnyFilesInterceptor({
       storage: diskStorage({ destination: UploadHelper.uploadDirectory }),
@@ -69,16 +70,16 @@ export class UserController {
     @Res() res,
   ) {
     try {
-      const labId = req.user.lab.toString();
-      createUserDto.lab = labId;
-      console.log('LAB_ID', labId);
-
-      logger.info(`---USER.CONTROLLER.CREATE INIT---`);
+      // Forcer le labo du LabAdmin
+      if(req.user.role === Role.LabAdmin){
+        createUserDto.lab = req.user.lab?.toString();
+      }
+      logger.info(`---USER.CONTROLLER.CREATE_LAB_STAFF INIT---`);
       const user = await this.userService.create(createUserDto, files || []);
-      logger.info(`---USER.CONTROLLER.CREATE SUCCESS---`);
+      logger.info(`---USER.CONTROLLER.CREATE_LAB_STAFF SUCCESS---`);
       return res.status(HttpStatus.CREATED).json(user);
     } catch (error) {
-      logger.error(`---USER.CONTROLLER.CREATE ERROR ${error}---`);
+      logger.error(`---USER.CONTROLLER.CREATE_LAB_STAFF ERROR ${error}---`);
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: error.message });
