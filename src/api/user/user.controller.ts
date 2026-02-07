@@ -18,6 +18,7 @@ import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { UserService } from './user.service';
 import { CreateLabStaffDto, CreateUserDto } from './dto/create-user.dto';
+import { CreateMultipleUsersDto } from './dto/create-multiple-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import logger from 'src/utils/logger';
 import { Roles } from 'src/utils/decorators/role.decorator';
@@ -80,6 +81,38 @@ export class UserController {
       return res.status(HttpStatus.CREATED).json(user);
     } catch (error) {
       logger.error(`---USER.CONTROLLER.CREATE_LAB_STAFF ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  @Roles(Role.SuperAdmin, Role.LabAdmin)
+  @Post('bulk')
+  async createMultiple(
+    @Body() createMultipleUsersDto: CreateMultipleUsersDto,
+    @Req() req,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---USER.CONTROLLER.CREATE_MULTIPLE INIT---`);
+      
+      // Si c'est un LabAdmin, on force son labo pour tous les utilisateurs
+      if (req.user.role === Role.LabAdmin) {
+        const labId = req.user.lab?.toString();
+        if (!labId) {
+          throw new HttpException("Vous n'avez pas de laboratoire associé", HttpStatus.FORBIDDEN);
+        }
+        createMultipleUsersDto.users = createMultipleUsersDto.users.map(user => ({
+          ...user,
+          lab: labId
+        }));
+      }
+
+      const result = await this.userService.createMultiple(createMultipleUsersDto.users);
+      return res.status(HttpStatus.CREATED).json(result);
+    } catch (error) {
+      logger.error(`---USER.CONTROLLER.CREATE_MULTIPLE ERROR ${error}---`);
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: error.message });

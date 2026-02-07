@@ -69,6 +69,10 @@ export const EquipmentSchema = new mongoose.Schema({
   purchaseDate: {
     type: Date,
   },
+  commissioningDate: {
+    type: Date,
+    default: null,
+  },
   warrantyExpiryDate: {
     type: Date,
   },

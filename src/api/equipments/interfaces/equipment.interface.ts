@@ -15,6 +15,7 @@ export interface Equipment extends Document {
   affectedTo?: string;
   receivedBy?: string;
   receivedDate?: Date;
+  commissioningDate?: Date;
   affectedToBy?: string;
   warrantyExpiryDate?: Date;
   lastMaintenanceDate?: Date;

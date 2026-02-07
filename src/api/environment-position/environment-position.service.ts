@@ -34,15 +34,15 @@ export class EnvironmentPositionService {
   async findAll(query: FindEnvironmentPositionDto): Promise<any> {
     try {
       logger.info(`---ENVIRONMENT_POSITION.SERVICE.FIND_ALL INIT---`);
-      const { page = 1, limit = 10, search, environment, active } = query;
+      const { page = 1, limit = 10, environment, position, active } = query;
       const skip = (page - 1) * limit;
 
       const filters: any = {};
-      if (search) {
-        filters.title = { $regex: search, $options: 'i' };
-      }
       if (environment) {
         filters.environment = environment;
+      }
+      if (position) {
+        filters.position = position;
       }
       if (active !== undefined) {
         filters.active = active;
@@ -52,7 +52,7 @@ export class EnvironmentPositionService {
         this.environmentPositionModel
           .find(filters)
           .populate('environment')
-          .sort({ title: 1 })
+          .populate('position')
           .skip(skip)
           .limit(limit)
           .exec(),
@@ -80,13 +80,17 @@ export class EnvironmentPositionService {
   }
 
   async findOne(id: string): Promise<any> {
-    const position = await this.environmentPositionModel.findById(id).populate('environment').exec();
-    if (!position) {
+    const envPosition = await this.environmentPositionModel
+      .findById(id)
+      .populate('environment')
+      .populate('position')
+      .exec();
+    if (!envPosition) {
       throw new HttpException('Position d\'environnement non trouvée', HttpStatus.NOT_FOUND);
     }
     return {
       message: 'Position d\'environnement récupérée avec succès',
-      data: position,
+      data: envPosition,
     };
   }
 
@@ -95,7 +99,7 @@ export class EnvironmentPositionService {
       id,
       { ...updateEnvironmentPositionDto, updated_at: new Date() },
       { new: true },
-    ).populate('environment').exec();
+    ).populate('environment').populate('position').exec();
     if (!updated) {
       throw new HttpException('Position d\'environnement non trouvée', HttpStatus.NOT_FOUND);
     }

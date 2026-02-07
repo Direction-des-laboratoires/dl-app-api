@@ -125,6 +125,39 @@ export class UserService {
     }
   }
 
+  async createMultiple(usersDto: CreateUserDto[]) {
+    try {
+      logger.info(`---USER.SERVICE.CREATE_MULTIPLE INIT--- count=${usersDto.length}`);
+      const results = [];
+      const errors = [];
+
+      for (const userDto of usersDto) {
+        try {
+          const result = await this.create(userDto);
+          results.push(result);
+        } catch (error) {
+          errors.push({
+            user: `${userDto.firstname} ${userDto.lastname}`,
+            email: userDto.email,
+            error: error.message,
+          });
+        }
+      }
+
+      logger.info(`---USER.SERVICE.CREATE_MULTIPLE SUCCESS--- created=${results.length}, failed=${errors.length}`);
+      return {
+        message: `${results.length} utilisateurs créés avec succès`,
+        data: results,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Erreur lors de la création multiple',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findAll(query: {
     page?: number;
     limit?: number;
@@ -222,19 +255,12 @@ export class UserService {
             select: 'structure name',
             populate: [{ path: 'structure', select: 'name type' }],
           })
-          .populate({
-            path: 'environment',
-            select: 'name code description',
-          })
+          .populate('environment')
           .populate({
             path: 'environmentPosition',
-            select: 'title description',
-            populate: [{ path: 'environment', select: 'name code' }],
+            populate: { path: 'position' },
           })
-          .populate({
-            path: 'contractType',
-            select: 'name code',
-          })
+          .populate('contractType')
           .populate({
             path: 'level',
             select: 'name description',
@@ -325,19 +351,12 @@ export class UserService {
           select: 'structure',
           populate: [{ path: 'structure', select: 'name' }],
         })
-        .populate({
-          path: 'environment',
-          select: 'name code description',
-        })
+        .populate('environment')
         .populate({
           path: 'environmentPosition',
-          select: 'title description',
-          populate: [{ path: 'environment', select: 'name code' }],
+          populate: { path: 'position' },
         })
-        .populate({
-          path: 'contractType',
-          select: 'name code',
-        })
+        .populate('contractType')
         .populate({
           path: 'level',
           select: 'name description',
@@ -505,19 +524,12 @@ export class UserService {
           select: 'structure',
           populate: [{ path: 'structure', select: 'name' }],
         })
-        .populate({
-          path: 'environment',
-          select: 'name code description',
-        })
+        .populate('environment')
         .populate({
           path: 'environmentPosition',
-          select: 'title description',
-          populate: [{ path: 'environment', select: 'name code' }],
+          populate: { path: 'position' },
         })
-        .populate({
-          path: 'contractType',
-          select: 'name code',
-        })
+        .populate('contractType')
         .populate({
           path: 'level',
           select: 'name description',

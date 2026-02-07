@@ -9,7 +9,7 @@ export const LabSchema = new mongoose.Schema({
   structure: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Structure',
-    required: true,
+    default: null,
     autopopulate: true,
   },
   specialities: {

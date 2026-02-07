@@ -1,15 +1,15 @@
-import { IsString, IsNotEmpty, IsOptional, IsMongoId } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsBoolean, IsMongoId } from 'class-validator';
 
 export class CreateEnvironmentPositionDto {
-  @IsString()
-  @IsNotEmpty()
-  title: string;
-
   @IsMongoId()
   @IsNotEmpty()
   environment: string;
 
-  @IsString()
+  @IsMongoId()
+  @IsNotEmpty()
+  position: string;
+
+  @IsBoolean()
   @IsOptional()
-  description?: string;
+  active?: boolean;
 }

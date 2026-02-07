@@ -4,8 +4,8 @@ export class CreateLabDto {
   @IsNotEmpty()
   name: string;
 
-  @IsNotEmpty()
-  structure: string;
+  @IsOptional()
+  structure?: string;
 
   @IsOptional()
   @IsString()

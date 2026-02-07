@@ -47,6 +47,10 @@ export class CreateEquipmentDto {
 
   @IsOptional()
   @IsDateString()
+  commissioningDate?: Date;
+
+  @IsOptional()
+  @IsDateString()
   warrantyExpiryDate?: Date;
 
   @IsOptional()
