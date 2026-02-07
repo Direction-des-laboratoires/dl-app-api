@@ -47,6 +47,10 @@ export class CreateEquipmentDto {
 
   @IsOptional()
   @IsDateString()
+  receivedDate?: Date;
+
+  @IsOptional()
+  @IsDateString()
   commissioningDate?: Date;
 
   @IsOptional()
