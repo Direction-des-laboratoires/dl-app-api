@@ -10,12 +10,14 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { MailService } from 'src/providers/mail-service/mail.service';
 import { MailTemplates } from 'src/providers/mail-service/mail.templates';
 import { generateDigits } from 'src/utils/functions/code_generation';
+import { AuthService } from '../auth/auth.service';
 import {
   expirationDate,
   isCodeExpired,
 } from 'src/utils/functions/expiration_date';
 import logger from 'src/utils/logger';
 import * as bcrypt from 'bcrypt';
+import { forwardRef, Inject } from '@nestjs/common';
 
 @Injectable()
 export class OtpService {
@@ -23,6 +25,8 @@ export class OtpService {
     @InjectModel('Otp') private otpModel: Model<Otp>,
     @InjectModel('User') private userModel: Model<User>,
     private mailService: MailService,
+    @Inject(forwardRef(() => AuthService))
+    private authService: AuthService,
   ) {}
 
   /**
@@ -51,7 +55,7 @@ export class OtpService {
 
       // Générer un code OTP de 6 chiffres
       const code = generateDigits(6).toString();
-      const expiration = expirationDate(15); // Code valide pendant 15 minutes
+      const expiration = expirationDate(5); // Code valide pendant 5 minutes (mis à jour)
 
       // Marquer les anciens codes OTP du même type comme utilisés
       await this.otpModel.updateMany(
@@ -94,7 +98,7 @@ export class OtpService {
       return {
         success: true,
         message: 'Un code de vérification a été envoyé à votre adresse email',
-        expirationMinutes: 15,
+        expirationMinutes: 5,
       };
     } catch (error) {
       logger.error(`---OTP.SERVICE.REQUEST_OTP ERROR--- ${error.message}`);
@@ -147,10 +151,15 @@ export class OtpService {
       logger.info(
         `---OTP.SERVICE.VERIFY_OTP SUCCESS--- email=${verifyOtpDto.email}`,
       );
+
+      // Générer un token temporaire pour la réinitialisation
+      const token = await this.authService.generateToken(user);
+
       return {
         success: true,
         message: 'Code OTP valide',
         valid: true,
+        token, // Retourner le token spécifique à l'utilisateur
       };
     } catch (error) {
       logger.error(`---OTP.SERVICE.VERIFY_OTP ERROR--- ${error.message}`);
@@ -162,60 +171,32 @@ export class OtpService {
   }
 
   /**
-   * Réinitialise le mot de passe avec un code OTP
+   * Réinitialise le mot de passe avec un token validé
    */
   async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<any> {
     try {
-      logger.info(
-        `---OTP.SERVICE.RESET_PASSWORD INIT--- email=${resetPasswordDto.email}`,
-      );
+      logger.info(`---OTP.SERVICE.RESET_PASSWORD INIT---`);
+
+      // Vérifier et décoder le token
+      const decoded = await this.authService.verifyToken(resetPasswordDto.token);
+      if (!decoded || !decoded.userId) {
+        throw new HttpException('Token invalide ou expiré', HttpStatus.UNAUTHORIZED);
+      }
 
       // Trouver l'utilisateur
-      const user = await this.userModel.findOne({
-        email: resetPasswordDto.email,
-      });
+      const user = await this.userModel.findById(decoded.userId);
       if (!user) {
         throw new HttpException('Utilisateur non trouvé', HttpStatus.NOT_FOUND);
       }
 
-      // Vérifier le code OTP
-      const otp = await this.otpModel.findOne({
-        user: user._id,
-        code: resetPasswordDto.code,
-        type: resetPasswordDto.type,
-        used: false,
-      });
-
-      if (!otp) {
-        throw new HttpException(
-          'Code OTP invalide ou déjà utilisé',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      // Vérifier l'expiration
-      if (isCodeExpired(otp.expirationDate)) {
-        throw new HttpException('Code OTP expiré', HttpStatus.BAD_REQUEST);
-      }
-
-      // Hasher le nouveau mot de passe
-      const hashedPassword = await bcrypt.hash(
-        resetPasswordDto.newPassword,
-        10,
-      );
-
+      
       // Mettre à jour le mot de passe de l'utilisateur
-      user.password = hashedPassword;
+      user.password = resetPasswordDto.newPassword;
       user.isFirstLogin = false;
       await user.save();
 
-      // Marquer le code OTP comme utilisé
-      otp.used = true;
-      otp.usedAt = new Date();
-      await otp.save();
-
       logger.info(
-        `---OTP.SERVICE.RESET_PASSWORD SUCCESS--- email=${resetPasswordDto.email}`,
+        `---OTP.SERVICE.RESET_PASSWORD SUCCESS--- userId=${user._id}`,
       );
       return {
         success: true,

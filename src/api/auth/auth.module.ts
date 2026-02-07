@@ -5,9 +5,11 @@ import { UserModule } from '../user/user.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { PromobileSmsService } from 'src/providers/sms-service/promobile.service';
+import { OtpModule } from '../otp/otp.module';
+import { forwardRef } from '@nestjs/common';
 
 @Module({
-  imports: [UserModule, JwtModule, ConfigModule],
+  imports: [UserModule, JwtModule, ConfigModule, forwardRef(() => OtpModule)],
   controllers: [AuthController],
   providers: [AuthService, PromobileSmsService],
   exports: [AuthService],

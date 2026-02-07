@@ -66,11 +66,11 @@ export class OtpController {
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto, @Res() res) {
     try {
       logger.info(
-        `---OTP.CONTROLLER.RESET_PASSWORD INIT--- email=${resetPasswordDto.email}`,
+        `---OTP.CONTROLLER.RESET_PASSWORD INIT--- `,
       );
       const result = await this.otpService.resetPassword(resetPasswordDto);
       logger.info(
-        `---OTP.CONTROLLER.RESET_PASSWORD SUCCESS--- email=${resetPasswordDto.email}`,
+        `---OTP.CONTROLLER.RESET_PASSWORD SUCCESS--- `,
       );
       return res.status(HttpStatus.OK).json({
         message: result.message,

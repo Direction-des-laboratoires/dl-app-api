@@ -9,12 +9,8 @@ import { OtpTypeEnum } from '../schemas/otp.schema';
 
 export class ResetPasswordDto {
   @IsNotEmpty()
-  @IsEmail()
-  email: string;
-
-  @IsNotEmpty()
   @IsString()
-  code: string;
+  token: string;
 
   @IsNotEmpty()
   @IsString()
@@ -22,8 +18,4 @@ export class ResetPasswordDto {
     message: 'Le mot de passe doit contenir au moins 6 caractères',
   })
   newPassword: string;
-
-  @IsNotEmpty()
-  @IsEnum(OtpTypeEnum)
-  type: OtpTypeEnum;
 }

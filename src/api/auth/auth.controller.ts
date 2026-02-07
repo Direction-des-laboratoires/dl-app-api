@@ -18,10 +18,17 @@ import { PhoneVerificationDto } from './dto/phone-verification.dto';
 import { SendCodeVerificationDto } from './dto/send-code-verification.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { RequestOtpDto } from '../otp/dto/request-otp.dto';
+import { VerifyOtpDto } from '../otp/dto/verify-otp.dto';
+import { ResetPasswordDto } from '../otp/dto/reset-password.dto';
+import { OtpService } from '../otp/otp.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly otpService: OtpService,
+  ) {}
   @Post('register')
   async register(@Body() createUserDto: CreateUserDto, @Res() res) {
     try {
@@ -201,6 +208,57 @@ export class AuthController {
       });
     } catch (error) {
       logger.error(`---AUTH.CONTROLLER.UPDATE_PASSWORD ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  /**
+   * Demander un code OTP pour réinitialiser le mot de passe
+   */
+  @Post('forgot-password')
+  async forgotPassword(@Body() requestOtpDto: RequestOtpDto, @Res() res) {
+    try {
+      logger.info(`---AUTH.CONTROLLER.FORGOT_PASSWORD INIT---`);
+      const result = await this.otpService.requestOtp(requestOtpDto);
+      return res.status(HttpStatus.OK).json(result);
+    } catch (error) {
+      logger.error(`---AUTH.CONTROLLER.FORGOT_PASSWORD ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  /**
+   * Vérifier le code OTP
+   */
+  @Post('verify-otp')
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto, @Res() res) {
+    try {
+      logger.info(`---AUTH.CONTROLLER.VERIFY_OTP INIT---`);
+      const result = await this.otpService.verifyOtp(verifyOtpDto);
+      return res.status(HttpStatus.OK).json(result);
+    } catch (error) {
+      logger.error(`---AUTH.CONTROLLER.VERIFY_OTP ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  /**
+   * Réinitialiser le mot de passe avec le code OTP
+   */
+  @Post('reset-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto, @Res() res) {
+    try {
+      logger.info(`---AUTH.CONTROLLER.RESET_PASSWORD INIT---`);
+      const result = await this.otpService.resetPassword(resetPasswordDto);
+      return res.status(HttpStatus.OK).json(result);
+    } catch (error) {
+      logger.error(`---AUTH.CONTROLLER.RESET_PASSWORD ERROR ${error}---`);
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: error.message });

@@ -5,6 +5,9 @@ import { OtpController } from './otp.controller';
 import { OtpSchema } from './schemas/otp.schema';
 import { UserSchema } from '../user/schemas/user.schema';
 import { MailModule } from 'src/providers/mail-service/mail.module';
+import { AuthService } from '../auth/auth.service';
+import { forwardRef } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -13,6 +16,7 @@ import { MailModule } from 'src/providers/mail-service/mail.module';
       { name: 'User', schema: UserSchema },
     ]),
     MailModule,
+    forwardRef(() => AuthModule),
   ],
   controllers: [OtpController],
   providers: [OtpService],
