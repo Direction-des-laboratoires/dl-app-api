@@ -90,7 +90,7 @@ export class CreateLabStaffDto {
   @IsMongoId()
   contractType: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   identificationType: string;
 
   @IsNotEmpty()
