@@ -43,7 +43,7 @@ export class CreateUserDto {
   @IsNotEmpty()
   role: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   identificationType: string;
 
   @IsNotEmpty()
