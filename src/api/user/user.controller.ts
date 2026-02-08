@@ -137,9 +137,9 @@ export class UserController {
         }
       }
       // LabAdmin ne peut voir que les utilisateurs de son labo
-      else if (requester.role === Role.LabAdmin) { 
+      else if (requester.role === Role.LabAdmin) {
         if (requester.lab) {
-          query.lab = requester.lab.toString();
+          query.lab = requester.lab._id.toString();
         } else {
           throw new HttpException(
             "Vous n'avez pas de laboratoire associé",
