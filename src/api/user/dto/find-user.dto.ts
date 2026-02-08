@@ -4,8 +4,10 @@ import {
   IsMongoId,
   IsString,
   IsBoolean,
+  IsEnum,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { Gender } from 'src/utils/enums/gender.enum';
 
 export class FindUsersDto {
   @IsOptional()
@@ -31,6 +33,10 @@ export class FindUsersDto {
   @IsOptional()
   @IsString()
   email?: string;
+
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
 
   @IsOptional()
   @IsString()

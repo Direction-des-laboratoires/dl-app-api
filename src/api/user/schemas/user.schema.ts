@@ -2,6 +2,7 @@
 import * as mongoose from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { Role } from 'src/utils/enums/roles.enum';
+import { Gender } from 'src/utils/enums/gender.enum';
 export const UserSchema = new mongoose.Schema({
   firstname: {
     type: String,
@@ -23,6 +24,11 @@ export const UserSchema = new mongoose.Schema({
   },
   birthday: {
     type: Date,
+  },
+  gender: {
+    type: String,
+    enum: Gender,
+    default: null,
   },
   nationality: {
     type: String,

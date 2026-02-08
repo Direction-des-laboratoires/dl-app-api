@@ -8,6 +8,7 @@ export interface User extends Document {
   lastname: string;
   phoneNumber: string;
   email: string;
+  gender?: string;
   lab: any;
   role: string;
   environment: any;

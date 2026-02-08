@@ -175,6 +175,7 @@ export class UserService {
     specialities?: string[];
     search?: string;
     contractType?: string;
+    gender?: string;
   }): Promise<any> {
     try {
       const {
@@ -194,6 +195,7 @@ export class UserService {
         specialities,
         search,
         contractType,
+        gender,
       } = query;
 
       const filters: any = {};
@@ -221,6 +223,7 @@ export class UserService {
       if (level) filters.level = level;
       if (region) filters.region = region;
       if (contractType) filters.contractType = contractType;
+      if (gender) filters.gender = gender;
 
       if (role && role !== Role.SdrAdmin) {
         filters.role = role;

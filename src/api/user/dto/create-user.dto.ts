@@ -1,4 +1,5 @@
-import { IsMongoId, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsEnum, IsMongoId, IsNotEmpty, IsOptional } from 'class-validator';
+import { Gender } from 'src/utils/enums/gender.enum';
 
 /* eslint-disable prettier/prettier */
 export class CreateUserDto {
@@ -49,6 +50,10 @@ export class CreateUserDto {
   birthday: string;
 
   @IsNotEmpty()
+  @IsEnum(Gender)
+  gender: Gender;
+
+  @IsNotEmpty()
   nationality: string;
 
   @IsOptional()
@@ -95,6 +100,10 @@ export class CreateLabStaffDto {
 
   @IsNotEmpty()
   birthday: string;
+
+  @IsOptional()
+  @IsEnum(Gender)
+  gender: Gender;
 
   @IsNotEmpty()
   nationality: string;
