@@ -10,6 +10,7 @@ export interface Message extends Document {
   status: 'pending' | 'sent' | 'failed';
   sentAt?: Date;
   errorMessage?: string;
+  attachments?: string[];
   created_at: Date;
   updated_at: Date;
 }

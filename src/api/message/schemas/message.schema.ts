@@ -41,6 +41,10 @@ export const MessageSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  attachments: {
+    type: [String],
+    default: [],
+  },
   created_at: {
     type: Date,
     default: Date.now(),

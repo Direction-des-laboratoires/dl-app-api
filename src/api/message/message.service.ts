@@ -11,6 +11,8 @@ import { Lab } from 'src/api/labs/interfaces/labs.interface';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
 
+import { uploadFile } from 'src/utils/functions/file.upload';
+
 @Injectable()
 export class MessageService {
   constructor(
@@ -21,7 +23,11 @@ export class MessageService {
     private promobileSmsService: PromobileSmsService,
   ) {}
 
-  async create(createMessageDto: CreateMessageDto, sentBy: string) {
+  async create(
+    createMessageDto: CreateMessageDto,
+    sentBy: string,
+    files?: Express.Multer.File[],
+  ) {
     try {
       logger.info(`---MESSAGE.SERVICE.CREATE INIT---`);
 
@@ -35,6 +41,7 @@ export class MessageService {
       if (recipients.emails && recipients.emails.length > 0) {
         allEmails = [...allEmails, ...recipients.emails];
       }
+
 
       // 2. Ajouter les phoneNumbers directs
       if (recipients.phoneNumbers && recipients.phoneNumbers.length > 0) {
@@ -136,6 +143,19 @@ export class MessageService {
         }
       }
 
+      // Traiter les fichiers joints
+      const attachmentsUrls: string[] = [];
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            const url = await uploadFile(file);
+            attachmentsUrls.push(url);
+          } catch (uploadError) {
+            logger.error(`---MESSAGE.SERVICE.UPLOAD_FILE ERROR--- ${uploadError.message}`);
+          }
+        }
+      }
+
       // Créer le message dans la base de données
       const messageData: any = {
         subject: createMessageDto.subject,
@@ -145,6 +165,7 @@ export class MessageService {
         phoneNumbers: uniquePhoneNumbers,
         sentBy,
         status: 'pending',
+        attachments: attachmentsUrls,
       };
 
       const message = new this.messageModel(messageData);
@@ -292,11 +313,21 @@ export class MessageService {
       // Préparer le contenu HTML
       const html = MailTemplates.genericEmail(message.subject, message.content);
 
+      // Préparer les pièces jointes pour nodemailer
+      const attachments = message.attachments?.map((url) => {
+        const filename = url.split('/').pop() || 'attachment';
+        return {
+          filename,
+          path: url, // Nodemailer peut gérer les URLs si le serveur le permet, sinon il faudra le chemin local
+        };
+      });
+
       // Envoyer l'email à tous les destinataires
       await this.mailService.sendMail({
         to: message.emails,
         subject: message.subject,
         html,
+        attachments,
       });
 
       logger.info(

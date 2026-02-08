@@ -10,7 +10,7 @@ import {
   IsDate,
   IsDateString,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export enum CanalEnum {
   EMAIL = 'EMAIL',
@@ -73,8 +73,18 @@ export class CreateMessageDto {
   canal: CanalEnum;
 
   @IsNotEmpty()
-  @ValidateNested()
-  @Type(() => MessageRecipientsDto)
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        // Si le parsing réussit, on retourne l'objet
+        return parsed;
+      } catch (e) {
+        return value;
+      }
+    }
+    return value;
+  })
   recipients: MessageRecipientsDto;
 
   @IsOptional()
