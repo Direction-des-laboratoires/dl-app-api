@@ -21,6 +21,39 @@ export class StructureService {
     }
   }
 
+  async createMultiple(structuresDto: CreateStructureDto[]) {
+    try {
+      logger.info(`---STRUCTURE.SERVICE.CREATE_MULTIPLE INIT--- count=${structuresDto.length}`);
+      const results = [];
+      const errors = [];
+
+      for (const structureDto of structuresDto) {
+        try {
+          const result = await this.create(structureDto);
+          results.push(result);
+        } catch (error) {
+          errors.push({
+            name: structureDto.name,
+            error: error.message,
+          });
+        }
+      }
+
+      logger.info(`---STRUCTURE.SERVICE.CREATE_MULTIPLE SUCCESS--- created=${results.length}, failed=${errors.length}`);
+      return {
+        message: `${results.length} structures créées avec succès`,
+        data: results,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    } catch (error) {
+      logger.error(`---STRUCTURE.SERVICE.CREATE_MULTIPLE ERROR--- ${error}`);
+      throw new HttpException(
+        error.message || 'Erreur lors de la création multiple des structures',
+        error.status || 500,
+      );
+    }
+  }
+
   async findAll(query: {
     page?: number;
     limit?: number;

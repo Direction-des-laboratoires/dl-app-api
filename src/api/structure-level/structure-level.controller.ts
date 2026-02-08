@@ -8,6 +8,7 @@ import {
   Delete,
   Res,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { StructureLevelService } from './structure-level.service';
 import { CreateStructureLevelDto } from './dto/create-structure-level.dto';
@@ -59,10 +60,10 @@ export class StructureLevelController {
   }
 
   @Get()
-  async findAll(@Res() res) {
+  async findAll(@Res() res, @Query('status') status?: string) {
     try {
       logger.info(`---STRUCTURE_LEVEL.CONTROLLER.FIND_ALL INIT---`);
-      const levels = await this.structureLevelService.findAll();
+      const levels = await this.structureLevelService.findAll({ status });
       logger.info(`---STRUCTURE_LEVEL.CONTROLLER.FIND_ALL SUCCESS---`);
       return res.status(HttpStatus.OK).json({
         message: 'Liste des niveaux de structure',

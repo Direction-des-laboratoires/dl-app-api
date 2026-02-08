@@ -35,10 +35,14 @@ export class StructureLevelService {
     }
   }
 
-  async findAll() {
+  async findAll(query?: { status?: string }) {
     try {
       logger.info(`---STRUCTURE_LEVEL.SERVICE.FIND_ALL INIT---`);
-      const structureLevels = await this.structureLevelModel.find().sort({ name: 1 }).exec();
+      const filters: any = {};
+      if (query?.status) {
+        filters.status = query.status;
+      }
+      const structureLevels = await this.structureLevelModel.find(filters).sort({ name: 1 }).exec();
       logger.info(`---STRUCTURE_LEVEL.SERVICE.FIND_ALL SUCCESS---`);
       return structureLevels;
     } catch (error) {

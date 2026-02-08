@@ -30,6 +30,18 @@ export class StructureController {
     }
   }
 
+  @Post('bulk')
+  async createMultiple(@Body() structuresDto: CreateStructureDto[], @Res() res) {
+    try {
+      const result = await this.structureService.createMultiple(structuresDto);
+      return res.status(HttpStatus.CREATED).json(result);
+    } catch (error) {
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
   @Get()
   async findAll(
     @Res() res,

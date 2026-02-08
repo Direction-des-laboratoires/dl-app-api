@@ -1,4 +1,5 @@
 import * as mongoose from 'mongoose'
+import { StructureStatusEnum } from 'src/utils/enums/structure.enum';
 
 export const StructureLevelSchema= new mongoose.Schema({
     name:{
@@ -8,6 +9,11 @@ export const StructureLevelSchema= new mongoose.Schema({
     code:{
         type:String,
         required:true
+    },
+    status: {
+        type: String,
+        enum: StructureStatusEnum,
+        default: StructureStatusEnum.PUBLIC
     },
     description:{
         type:String,

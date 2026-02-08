@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional } from "class-validator"
+import { IsEnum, IsNotEmpty, IsOptional } from "class-validator"
+import { StructureStatusEnum } from "src/utils/enums/structure.enum"
 
 export class CreateStructureLevelDto {
     @IsNotEmpty()
@@ -6,6 +7,10 @@ export class CreateStructureLevelDto {
 
     @IsNotEmpty()
     code:string
+
+    @IsOptional()
+    @IsEnum(StructureStatusEnum)
+    status: StructureStatusEnum
 
     @IsOptional()
     description:string
