@@ -38,7 +38,7 @@ export class CreateUserDto {
   specialities: string[];
 
   @IsOptional()
-  regionId: string;
+  region: string;
 
   @IsNotEmpty()
   role: string;
@@ -94,6 +94,9 @@ export class CreateLabStaffDto {
   @IsOptional()
   @IsMongoId()
   contractType: string;
+
+  @IsOptional()
+  region:string
 
   @IsOptional()
   identificationType: string;
