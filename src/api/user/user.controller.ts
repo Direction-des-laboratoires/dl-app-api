@@ -30,7 +30,7 @@ import { UploadHelper } from 'src/utils/functions/upload-image.helper';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Roles(Role.SuperAdmin)
+  @Roles(Role.LabAdmin, Role.SuperAdmin)
   @UseInterceptors(
     AnyFilesInterceptor({
       storage: diskStorage({ destination: UploadHelper.uploadDirectory }),
@@ -45,7 +45,17 @@ export class UserController {
   ) {
     try {
       logger.info(`---USER.CONTROLLER.CREATE INIT---`);
-      // Le SuperAdmin peut choisir n'importe quel labo via le DTO
+      
+      // Si c'est un LabAdmin, on force son labo et le rôle LabStaff
+      if (req.user.role === Role.LabAdmin) {
+        const labId = req.user.lab?._id?.toString() || req.user.lab?.toString();
+        if (!labId) {
+          throw new HttpException("Vous n'avez pas de laboratoire associé", HttpStatus.FORBIDDEN);
+        }
+        createUserDto.lab = labId;
+        createUserDto.role = Role.LabStaff;
+      }
+
       const user = await this.userService.create(createUserDto, files || []);
       logger.info(`---USER.CONTROLLER.CREATE SUCCESS---`);
       return res.status(HttpStatus.CREATED).json(user);
@@ -97,15 +107,16 @@ export class UserController {
     try {
       logger.info(`---USER.CONTROLLER.CREATE_MULTIPLE INIT---`);
       
-      // Si c'est un LabAdmin, on force son labo pour tous les utilisateurs
+      // Si c'est un LabAdmin, on force son labo pour tous les utilisateurs et le rôle LabStaff
       if (req.user.role === Role.LabAdmin) {
-        const labId = req.user.lab?._id.toString();
+        const labId = req.user.lab?._id?.toString() || req.user.lab?.toString();
         if (!labId) {
           throw new HttpException("Vous n'avez pas de laboratoire associé", HttpStatus.FORBIDDEN);
         }
         createMultipleUsersDto.users = createMultipleUsersDto.users.map(user => ({
           ...user,
-          lab: labId
+          lab: labId,
+          role: Role.LabStaff
         }));
       }
 
