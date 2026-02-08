@@ -73,7 +73,7 @@ export class UserController {
     try {
       // Forcer le labo du LabAdmin
       if(req.user.role === Role.LabAdmin){
-        createUserDto.lab = req.user.lab?.toString();
+        createUserDto.lab = req.user.lab?._id.toString();
       }
       logger.info(`---USER.CONTROLLER.CREATE_LAB_STAFF INIT---`);
       const user = await this.userService.create(createUserDto, files || []);
@@ -99,7 +99,7 @@ export class UserController {
       
       // Si c'est un LabAdmin, on force son labo pour tous les utilisateurs
       if (req.user.role === Role.LabAdmin) {
-        const labId = req.user.lab?.toString();
+        const labId = req.user.lab?._id.toString();
         if (!labId) {
           throw new HttpException("Vous n'avez pas de laboratoire associé", HttpStatus.FORBIDDEN);
         }
