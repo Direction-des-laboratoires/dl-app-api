@@ -119,6 +119,16 @@ export class MessageService {
         allPhoneNumbers = [...allPhoneNumbers, ...phoneNumbers];
       }
 
+      // 10. Ajouter les utilisateurs par environmentId et ses postes sélectionnés
+      if (recipients.environmentId) {
+        const { emails, phoneNumbers } = await this.getEnvironmentTargetedContacts(
+          recipients.environmentId,
+          recipients.environmentPositionIds,
+        );
+        allEmails = [...allEmails, ...emails];
+        allPhoneNumbers = [...allPhoneNumbers, ...phoneNumbers];
+      }
+
       // Supprimer les doublons
       const uniqueEmails = [...new Set(allEmails)];
       const uniquePhoneNumbers = [...new Set(allPhoneNumbers)];
@@ -282,6 +292,42 @@ export class MessageService {
         role,
         active: true,
       })
+      .select('email phoneNumber')
+      .exec();
+
+    const emails = users
+      .map((user) => user.email)
+      .filter((email) => email && email.trim() !== '');
+
+    const phoneNumbers = users
+      .map((user) => user.phoneNumber)
+      .filter((phone) => phone && phone.trim() !== '');
+
+    return {
+      emails: [...new Set(emails)],
+      phoneNumbers: [...new Set(phoneNumbers)],
+    };
+  }
+
+  private async getEnvironmentTargetedContacts(
+    environmentId: string,
+    environmentPositionIds?: string[],
+  ): Promise<{
+    emails: string[];
+    phoneNumbers: string[];
+  }> {
+    const filters: any = {
+      environment: environmentId,
+      active: true,
+    };
+
+    // Si des postes sont spécifiés, on filtre par ces postes au sein de l'environnement
+    if (environmentPositionIds && environmentPositionIds.length > 0) {
+      filters.environmentPosition = { $in: environmentPositionIds };
+    }
+
+    const users = await this.userModel
+      .find(filters)
       .select('email phoneNumber')
       .exec();
 

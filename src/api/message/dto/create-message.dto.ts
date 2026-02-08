@@ -57,6 +57,15 @@ export class MessageRecipientsDto {
   @IsOptional()
   @IsBoolean()
   allStaffs?: boolean;
+
+  @IsOptional()
+  @IsString()
+  environmentId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  environmentPositionIds?: string[];
 }
 
 export class CreateMessageDto {
