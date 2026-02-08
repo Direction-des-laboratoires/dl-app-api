@@ -11,6 +11,7 @@ import { LabSchema } from '../labs/schemas/lab.schema';
 import { PositionSchema } from '../position/schemas/position.schema';
 import { EnvironmentPositionSchema } from '../environment-position/schemas/environment-position.schema';
 import { EnvironmentSchema } from '../environment/schemas/environment.schema';
+import { EnvironmentModule } from '../environment/environment.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { EnvironmentSchema } from '../environment/schemas/environment.schema';
       { name: 'Environment', schema: EnvironmentSchema },
     ]),
     ContractTypeModule,
+    EnvironmentModule,
   ],
   controllers: [UserController],
   providers: [UserService],

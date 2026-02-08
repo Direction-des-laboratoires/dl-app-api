@@ -25,10 +25,14 @@ import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import { FindUsersDto } from './dto/find-user.dto';
 import { UploadHelper } from 'src/utils/functions/upload-image.helper';
+import { EnvironmentService } from '../environment/environment.service';
 
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly environmentService: EnvironmentService,
+  ) {}
 
   @Roles(Role.LabAdmin, Role.SuperAdmin)
   @UseInterceptors(
@@ -46,7 +50,7 @@ export class UserController {
     try {
       logger.info(`---USER.CONTROLLER.CREATE INIT---`);
       
-      // Si c'est un LabAdmin, on force son labo et le rôle LabStaff
+      // Si c'est un LabAdmin, on force son labo, le rôle LabStaff et l'environnement RNL
       if (req.user.role === Role.LabAdmin) {
         const labId = req.user.lab?._id?.toString() || req.user.lab?.toString();
         if (!labId) {
@@ -54,6 +58,12 @@ export class UserController {
         }
         createUserDto.lab = labId;
         createUserDto.role = Role.LabStaff;
+
+        // Récupérer et forcer l'environnement RNL'(Réseau Nationale des Laboratoires)
+        const rnlEnv = await this.environmentService.findByCode('RNL');
+        if (rnlEnv && rnlEnv.data) {
+          createUserDto.environment = rnlEnv.data._id.toString();
+        }
       }
 
       const user = await this.userService.create(createUserDto, files || []);
@@ -113,10 +123,16 @@ export class UserController {
         if (!labId) {
           throw new HttpException("Vous n'avez pas de laboratoire associé", HttpStatus.FORBIDDEN);
         }
+
+        // Récupérer l'environnement RNL
+        const rnlEnv = await this.environmentService.findByCode('RNL');
+        const rnlEnvId = rnlEnv?.data?._id.toString();
+
         createMultipleUsersDto.users = createMultipleUsersDto.users.map(user => ({
           ...user,
           lab: labId,
-          role: Role.LabStaff
+          role: Role.LabStaff,
+          environment: rnlEnvId || user.environment
         }));
       }
 
