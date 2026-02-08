@@ -130,7 +130,7 @@ export class UserController {
     }
   }
 
-  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff)
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff,Role.RegionAdmin)
   @Get()
   async findAll(@Query() query: FindUsersDto, @Req() req, @Res() res) {
     try {

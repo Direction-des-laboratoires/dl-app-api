@@ -32,12 +32,12 @@ export const StructureSchema = new mongoose.Schema({
   department: {
     type: mongoose.Schema.ObjectId,
     ref: 'Department',
-    required: true,
+    default: null,
   },
   district: {
     type: mongoose.Schema.ObjectId,
     ref: 'District',
-    required: true,
+    default: null,
   },
 
   created_at: {
