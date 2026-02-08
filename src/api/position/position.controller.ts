@@ -3,6 +3,8 @@ import { PositionService } from './position.service';
 import { CreatePositionDto } from './dto/create-position.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
 import { FindPositionDto } from './dto/find-position.dto';
+import { Roles } from 'src/utils/decorators/role.decorator';
+import { Role } from 'src/utils/enums/roles.enum';
 
 @Controller('positions')
 export class PositionController {
@@ -11,6 +13,12 @@ export class PositionController {
   @Post()
   create(@Body() createPositionDto: CreatePositionDto) {
     return this.positionService.create(createPositionDto);
+  }
+
+  @Roles(Role.SuperAdmin)
+  @Post('bulk')
+  createMultiple(@Body() positionsDto: CreatePositionDto[]) {
+    return this.positionService.createMultiple(positionsDto);
   }
 
   @Get()

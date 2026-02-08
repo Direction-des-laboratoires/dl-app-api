@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Req } from '@nestjs/common';
 import { EnvironmentService } from './environment.service';
 import { CreateEnvironmentDto } from './dto/create-environment.dto';
 import { UpdateEnvironmentDto } from './dto/update-environment.dto';
@@ -14,8 +14,9 @@ export class EnvironmentController {
   }
 
   @Get()
-  findAll(@Query() query: FindEnvironmentDto) {
-    return this.environmentService.findAll(query);
+  findAll(@Query() query: FindEnvironmentDto, @Req() req: any) {
+    const userRole = req.user?.role;
+    return this.environmentService.findAll(query, userRole);
   }
 
   @Get(':id')

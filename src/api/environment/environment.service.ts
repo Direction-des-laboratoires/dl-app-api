@@ -6,6 +6,7 @@ import { CreateEnvironmentDto } from './dto/create-environment.dto';
 import { UpdateEnvironmentDto } from './dto/update-environment.dto';
 import { FindEnvironmentDto } from './dto/find-environment.dto';
 import logger from 'src/utils/logger';
+import { Role } from 'src/utils/enums/roles.enum';
 
 @Injectable()
 export class EnvironmentService {
@@ -35,13 +36,19 @@ export class EnvironmentService {
     }
   }
 
-  async findAll(query: FindEnvironmentDto): Promise<any> {
+  async findAll(query: FindEnvironmentDto, userRole?: string): Promise<any> {
     try {
       logger.info(`---ENVIRONMENT.SERVICE.FIND_ALL INIT---`);
       const { page = 1, limit = 10, search, active } = query;
       const skip = (page - 1) * limit;
 
       const filters: any = {};
+
+      // Si le rôle n'est pas SuperAdmin, restreindre à l'environnement avec le code RNL
+      if (userRole !== Role.SuperAdmin) {
+        filters.code = 'RNL';
+      }
+
       if (search) {
         filters.$or = [
           { name: { $regex: search, $options: 'i' } },

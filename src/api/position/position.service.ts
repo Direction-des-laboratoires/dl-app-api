@@ -35,6 +35,39 @@ export class PositionService {
     }
   }
 
+  async createMultiple(positionsDto: CreatePositionDto[]): Promise<any> {
+    try {
+      logger.info(`---POSITION.SERVICE.CREATE_MULTIPLE INIT--- count=${positionsDto.length}`);
+      const results = [];
+      const errors = [];
+
+      for (const positionDto of positionsDto) {
+        try {
+          const result = await this.create(positionDto);
+          results.push(result.data);
+        } catch (error) {
+          errors.push({
+            title: positionDto.title,
+            error: error.message,
+          });
+        }
+      }
+
+      logger.info(`---POSITION.SERVICE.CREATE_MULTIPLE SUCCESS--- created=${results.length}, failed=${errors.length}`);
+      return {
+        message: `${results.length} positions créées avec succès`,
+        data: results,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    } catch (error) {
+      logger.error(`---POSITION.SERVICE.CREATE_MULTIPLE ERROR ${error}---`);
+      throw new HttpException(
+        error.message || 'Erreur lors de la création multiple des positions',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findAll(query: FindPositionDto): Promise<any> {
     try {
       logger.info(`---POSITION.SERVICE.FIND_ALL INIT---`);

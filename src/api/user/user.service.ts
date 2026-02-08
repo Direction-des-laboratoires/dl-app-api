@@ -399,7 +399,21 @@ export class UserService {
   async findByEmail(email: string): Promise<any> {
     try {
       const user = await this.userModel
-        .findOne({ email, active: true })
+        .findOne({ email, active: true }).populate('lab')
+        .populate('environment')
+        .populate({
+          path: 'environmentPosition',
+          populate: { path: 'position' },
+        })
+        .populate('contractType')
+        .populate({
+          path: 'level',
+          select: 'name description',
+        })
+        .populate({
+          path: 'specialities',
+          select: 'name description',
+        })
         .lean();
       if (!user) {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
@@ -426,7 +440,6 @@ export class UserService {
   async findLogin(createAuthDto: CreateAuthDto) {
     try {
       const user = await this.findByEmail(createAuthDto.email);
-      console.log('USER', user);
       
       const passwordMatched = await bcrypt.compare(
         createAuthDto.password,
