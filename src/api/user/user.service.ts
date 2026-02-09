@@ -351,7 +351,7 @@ export class UserService {
         .select('-password')
         .populate({
           path: 'lab',
-          select: 'structure',
+          select: 'structure name',
           populate: [{ path: 'structure', select: 'name' }],
         })
         .populate('environment')
@@ -537,7 +537,7 @@ export class UserService {
         .select('-password')
         .populate({
           path: 'lab',
-          select: 'structure',
+          select: 'structure name type',
           populate: [{ path: 'structure', select: 'name' }],
         })
         .populate('environment')
