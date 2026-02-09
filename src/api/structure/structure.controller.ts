@@ -45,8 +45,8 @@ export class StructureController {
   @Get()
   async findAll(
     @Res() res,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
     @Query('region') region?: string,
     @Query('department') department?: string,
     @Query('district') district?: string,
@@ -55,9 +55,12 @@ export class StructureController {
     @Query('name') name?: string,
   ) {
     try {
+      const pageNum = parseInt(page, 10) || 1;
+      const limitNum = parseInt(limit, 10) || 10;
+
       const result = await this.structureService.findAll({
-        page,
-        limit,
+        page: pageNum,
+        limit: limitNum,
         region,
         department,
         district,
@@ -71,9 +74,9 @@ export class StructureController {
         data: result.data,
         pagination: {
           total: result.total,
-          page: result.page,
+          page: pageNum,
           totalPages: result.totalPages,
-          limit,
+          limit: limitNum,
         },
       });
     } catch (error) {
