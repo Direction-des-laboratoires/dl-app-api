@@ -11,11 +11,11 @@ export class CreateLabDto {
   @IsString()
   latLng?: string; // Format: "lat,lng"
 
-  @IsNotEmpty()
-  director: string;
+  @IsOptional()
+  director?: string;
 
-  @IsNotEmpty()
-  responsible: string;
+  @IsOptional()
+  responsible?: string;
 
   @IsNotEmpty()
   phoneNumber: string;

@@ -31,6 +31,57 @@ export class EnvironmentPositionService {
     }
   }
 
+  async createBulk(environmentId: string, positionIds: string[]): Promise<any> {
+    try {
+      logger.info(`---ENVIRONMENT_POSITION.SERVICE.CREATE_BULK INIT--- environmentId=${environmentId}, count=${positionIds.length}`);
+      
+      const results = [];
+      const errors = [];
+
+      for (const positionId of positionIds) {
+        try {
+          // Vérifier si cette association existe déjà
+          const existing = await this.environmentPositionModel.findOne({
+            environment: environmentId,
+            position: positionId,
+          });
+
+          if (existing) {
+            errors.push({
+              positionId,
+              error: 'Cette position est déjà associée à cet environnement',
+            });
+            continue;
+          }
+
+          const created = await this.environmentPositionModel.create({
+            environment: environmentId,
+            position: positionId,
+          });
+          results.push(created);
+        } catch (error) {
+          errors.push({
+            positionId,
+            error: error.message,
+          });
+        }
+      }
+
+      logger.info(`---ENVIRONMENT_POSITION.SERVICE.CREATE_BULK SUCCESS--- created=${results.length}, failed=${errors.length}`);
+      return {
+        message: `${results.length} positions d'environnement créées avec succès`,
+        data: results,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    } catch (error) {
+      logger.error(`---ENVIRONMENT_POSITION.SERVICE.CREATE_BULK ERROR ${error}---`);
+      throw new HttpException(
+        error.message || 'Erreur lors de la création multiple des positions d\'environnement',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findAll(query: FindEnvironmentPositionDto): Promise<any> {
     try {
       logger.info(`---ENVIRONMENT_POSITION.SERVICE.FIND_ALL INIT---`);

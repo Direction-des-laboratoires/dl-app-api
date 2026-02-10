@@ -12,5 +12,5 @@ export enum StructureLevelEnum {
 export enum StructureStatusEnum {
   PUBLIC = "Public",
   PRIVATE="Private",
-  PRIVATE_C="Private-confessionnel"
+  PRIVATE_C="Private-confessional"
 }
