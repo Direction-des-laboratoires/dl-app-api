@@ -290,6 +290,8 @@ export class UserService {
     search?: string;
     contractType?: string;
     gender?: string;
+    maritalStatus?: string;
+    disabled?: boolean;
   }): Promise<any> {
     try {
       const {
@@ -310,6 +312,8 @@ export class UserService {
         search,
         contractType,
         gender,
+        maritalStatus,
+        disabled,
       } = query;
 
       const filters: any = {};
@@ -338,6 +342,8 @@ export class UserService {
       if (region) filters.region = region;
       if (contractType) filters.contractType = contractType;
       if (gender) filters.gender = gender;
+      if (maritalStatus) filters.maritalStatus = maritalStatus;
+      if (disabled !== undefined) filters.disabled = disabled;
 
       if (role && role !== Role.SdrAdmin) {
         filters.role = role;

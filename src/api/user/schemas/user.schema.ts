@@ -3,6 +3,7 @@ import * as mongoose from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { Role } from 'src/utils/enums/roles.enum';
 import { Gender } from 'src/utils/enums/gender.enum';
+import { MaritalStatus } from 'src/utils/enums/marital-status.enum';
 export const UserSchema = new mongoose.Schema({
   firstname: {
     type: String,
@@ -35,6 +36,29 @@ export const UserSchema = new mongoose.Schema({
   },
   identificationType: {
     type: String,
+  },
+  identificationNumber: {
+    type: String,
+  },
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
+  disabilityDetails: {
+    type: String,
+  },
+  maritalStatus: {
+    type: String,
+    enum: MaritalStatus,
+    default: MaritalStatus.SINGLE,
+  },
+  numberOfChildren: {
+    type: Number,
+    default: 0,
+  },
+  numberOfWives: {
+    type: Number,
+    default: 0,
   },
   bloodGroup: {
     type: String,

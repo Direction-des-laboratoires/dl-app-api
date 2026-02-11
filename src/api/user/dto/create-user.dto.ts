@@ -1,5 +1,6 @@
-import { IsEnum, IsMongoId, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsBoolean, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Gender } from 'src/utils/enums/gender.enum';
+import { MaritalStatus } from 'src/utils/enums/marital-status.enum';
 
 /* eslint-disable prettier/prettier */
 export class CreateUserDto {
@@ -45,6 +46,30 @@ export class CreateUserDto {
 
   @IsOptional()
   identificationType: string;
+
+  @IsOptional()
+  @IsString()
+  identificationNumber: string;
+
+  @IsOptional()
+  @IsBoolean()
+  disabled: boolean;
+
+  @IsOptional()
+  @IsString()
+  disabilityDetails: string;
+
+  @IsOptional()
+  @IsEnum(MaritalStatus)
+  maritalStatus: MaritalStatus;
+
+  @IsOptional()
+  @IsNumber()
+  numberOfChildren: number;
+
+  @IsOptional()
+  @IsNumber()
+  numberOfWives: number;
 
   @IsNotEmpty()
   birthday: string;
@@ -100,6 +125,30 @@ export class CreateLabStaffDto {
 
   @IsOptional()
   identificationType: string;
+
+  @IsOptional()
+  @IsString()
+  identificationNumber: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isDisabled: boolean;
+
+  @IsOptional()
+  @IsString()
+  disabilityDescription: string;
+
+  @IsOptional()
+  @IsEnum(MaritalStatus)
+  maritalStatus: MaritalStatus;
+
+  @IsOptional()
+  @IsNumber()
+  numberOfChildren: number;
+
+  @IsOptional()
+  @IsNumber()
+  numberOfWives: number;
 
   @IsNotEmpty()
   birthday: string;

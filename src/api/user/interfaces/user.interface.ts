@@ -9,6 +9,12 @@ export interface User extends Document {
   phoneNumber: string;
   email: string;
   gender?: string;
+  identificationNumber?: string;
+  disabled?: boolean;
+  disabledDetails?: string;
+  maritalStatus?: string;
+  numberOfChildren?: number;
+  numberOfWives?: number;
   lab: any;
   role: string;
   environment: any;
