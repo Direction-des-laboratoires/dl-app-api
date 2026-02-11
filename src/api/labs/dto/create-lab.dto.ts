@@ -17,9 +17,10 @@ export class CreateLabDto {
   @IsOptional()
   responsible?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   phoneNumber: string;
 
+  @IsOptional()
   @IsEmail()
   email: string;
 

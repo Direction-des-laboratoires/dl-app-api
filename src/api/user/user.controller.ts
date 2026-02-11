@@ -130,6 +130,47 @@ export class UserController {
     }
   }
 
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.RegionAdmin)
+  @Get('stats')
+  async getStats(
+    @Query('region') region: string,
+    @Query('district') district: string,
+    @Query('lab') lab: string,
+    @Req() req,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---USER.CONTROLLER.GET_STATS INIT---`);
+      const requester = req.user;
+
+      // Appliquer les restrictions selon le rôle
+      let finalRegion = region;
+      let finalLab = lab;
+
+      if (requester.role === Role.RegionAdmin) {
+        finalRegion = requester.region?._id?.toString() || requester.region?.toString();
+      } else if (requester.role === Role.LabAdmin) {
+        finalLab = requester.lab?._id?.toString() || requester.lab?.toString();
+      }
+
+      const stats = await this.userService.getStats({
+        region: finalRegion,
+        district,
+        lab: finalLab,
+      });
+
+      return res.status(HttpStatus.OK).json({
+        message: 'Statistiques du personnel récupérées',
+        data: stats,
+      });
+    } catch (error) {
+      logger.error(`---USER.CONTROLLER.GET_STATS ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
   @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff,Role.RegionAdmin)
   @Get()
   async findAll(@Query() query: FindUsersDto, @Req() req, @Res() res) {

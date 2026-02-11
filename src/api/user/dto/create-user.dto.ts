@@ -91,7 +91,7 @@ export class CreateLabStaffDto {
   @IsMongoId()
   environmentPosition: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsMongoId()
   contractType: string;
 
@@ -104,7 +104,7 @@ export class CreateLabStaffDto {
   @IsNotEmpty()
   birthday: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsEnum(Gender)
   gender: Gender;
 

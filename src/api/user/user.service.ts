@@ -16,6 +16,7 @@ import { MailService } from 'src/providers/mail-service/mail.service';
 import { uploadFile } from 'src/utils/functions/file.upload';
 import { ProfessionalExperience } from '../professional-experience/interfaces/professional-experience.interface';
 import { Training } from '../training/interfaces/training.interface';
+import { Lab } from '../labs/interfaces/labs.interface';
 
 @Injectable()
 export class UserService {
@@ -24,6 +25,7 @@ export class UserService {
     @InjectModel('ProfessionalExperience')
     private professionalExperienceModel: Model<ProfessionalExperience>,
     @InjectModel('Training') private trainingModel: Model<Training>,
+    @InjectModel('Lab') private labModel: Model<Lab>,
     private mailService: MailService,
   ) {}
   /**
@@ -153,6 +155,118 @@ export class UserService {
     } catch (error) {
       throw new HttpException(
         error.message || 'Erreur lors de la création multiple',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getStats(query: {
+    region?: string;
+    district?: string;
+    lab?: string;
+  }): Promise<any> {
+    try {
+      logger.info(`---USER.SERVICE.GET_STATS INIT---`);
+      const { region, district, lab } = query;
+
+      const filters: any = { active: true };
+
+      // Si un lab est spécifié, on l'utilise directement
+      if (lab) {
+        filters.lab = new mongoose.Types.ObjectId(lab);
+      } 
+      // Sinon, si region ou district est spécifié, on cherche les labs correspondants
+      else if (region || district) {
+        const structureFilters: any = {};
+        if (region) structureFilters.region = new mongoose.Types.ObjectId(region);
+        if (district) structureFilters.district = new mongoose.Types.ObjectId(district);
+
+        // Trouver les structures
+        const labs = await this.labModel.aggregate([
+          {
+            $lookup: {
+              from: 'structures',
+              localField: 'structure',
+              foreignField: '_id',
+              as: 'structureInfo',
+            },
+          },
+          { $unwind: '$structureInfo' },
+          {
+            $match: {
+              $or: [
+                { 'structureInfo.region': structureFilters.region },
+                { 'structureInfo.district': structureFilters.district },
+              ].filter(f => Object.values(f)[0] !== undefined)
+            }
+          },
+          { $project: { _id: 1 } }
+        ]);
+
+        const labIds = labs.map(l => l._id);
+        
+        // Pour les stats, on inclut aussi les RegionAdmin de cette région
+        if (region) {
+          filters.$or = [
+            { lab: { $in: labIds } },
+            { region: new mongoose.Types.ObjectId(region) }
+          ];
+        } else {
+          filters.lab = { $in: labIds };
+        }
+      }
+
+      const stats = await this.userModel.aggregate([
+        { $match: filters },
+        {
+          $facet: {
+            total: [{ $count: 'count' }],
+            byGender: [
+              { $group: { _id: '$gender', count: { $sum: 1 } } }
+            ],
+            byRole: [
+              { $group: { _id: '$role', count: { $sum: 1 } } }
+            ],
+            byEnvironment: [
+              {
+                $lookup: {
+                  from: 'environments',
+                  localField: 'environment',
+                  foreignField: '_id',
+                  as: 'envInfo',
+                },
+              },
+              { $unwind: { path: '$envInfo', preserveNullAndEmptyArrays: true } },
+              { $group: { _id: '$envInfo.name', count: { $sum: 1 } } }
+            ],
+            byContractType: [
+              {
+                $lookup: {
+                  from: 'contracttypes',
+                  localField: 'contractType',
+                  foreignField: '_id',
+                  as: 'contractInfo',
+                },
+              },
+              { $unwind: { path: '$contractInfo', preserveNullAndEmptyArrays: true } },
+              { $group: { _id: '$contractInfo.name', count: { $sum: 1 } } }
+            ]
+          }
+        }
+      ]);
+
+      const result = stats[0];
+      return {
+        total: result.total[0]?.count || 0,
+        byGender: result.byGender,
+        byRole: result.byRole,
+        byEnvironment: result.byEnvironment,
+        byContractType: result.byContractType,
+      };
+    } catch (error) {
+      logger.error(`---USER.SERVICE.GET_STATS ERROR ${error}---`);
+      throw new HttpException(
+        error.message || 'Erreur lors de la récupération des statistiques',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

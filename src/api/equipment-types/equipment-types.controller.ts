@@ -41,6 +41,24 @@ export class EquipmentTypesController {
     }
   }
 
+  @Post('bulk')
+  async createBulk(
+    @Body() equipmentTypesDto: CreateEquipmentTypeDto[],
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---EQUIPMENT_TYPES.CONTROLLER.CREATE_BULK INIT---`);
+      const result = await this.equipmentTypesService.createBulk(equipmentTypesDto);
+      logger.info(`---EQUIPMENT_TYPES.CONTROLLER.CREATE_BULK SUCCESS---`);
+      return res.status(HttpStatus.CREATED).json(result);
+    } catch (error) {
+      logger.error(`---EQUIPMENT_TYPES.CONTROLLER.CREATE_BULK ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
   @Get()
   async findAll(@Query() query: FindEquipmentTypeDto, @Res() res) {
     try {

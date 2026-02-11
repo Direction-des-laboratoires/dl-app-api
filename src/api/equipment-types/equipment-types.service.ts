@@ -32,6 +32,39 @@ export class EquipmentTypesService {
     }
   }
 
+  async createBulk(equipmentTypesDto: CreateEquipmentTypeDto[]) {
+    try {
+      logger.info(`---EQUIPMENT_TYPES.SERVICE.CREATE_BULK INIT--- count=${equipmentTypesDto.length}`);
+      const results = [];
+      const errors = [];
+
+      for (const equipmentTypeDto of equipmentTypesDto) {
+        try {
+          const result = await this.create(equipmentTypeDto);
+          results.push(result);
+        } catch (error) {
+          errors.push({
+            name: equipmentTypeDto.name,
+            error: error.message,
+          });
+        }
+      }
+
+      logger.info(`---EQUIPMENT_TYPES.SERVICE.CREATE_BULK SUCCESS--- created=${results.length}, failed=${errors.length}`);
+      return {
+        message: `${results.length} types d'équipements créés avec succès`,
+        data: results,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    } catch (error) {
+      logger.error(`---EQUIPMENT_TYPES.SERVICE.CREATE_BULK ERROR ${error}---`);
+      throw new HttpException(
+        error.message || "Erreur lors de la création multiple des types d'équipements",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findAll(query: {
     page?: number;
     limit?: number;

@@ -53,7 +53,7 @@ export class StaffLevelService {
       const [data, total] = await Promise.all([
         this.staffLevelModel
           .find(filters)
-          .sort({ name: 1 })
+          .sort({ rank: 1})
           .skip(skip)
           .limit(limit)
           .lean(),
