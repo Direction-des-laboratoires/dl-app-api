@@ -5,8 +5,9 @@ import {
   IsOptional,
   IsEnum,
   IsDateString,
+  IsBoolean,
 } from 'class-validator';
-import { EquipmentStatus, InventoryStatus } from '../schemas/equipment.schema';
+import { EquipmentStatus, InventoryStatus, ReceptionStatus } from '../schemas/equipment.schema';
 
 export class CreateEquipmentDto {
   @IsOptional()
@@ -38,6 +39,10 @@ export class CreateEquipmentDto {
   inventoryStatus?: InventoryStatus;
 
   @IsOptional()
+  @IsEnum(ReceptionStatus)
+  receptionStatus?: ReceptionStatus;
+
+  @IsOptional()
   @IsMongoId()
   affectedTo?: string;
 
@@ -64,6 +69,18 @@ export class CreateEquipmentDto {
   @IsOptional()
   @IsDateString()
   nextMaintenanceDate?: Date;
+
+  @IsOptional()
+  @IsDateString()
+  lastCalibrationDate?: Date;
+
+  @IsOptional()
+  @IsDateString()
+  nextCalibrationDate?: Date;
+
+  @IsOptional()
+  @IsBoolean()
+  isCritical?: boolean;
 
   @IsOptional()
   @IsString()

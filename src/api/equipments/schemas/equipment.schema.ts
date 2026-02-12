@@ -15,6 +15,11 @@ export enum InventoryStatus {
   RETIRED = 'retired',
 }
 
+export enum ReceptionStatus {
+  GOOD = 'good',
+  DAMAGED = 'damaged',
+}
+
 export const EquipmentSchema = new mongoose.Schema({
   lab: {
     type: mongoose.Schema.ObjectId,
@@ -46,6 +51,11 @@ export const EquipmentSchema = new mongoose.Schema({
     type: String,
     enum: Object.values(InventoryStatus),
     default: InventoryStatus.IN_DELIVERY,
+  },
+  receptionStatus: {
+    type: String,
+    enum: Object.values(ReceptionStatus),
+    default: ReceptionStatus.GOOD,
   },
   affectedTo: {
     type: mongoose.Schema.ObjectId,
@@ -81,6 +91,18 @@ export const EquipmentSchema = new mongoose.Schema({
   },
   nextMaintenanceDate: {
     type: Date,
+  },
+  lastCalibrationDate: {
+    type: Date,
+    default: null,
+  },
+  nextCalibrationDate: {
+    type: Date,
+    default: null,
+  },
+  isCritical: {
+    type: Boolean,
+    default: false,
   },
   notes: {
     type: String,

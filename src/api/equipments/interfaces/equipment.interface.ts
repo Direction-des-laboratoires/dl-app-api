@@ -2,6 +2,7 @@ import { Document } from 'mongoose';
 import {
   EquipmentStatus,
   InventoryStatus,
+  ReceptionStatus,
 } from '../schemas/equipment.schema';
 
 export interface Equipment extends Document {
@@ -12,6 +13,7 @@ export interface Equipment extends Document {
   brand?: string;
   status: EquipmentStatus;
   inventoryStatus: InventoryStatus;
+  receptionStatus?: ReceptionStatus;
   affectedTo?: string;
   receivedBy?: string;
   receivedDate?: Date;
@@ -20,6 +22,9 @@ export interface Equipment extends Document {
   warrantyExpiryDate?: Date;
   lastMaintenanceDate?: Date;
   nextMaintenanceDate?: Date;
+  lastCalibrationDate?: Date;
+  nextCalibrationDate?: Date;
+  isCritical?: boolean;
   notes?: string;
   createdBy?: string;
   created_at: Date;
