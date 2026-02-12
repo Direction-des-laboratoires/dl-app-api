@@ -1,4 +1,4 @@
-import { IsOptional, IsBoolean, IsMongoId } from 'class-validator';
+import { IsOptional, IsBoolean, IsMongoId, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class FindEnvironmentPositionDto {
@@ -17,6 +17,10 @@ export class FindEnvironmentPositionDto {
   @IsOptional()
   @IsMongoId()
   position?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
 
   @IsOptional()
   @IsBoolean()

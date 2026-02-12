@@ -85,7 +85,7 @@ export class EnvironmentPositionService {
   async findAll(query: FindEnvironmentPositionDto): Promise<any> {
     try {
       logger.info(`---ENVIRONMENT_POSITION.SERVICE.FIND_ALL INIT---`);
-      const { page = 1, limit = 10, environment, position, active } = query;
+      const { page = 1, limit = 10, environment, position, active, search } = query;
       const skip = (page - 1) * limit;
 
       const filters: any = {};
@@ -97,6 +97,26 @@ export class EnvironmentPositionService {
       }
       if (active !== undefined) {
         filters.active = active;
+      }
+
+      // Si search est fourni, on doit chercher dans les documents liés (Environment et Position)
+      if (search) {
+        const [matchingEnvironments, matchingPositions] = await Promise.all([
+          this.environmentPositionModel.db.model('Environment').find({
+            name: { $regex: search, $options: 'i' }
+          }).select('_id'),
+          this.environmentPositionModel.db.model('Position').find({
+            title: { $regex: search, $options: 'i' }
+          }).select('_id')
+        ]);
+
+        const envIds = matchingEnvironments.map(e => e._id);
+        const posIds = matchingPositions.map(p => p._id);
+
+        filters.$or = [
+          { environment: { $in: envIds } },
+          { position: { $in: posIds } }
+        ];
       }
 
       const [data, total] = await Promise.all([
