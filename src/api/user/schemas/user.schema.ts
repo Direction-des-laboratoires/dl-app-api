@@ -128,6 +128,14 @@ export const UserSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  cv: {
+    type: String,
+    default: null,
+  },
+  videoPresentation: {
+    type: String,
+    default: null,
+  },
   created_at: {
     type: Date,
     default: Date.now(),

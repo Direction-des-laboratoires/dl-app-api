@@ -65,9 +65,18 @@ export class UserService {
 
       // Traiter l'upload de la photo de profil si présente
       let profilePhotoUrl: string | undefined;
+      let cvUrl: string | undefined;
+      let presentationVideoUrl: string | undefined;
       const profilePhotoFile = files?.find(
         (file) =>
           file.fieldname === 'profilePhoto' || file.fieldname === 'photo',
+      );
+      const cvFile = files?.find((file) => file.fieldname === 'cv');
+      const presentationVideoFile = files?.find(
+        (file) =>
+          file.fieldname === 'videoPresentation' ||
+          file.fieldname === 'presentationVideo' ||
+          file.fieldname === 'video',
       );
       if (profilePhotoFile) {
         try {
@@ -85,12 +94,46 @@ export class UserService {
           );
         }
       }
+      if (cvFile) {
+        try {
+          cvUrl = await uploadFile(cvFile);
+          logger.info(`---USER.SERVICE.UPLOAD_CV SUCCESS--- url=${cvUrl}`);
+        } catch (uploadError) {
+          logger.error(`---USER.SERVICE.UPLOAD_CV ERROR--- ${uploadError.message}`);
+          throw new HttpException(
+            `Erreur lors de l'upload du CV: ${uploadError.message}`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      }
+      if (presentationVideoFile) {
+        try {
+          presentationVideoUrl = await uploadFile(presentationVideoFile);
+          logger.info(
+            `---USER.SERVICE.UPLOAD_PRESENTATION_VIDEO SUCCESS--- url=${presentationVideoUrl}`,
+          );
+        } catch (uploadError) {
+          logger.error(
+            `---USER.SERVICE.UPLOAD_PRESENTATION_VIDEO ERROR--- ${uploadError.message}`,
+          );
+          throw new HttpException(
+            `Erreur lors de l'upload de la video de presentation: ${uploadError.message}`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      }
 
       const user = new this.userModel(createUserDto);
       const password = this.generateRandomPassword(8);
       user.password = password;
       if (profilePhotoUrl) {
         user.profilePhoto = profilePhotoUrl;
+      }
+      if (cvUrl) {
+        user.cv = cvUrl;
+      }
+      if (presentationVideoUrl) {
+        user.videoPresentation = presentationVideoUrl;
       }
       await user.save();
       logger.info(`---USER.SERVICE.CREATE SUCCESS---`);
@@ -626,9 +669,18 @@ export class UserService {
 
       // Traiter l'upload de la photo de profil si présente
       let profilePhotoUrl: string | undefined;
+      let cvUrl: string | undefined;
+      let presentationVideoUrl: string | undefined;
       const profilePhotoFile = files?.find(
         (file) =>
           file.fieldname === 'profilePhoto' || file.fieldname === 'photo',
+      );
+      const cvFile = files?.find((file) => file.fieldname === 'cv');
+      const presentationVideoFile = files?.find(
+        (file) =>
+          file.fieldname === 'videoPresentation' ||
+          file.fieldname === 'presentationVideo' ||
+          file.fieldname === 'video',
       );
       if (profilePhotoFile) {
         try {
@@ -646,10 +698,44 @@ export class UserService {
           );
         }
       }
+      if (cvFile) {
+        try {
+          cvUrl = await uploadFile(cvFile);
+          logger.info(`---USER.SERVICE.UPLOAD_CV SUCCESS--- url=${cvUrl}`);
+        } catch (uploadError) {
+          logger.error(`---USER.SERVICE.UPLOAD_CV ERROR--- ${uploadError.message}`);
+          throw new HttpException(
+            `Erreur lors de l'upload du CV: ${uploadError.message}`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      }
+      if (presentationVideoFile) {
+        try {
+          presentationVideoUrl = await uploadFile(presentationVideoFile);
+          logger.info(
+            `---USER.SERVICE.UPLOAD_PRESENTATION_VIDEO SUCCESS--- url=${presentationVideoUrl}`,
+          );
+        } catch (uploadError) {
+          logger.error(
+            `---USER.SERVICE.UPLOAD_PRESENTATION_VIDEO ERROR--- ${uploadError.message}`,
+          );
+          throw new HttpException(
+            `Erreur lors de l'upload de la video de presentation: ${uploadError.message}`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      }
 
       const updateData: any = { ...updateUserDto, updated_at: new Date() };
       if (profilePhotoUrl) {
         updateData.profilePhoto = profilePhotoUrl;
+      }
+      if (cvUrl) {
+        updateData.cv = cvUrl;
+      }
+      if (presentationVideoUrl) {
+        updateData.videoPresentation = presentationVideoUrl;
       }
 
       const updated = await this.userModel

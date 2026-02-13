@@ -27,6 +27,8 @@ export interface User extends Document {
   active: boolean;
   isFirstLogin: boolean;
   profilePhoto?: string;
+  cv?: string;
+  videoPresentation?: string;
   created_at: Date;
   updated_at: Date;
 }

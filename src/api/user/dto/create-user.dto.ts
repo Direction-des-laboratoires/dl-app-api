@@ -85,6 +85,12 @@ export class CreateUserDto {
   profilePicture: string;
 
   @IsOptional()
+  cv: string;
+
+  @IsOptional()
+  videoPresentation: string;
+
+  @IsOptional()
   entryDate: Date;
 
   @IsOptional()
@@ -162,6 +168,12 @@ export class CreateLabStaffDto {
 
   @IsOptional()
   profilePicture: string;
+
+  @IsOptional()
+  cv: string;
+
+  @IsOptional()
+  videoPresentation: string;
 
   @IsNotEmpty()
   entryDate: Date;
