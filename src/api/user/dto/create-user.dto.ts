@@ -71,6 +71,10 @@ export class CreateUserDto {
   maritalStatus: MaritalStatus;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    return Number(value);
+  })
   @IsNumber()
   numberOfChildren: number;
 
