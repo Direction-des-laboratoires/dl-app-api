@@ -15,8 +15,7 @@ export const UserSchema = new mongoose.Schema({
   },
   phoneNumber: {
     type: String,
-    unique: true,
-    sparse: true,
+    default: null,
   },
   email: {
     type: String,
@@ -25,6 +24,7 @@ export const UserSchema = new mongoose.Schema({
   },
   birthday: {
     type: Date,
+    default: null,
   },
   gender: {
     type: String,
@@ -33,12 +33,15 @@ export const UserSchema = new mongoose.Schema({
   },
   nationality: {
     type: String,
+    default: null,
   },
   identificationType: {
     type: String,
+    default: null,
   },
   identificationNumber: {
     type: String,
+    default: null,
   },
   disabled: {
     type: Boolean,
@@ -83,9 +86,9 @@ export const UserSchema = new mongoose.Schema({
   level: {
     type: mongoose.Schema.ObjectId,
     ref: 'StaffLevel',
-    required: function () {
-      return ![Role.SdrAdmin, Role.SuperAdmin].includes(this.role);
-    },
+    // required: function () {
+    //   return ![Role.SdrAdmin, Role.SuperAdmin].includes(this.role);
+    // },
     default: null,
   },
   environment: {
@@ -134,6 +137,17 @@ export const UserSchema = new mongoose.Schema({
     default: Date.now(),
   },
 });
+
+// Unicité uniquement si le numéro est renseigné (permet plusieurs null/vides)
+UserSchema.index(
+  { phoneNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      phoneNumber: { $type: 'string', $ne: '' },
+    },
+  },
+);
 
 UserSchema.pre('save', async function (next) {
   try {

@@ -77,6 +77,26 @@ export class LabsController {
     }
   }
 
+  @Roles(Role.SuperAdmin)
+  @Post('bulk-with-managers')
+  async createBulkWithManagers(@Body() payload: any[], @Res() res) {
+    try {
+      logger.info(
+        `---LABS.CONTROLLER.CREATE_BULK_WITH_MANAGERS INIT--- count=${payload?.length || 0}`,
+      );
+      const result = await this.labsService.createBulkWithManagers(payload || []);
+      logger.info(`---LABS.CONTROLLER.CREATE_BULK_WITH_MANAGERS SUCCESS---`);
+      return res.status(HttpStatus.CREATED).json(result);
+    } catch (error: any) {
+      logger.error(`---LABS.CONTROLLER.CREATE_BULK_WITH_MANAGERS ERROR ${error}---`);
+      return res.status(error.status || HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message:
+          error.message ||
+          'Erreur lors de la création bulk des laboratoires et responsables',
+      });
+    }
+  }
+
   @Get()
   async findAll(@Query() query: FindLabsDto, @Res() res) {
     try {

@@ -9,13 +9,91 @@ import { Structure } from 'src/api/structure/interfaces/structure.interface';
 import logger from 'src/utils/logger';
 import mongoose from 'mongoose';
 import { sanitizeUserObject } from 'src/utils/functions/sanitizer';
+import { Role } from 'src/utils/enums/roles.enum';
+import { User } from '../user/interfaces/user.interface';
+import { MailService } from 'src/providers/mail-service/mail.service';
 
 @Injectable()
 export class LabsService {
   constructor(
     @InjectModel('Lab') private labModel: Model<Lab>,
     @InjectModel('Structure') private structureModel: Model<Structure>,
+    @InjectModel('User') private userModel: Model<User>,
+    @InjectModel('StaffLevel') private staffLevelModel: Model<any>,
+    private mailService: MailService,
   ) {}
+
+  private normalizeValue(value: any): string | null {
+    if (value === undefined || value === null) return null;
+    const normalized = String(value).replace(/\u00A0/g, ' ').trim();
+    return normalized === '' ? null : normalized;
+  }
+
+  private async createManagerForLab(manager: any, labId: string) {
+    if (!manager) return null;
+
+    const email = this.normalizeValue(manager.email);
+    const phoneNumber = this.normalizeValue(manager.phoneNumber);
+    const firstname = this.normalizeValue(manager.firstName);
+    const lastname = this.normalizeValue(manager.lastName);
+
+    if (!firstname || !lastname || !email) {
+      return null;
+    }
+
+    const existingByEmailOrPhoneNumber = await this.userModel.findOne({ $or: [{ email }, { phoneNumber }] }).exec();
+    if (existingByEmailOrPhoneNumber) {
+      // await this.userModel
+      //   .findByIdAndUpdate(existingByEmailOrPhoneNumber._id, { lab: labId })
+      //   .exec();
+      return existingByEmailOrPhoneNumber;
+    }
+
+    const defaultLevel = await this.staffLevelModel
+      .findOne({rank: 2}).exec(); //Doctor level
+
+    if (!defaultLevel?._id) {
+      throw new HttpException(
+        'Aucun niveau de personnel trouvé pour créer les responsables',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const plainPassword = Math.random().toString(36).slice(-10) + 'A1';
+
+    const userData: any = {
+      firstname,
+      lastname,
+      email,
+      phoneNumber,
+      role: manager.role || Role.LabAdmin,
+      environment: this.normalizeValue(manager.environment),
+      environmentPosition: this.normalizeValue(manager.position),
+      nationality: 'Sénégalaise',
+      entryDate: new Date(),
+      lab: labId,
+      level: defaultLevel._id,
+      password: plainPassword,
+    };
+
+    const created = await this.userModel.create(userData);
+
+    try {
+      const fullName = `${firstname} ${lastname}`.trim();
+      // await this.mailService.sendWelcomeEmail(
+      //   email,
+      //   fullName || 'Utilisateur',
+      //   plainPassword,
+      // );
+    } catch (mailError) {
+      logger.error(
+        `---LABS.SERVICE.SEND_ACCESS_EMAIL ERROR--- ${mailError.message}`,
+      );
+      // Ne bloque pas la création si l'envoi email échoue
+    }
+
+    return created;
+  }
   async create(createLabDto: CreateLabDto) {
     try {
       logger.info(`---LABS.SERVICE.CREATE INIT---`);
@@ -123,6 +201,80 @@ export class LabsService {
 
       throw new HttpException(
         error.message || 'Erreur lors de la création des laboratoires',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async createBulkWithManagers(payload: any[]): Promise<any> {
+    try {
+      logger.info(
+        `---LABS.SERVICE.CREATE_BULK_WITH_MANAGERS INIT--- count=${payload.length}`,
+      );
+      const data = [];
+      const errors = [];
+
+      for (let i = 0; i < payload.length; i++) {
+        const item = payload[i];
+        try {
+          const labData: CreateLabDto = {
+            name: this.normalizeValue(item.name) as string,
+            structure: this.normalizeValue(item.structure),
+            latLng: this.normalizeValue(item.latLng),
+            phoneNumber: this.normalizeValue(item.phoneNumber),
+            email: this.normalizeValue(item.email),
+            specialities: Array.isArray(item.specialities) ? item.specialities : [],
+          };
+
+          const createdLab = await this.create(labData);
+
+          const director = await this.createManagerForLab(
+            item.directorObject,
+            String(createdLab._id),
+          );
+          const responsible = await this.createManagerForLab(
+            item.responsibleObject,
+            String(createdLab._id),
+          );
+
+          const updateLabData: any = {};
+          if (director?._id) updateLabData.director = director._id;
+          if (responsible?._id) updateLabData.responsible = responsible._id;
+
+          let finalLab = createdLab;
+          if (Object.keys(updateLabData).length > 0) {
+            finalLab = await this.labModel
+              .findByIdAndUpdate(createdLab._id, updateLabData, { new: true })
+              .exec();
+          }
+
+          data.push({
+            lab: finalLab,
+            director: director || null,
+            responsible: responsible || null,
+          });
+        } catch (error) {
+          errors.push({
+            index: i,
+            name: item?.name || null,
+            error: error.message,
+          });
+        }
+      }
+
+      return {
+        message: `${data.length} laboratoire(s) créé(s) avec succès`,
+        data,
+        successCount: data.length,
+        failedCount: errors.length,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    } catch (error) {
+      logger.error(
+        `---LABS.SERVICE.CREATE_BULK_WITH_MANAGERS ERROR ${error}---`,
+      );
+      throw new HttpException(
+        error.message || 'Erreur lors de la création bulk des laboratoires',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
