@@ -1,4 +1,5 @@
 import { IsBoolean, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { Gender } from 'src/utils/enums/gender.enum';
 import { MaritalStatus } from 'src/utils/enums/marital-status.enum';
 
@@ -52,6 +53,12 @@ export class CreateUserDto {
   identificationNumber: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return Boolean(value);
+  })
   @IsBoolean()
   disabled: boolean;
 
