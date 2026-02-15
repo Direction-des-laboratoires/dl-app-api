@@ -9,9 +9,9 @@ const path = require('path');
 export async function uploadFile(file: Express.Multer.File) {
   try {
     logger.info('-----FILES.SERVICE.UPLOADFILES-----id : ----INIT');
-    if (file.size > 200000000)
+    if (file.size > 70000000)
       throw new HttpException(
-        'La taille de fichier autorisée est de 200Mo maximum',
+        'La taille de fichier autorisée est de 70Mo maximum',
         HttpStatus.BAD_REQUEST,
       );
 

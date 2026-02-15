@@ -16,6 +16,7 @@ import { generateDigits } from 'src/utils/functions/code_generation';
 import { SendCodeVerificationDto } from './dto/send-code-verification.dto';
 import * as bcrypt from 'bcrypt';
 import { PromobileSmsService } from 'src/providers/sms-service/promobile.service';
+import { CreateLabAdminAccountDto } from './dto/create-lab-admin-account.dto';
 
 @Injectable()
 export class AuthService {
@@ -164,6 +165,23 @@ export class AuthService {
       return {
         message: 'Utilisateur créé avec succés!',
         data: { ...user, token },
+      };
+    } catch (error) {
+      throw new HttpException(error.message, error.status);
+    }
+  }
+
+  async registerLabAdmin(createLabAdminDto: CreateLabAdminAccountDto): Promise<any> {
+    try {
+      logger.info(`---AUTH.SERVICE.REGISTER_LAB_ADMIN INIT---`);
+      const user = await this.userService.createLabAdminAccount(
+        createLabAdminDto as any,
+      );
+      // const token = await this.generateToken(user);
+      logger.info(`---AUTH.SERVICE.REGISTER_LAB_ADMIN SUCCESS---`);
+      return {
+        message: 'Compte LabAdmin créé avec succés!',
+        // data: { ...user, token },
       };
     } catch (error) {
       throw new HttpException(error.message, error.status);

@@ -170,6 +170,30 @@ export class UserService {
     }
   }
 
+  async createLabAdminAccount(
+    createLabAdminDto: CreateUserDto | CreateLabStaffDto,
+  ) {
+    try {
+      logger.info(`---USER.SERVICE.CREATE_LAB_ADMIN_ACCOUNT INIT---`);
+      const payload = {
+        ...createLabAdminDto,
+        role: Role.LabAdmin,
+        active: false,
+      };
+      const user = await this.create(payload as any);
+      logger.info(`---USER.SERVICE.CREATE_LAB_ADMIN_ACCOUNT SUCCESS---`);
+      return user;
+    } catch (error) {
+      logger.error(
+        `---USER.SERVICE.CREATE_LAB_ADMIN_ACCOUNT ERROR--- ${error.message}`,
+      );
+      throw new HttpException(
+        error.message || 'Erreur lors de la creation du compte LabAdmin',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async createMultiple(usersDto: CreateUserDto[]) {
     try {
       logger.info(`---USER.SERVICE.CREATE_MULTIPLE INIT--- count=${usersDto.length}`);
@@ -611,7 +635,7 @@ export class UserService {
 
       if (!passwordMatched) {
         throw new HttpException(
-          'Phone number or password incorrect',
+          'Email or password incorrect',
           HttpStatus.NOT_FOUND,
         );
       }

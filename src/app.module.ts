@@ -132,7 +132,8 @@ export class AppModule {
       .apply(AuthMiddleware)
       .exclude(
         { path: 'auth/login', method: RequestMethod.POST }, // Exclure les routes de connexion
-        { path: 'auth/register', method: RequestMethod.POST }, // Exclure les routes d'inscription
+        //{ path: 'auth/register', method: RequestMethod.POST }, // Exclure les routes d'inscription
+        { path: 'auth/register-lab-admin', method: RequestMethod.POST }, // Exclure l'inscription LabAdmin publique
         { path: 'posts', method: RequestMethod.GET },
         { path: 'posts/:id', method: RequestMethod.GET },
         { path: 'amm-imports', method: RequestMethod.POST }, // Exclure la création de demande AMM (accessible sans authentification)

@@ -22,6 +22,7 @@ import { RequestOtpDto } from '../otp/dto/request-otp.dto';
 import { VerifyOtpDto } from '../otp/dto/verify-otp.dto';
 import { ResetPasswordDto } from '../otp/dto/reset-password.dto';
 import { OtpService } from '../otp/otp.service';
+import { CreateLabAdminAccountDto } from './dto/create-lab-admin-account.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -38,6 +39,24 @@ export class AuthController {
       return res.status(HttpStatus.CREATED).json(user);
     } catch (error) {
       logger.error(`---AUTH.CONTROLLER.REGISTER ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  @Post('register-lab-admin')
+  async registerLabAdmin(
+    @Body() createLabAdminDto: CreateLabAdminAccountDto,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---AUTH.CONTROLLER.REGISTER_LAB_ADMIN INIT---`);
+      const user = await this.authService.registerLabAdmin(createLabAdminDto);
+      logger.info(`---AUTH.CONTROLLER.REGISTER_LAB_ADMIN SUCCESS---`);
+      return res.status(HttpStatus.CREATED).json(user);
+    } catch (error) {
+      logger.error(`---AUTH.CONTROLLER.REGISTER_LAB_ADMIN ERROR ${error}---`);
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: error.message });
