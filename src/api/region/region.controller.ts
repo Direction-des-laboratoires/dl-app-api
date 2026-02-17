@@ -58,6 +58,8 @@ export class RegionController {
       name?: string;
       code?: string;
       search?: string;
+      pole?: string;
+      poleId?: string;
     },
     @Res() res,
   ) {

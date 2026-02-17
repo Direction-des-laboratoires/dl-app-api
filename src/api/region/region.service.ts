@@ -3,13 +3,18 @@ import { CreateRegionDto } from './dto/create-region.dto';
 import { UpdateRegionDto } from './dto/update-region.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as mongoose from 'mongoose';
 import { Region } from './interfaces/region.interface';
+import { RegionPole } from '../region-pole/interfaces/region-pole.interface';
 import regions from '../../utils/seeds/regions.json';
 import logger from 'src/utils/logger';
 
 @Injectable()
 export class RegionService {
-  constructor(@InjectModel('Region') private regionModel: Model<Region>) {}
+  constructor(
+    @InjectModel('Region') private regionModel: Model<Region>,
+    @InjectModel('RegionPole') private regionPoleModel: Model<RegionPole>,
+  ) {}
   async create(createRegionDto: CreateRegionDto) {
     try {
       logger.info(`---REGION.SERVICE.CREATE INIT---`);
@@ -25,7 +30,20 @@ export class RegionService {
   async createMany() {
     try {
       logger.info(`---REGION.SERVICE.CREATE_MANY INIT---`);
-      const regionSeeds = await this.regionModel.insertMany(regions);
+      let defaultPole = await this.regionPoleModel.findOne({ code: 'DEFAULT_POLE' });
+      if (!defaultPole) {
+        defaultPole = await this.regionPoleModel.create({
+          name: 'Pôle non assigné',
+          code: 'DEFAULT_POLE',
+          description: "Pôle généré automatiquement pour l'import des régions",
+          active: true,
+        });
+      }
+      const seededRegions = regions.map((region: any) => ({
+        ...region,
+        pole: defaultPole._id,
+      }));
+      const regionSeeds = await this.regionModel.insertMany(seededRegions);
       logger.info(`---REGION.SERVICE.CREATE_MANY SUCCESS---`);
       return regionSeeds;
     } catch (error) {
@@ -40,10 +58,12 @@ export class RegionService {
     name?: string;
     code?: string;
     search?: string;
+    pole?: string;
+    poleId?: string;
   }): Promise<any> {
     try {
       logger.info(`---REGION.SERVICE.FIND_ALL INIT---`);
-      const { page = 1, limit = 10, name, code, search } = query;
+      const { page = 1, limit = 10, name, code, search, pole, poleId } = query;
 
       const filters: any = {};
 
@@ -58,6 +78,14 @@ export class RegionService {
         // Sinon, utiliser les filtres individuels
         if (name) filters.name = { $regex: name, $options: 'i' };
         if (code) filters.code = { $regex: code, $options: 'i' };
+      }
+      const requestedPoleId = poleId || pole;
+      if (requestedPoleId) {
+        const normalizedPoleId = String(requestedPoleId).trim();
+        if (!mongoose.Types.ObjectId.isValid(normalizedPoleId)) {
+          throw new HttpException('Identifiant de pôle invalide', HttpStatus.BAD_REQUEST);
+        }
+        filters.pole = new mongoose.Types.ObjectId(normalizedPoleId);
       }
 
       const skip = (page - 1) * limit;
@@ -92,7 +120,10 @@ export class RegionService {
   async findOne(id: string) {
     try {
       logger.info(`---REGION.SERVICE.FIND_ONE INIT---`);
-      const region = await this.regionModel.findById(id).exec();
+      const region = await this.regionModel
+        .findById(id)
+        .populate('pole', 'name code')
+        .exec();
       if (!region) {
         throw new HttpException('Région non trouvée', HttpStatus.NOT_FOUND);
       }
@@ -116,6 +147,7 @@ export class RegionService {
           { ...updateRegionDto, updated_at: new Date() },
           { new: true },
         )
+        .populate('pole', 'name code')
         .exec();
       if (!updated) {
         throw new HttpException('Région non trouvée', HttpStatus.NOT_FOUND);

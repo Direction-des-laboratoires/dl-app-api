@@ -1,28 +1,30 @@
 import * as mongoose from 'mongoose';
 
-export const RegionSchema = new mongoose.Schema({
+export const RegionPoleSchema = new mongoose.Schema({
   name: {
     type: String,
-    unique: true,
     required: true,
+    unique: true,
   },
   code: {
     type: String,
+    required: true,
     unique: true,
-    required: true,
   },
-  pole: {
-    type: mongoose.Schema.ObjectId,
-    ref: 'RegionPole',
-    required: true,
+  description: {
+    type: String,
     default: null,
+  },
+  active: {
+    type: Boolean,
+    default: true,
   },
   created_at: {
     type: Date,
-    default: Date.now(),
+    default: Date.now,
   },
   updated_at: {
     type: Date,
-    default: Date.now(),
+    default: Date.now,
   },
 });

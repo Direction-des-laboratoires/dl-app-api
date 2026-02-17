@@ -47,6 +47,8 @@ import { EnvironmentModule } from './api/environment/environment.module';
 import { EnvironmentPositionModule } from './api/environment-position/environment-position.module';
 import { ContractTypeModule } from './api/contract-type/contract-type.module';
 import { PositionModule } from './api/position/position.module';
+import { RegionPoleModule } from './api/region-pole/region-pole.module';
+import { LabTypeModule } from './api/lab-type/lab-type.module';
 
 @Module({
   imports: [
@@ -121,6 +123,8 @@ import { PositionModule } from './api/position/position.module';
     EnvironmentPositionModule,
     ContractTypeModule,
     PositionModule,
+    RegionPoleModule,
+    LabTypeModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

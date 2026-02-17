@@ -1,9 +1,9 @@
 import { Document } from 'mongoose';
 
-export interface Region extends Document {
+export interface LabType extends Document {
   name: string;
-  code: string;
-  pole: string;
+  description?: string;
+  active: boolean;
   created_at: Date;
   updated_at: Date;
 }

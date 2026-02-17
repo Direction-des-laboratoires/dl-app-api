@@ -18,6 +18,12 @@ export const LabSchema = new mongoose.Schema({
     default: [],
     autopopulate: true,
   },
+  type: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'LabType',
+    default: null,
+    autopopulate: true,
+  },
   lat: {
     type: String,
     default: null,
