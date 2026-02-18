@@ -6,7 +6,7 @@ export class CreateLabTypeDto {
   name: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   code: string;
 
   @IsOptional()

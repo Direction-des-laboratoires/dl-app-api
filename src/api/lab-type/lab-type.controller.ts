@@ -13,6 +13,11 @@ export class LabTypeController {
     return this.labTypeService.create(createLabTypeDto);
   }
 
+  @Post('bulk')
+  createBulk(@Body() labTypesDto: CreateLabTypeDto[]) {
+    return this.labTypeService.createBulk(labTypesDto);
+  }
+
   @Get()
   findAll(@Query() query: FindLabTypeDto) {
     return this.labTypeService.findAll(query);

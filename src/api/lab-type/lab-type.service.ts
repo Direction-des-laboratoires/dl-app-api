@@ -38,6 +38,44 @@ export class LabTypeService {
     }
   }
 
+  async createBulk(labTypesDto: CreateLabTypeDto[]): Promise<any> {
+    try {
+      logger.info(
+        `---LAB_TYPE.SERVICE.CREATE_BULK INIT--- count=${labTypesDto.length}`,
+      );
+      const results = [];
+      const errors = [];
+
+      for (const labTypeDto of labTypesDto) {
+        try {
+          const result = await this.create(labTypeDto);
+          results.push(result.data);
+        } catch (error) {
+          errors.push({
+            name: labTypeDto.name,
+            code: labTypeDto.code,
+            error: error.message,
+          });
+        }
+      }
+
+      logger.info(
+        `---LAB_TYPE.SERVICE.CREATE_BULK SUCCESS--- created=${results.length}, failed=${errors.length}`,
+      );
+      return {
+        message: `${results.length} types de labo créés avec succès`,
+        data: results,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    } catch (error) {
+      logger.error(`---LAB_TYPE.SERVICE.CREATE_BULK ERROR ${error}---`);
+      throw new HttpException(
+        error.message || 'Erreur lors de la création multiple des types de labo',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findAll(query: FindLabTypeDto): Promise<any> {
     try {
       logger.info(`---LAB_TYPE.SERVICE.FIND_ALL INIT---`);

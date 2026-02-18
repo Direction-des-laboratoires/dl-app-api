@@ -383,6 +383,10 @@ export class LabsService {
         this.labModel
           .find(labFilters)
           .populate({
+            path: 'type',
+            select: 'name code description active',
+          })
+          .populate({
             path: 'structure',
             populate: [
               { path: 'region department district', select: 'name code' },
@@ -445,6 +449,10 @@ export class LabsService {
     try {
       const lab = await this.labModel
         .findById(id)
+        .populate({
+          path: 'type',
+          select: 'name code description active',
+        })
         .populate({
           path: 'structure',
           populate: [
