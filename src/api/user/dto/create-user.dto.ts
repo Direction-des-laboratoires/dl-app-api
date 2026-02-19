@@ -40,6 +40,9 @@ export class CreateUserDto {
   specialities: string[];
 
   @IsOptional()
+  subSpecialities: string[];
+
+  @IsOptional()
   region: string;
 
   @IsNotEmpty()
@@ -139,6 +142,9 @@ export class CreateLabStaffDto {
 
   @IsOptional()
   region:string
+
+  @IsOptional()
+  subSpecialities: string[];
 
   @IsOptional()
   identificationType: string;

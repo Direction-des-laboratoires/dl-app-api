@@ -21,6 +21,7 @@ export interface User extends Document {
   environmentPosition: any;
   contractType: any;
   specialities: string[];
+  subSpecialities?: string[];
   password: string;
   region: string;
   status: string;

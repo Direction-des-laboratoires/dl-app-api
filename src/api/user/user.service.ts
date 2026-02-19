@@ -354,6 +354,7 @@ export class UserService {
     role?: string;
     active?: boolean;
     specialities?: string[];
+    subSpecialities?: string[];
     search?: string;
     contractType?: string;
     gender?: string;
@@ -376,6 +377,7 @@ export class UserService {
         role,
         active,
         specialities,
+        subSpecialities,
         search,
         contractType,
         gender,
@@ -430,6 +432,15 @@ export class UserService {
         });
         filters.specialities = { $in: specialityIds };
       }
+      if (subSpecialities && subSpecialities.length > 0) {
+        const subSpecialityIds = subSpecialities.map((id) => {
+          if (typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)) {
+            return new mongoose.Types.ObjectId(id);
+          }
+          return id;
+        });
+        filters.subSpecialities = { $in: subSpecialityIds };
+      }
 
       const skip = (page - 1) * limit;
 
@@ -457,6 +468,10 @@ export class UserService {
           })
           .populate({
             path: 'specialities',
+            select: 'name description',
+          })
+          .populate({
+            path: 'subSpecialities',
             select: 'name description',
           })
           .lean(),
@@ -555,6 +570,10 @@ export class UserService {
           path: 'specialities',
           select: 'name description',
         })
+        .populate({
+          path: 'subSpecialities',
+          select: 'name description',
+        })
         .lean();
       if (!user) {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
@@ -599,6 +618,10 @@ export class UserService {
         })
         .populate({
           path: 'specialities',
+          select: 'name description',
+        })
+        .populate({
+          path: 'subSpecialities',
           select: 'name description',
         })
         .lean();
@@ -782,6 +805,10 @@ export class UserService {
         })
         .populate({
           path: 'specialities',
+          select: 'name description',
+        })
+        .populate({
+          path: 'subSpecialities',
           select: 'name description',
         })
         .lean();
@@ -988,6 +1015,7 @@ export class UserService {
         })
         .populate('level', 'name description')
         .populate('specialities', 'name description')
+        .populate('subSpecialities', 'name description')
         .populate('region', 'name code')
         .lean();
 

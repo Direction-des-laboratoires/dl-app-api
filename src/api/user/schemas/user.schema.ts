@@ -112,6 +112,12 @@ export const UserSchema = new mongoose.Schema({
     default: [],
     autopopulate: true,
   },
+  subSpecialities: {
+    type: [mongoose.Schema.Types.ObjectId],
+    ref: 'Speciality',
+    default: [],
+    autopopulate: true,
+  },
   password: {
     type: String,
     required: true,
