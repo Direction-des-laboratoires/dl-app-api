@@ -49,6 +49,7 @@ import { ContractTypeModule } from './api/contract-type/contract-type.module';
 import { PositionModule } from './api/position/position.module';
 import { RegionPoleModule } from './api/region-pole/region-pole.module';
 import { LabTypeModule } from './api/lab-type/lab-type.module';
+import { LabTypePositionModule } from './api/lab-type-position/lab-type-position.module';
 
 @Module({
   imports: [
@@ -125,6 +126,7 @@ import { LabTypeModule } from './api/lab-type/lab-type.module';
     PositionModule,
     RegionPoleModule,
     LabTypeModule,
+    LabTypePositionModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

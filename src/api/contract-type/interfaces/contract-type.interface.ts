@@ -4,6 +4,7 @@ export interface ContractType extends Document {
   name: string;
   code: string;
   description?: string;
+  rank: number;
   active: boolean;
   created_at: Date;
   updated_at: Date;

@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateContractTypeDto {
   @IsString()
@@ -12,6 +13,11 @@ export class CreateContractTypeDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => parseInt(value))
+  @IsNumber()
+  rank?: number;
 
   @IsBoolean()
   @IsOptional()
