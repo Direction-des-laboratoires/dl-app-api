@@ -8,9 +8,18 @@ export interface User extends Document {
   lastname: string;
   phoneNumber: string;
   email: string;
+  birthday?: Date;
+  nationality?: string;
+  regionOrigine?: string;
   gender?: string;
+  identificationType?: string;
   identificationNumber?: string;
+  bloodGroup?: string;
+  contractProjet?: string;
+  matricule?: string;
+  isLucrative?: boolean;
   disabled?: boolean;
+  disabilityDetails?: string;
   disabledDetails?: string;
   maritalStatus?: string;
   numberOfChildren?: number;
@@ -19,6 +28,7 @@ export interface User extends Document {
   role: string;
   environment: any;
   environmentPosition: any;
+  position?: any;
   contractType: any;
   specialities: string[];
   subSpecialities?: string[];
@@ -29,7 +39,7 @@ export interface User extends Document {
   isFirstLogin: boolean;
   profilePhoto?: string;
   cv?: string;
-  videoPresentation?: string;
+  presentationVideo?: string;
   created_at: Date;
   updated_at: Date;
 }

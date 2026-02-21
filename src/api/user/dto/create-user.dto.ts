@@ -1,4 +1,12 @@
-import { IsBoolean, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { Gender } from 'src/utils/enums/gender.enum';
 import { MaritalStatus } from 'src/utils/enums/marital-status.enum';
@@ -27,6 +35,10 @@ export class CreateUserDto {
   @IsOptional()
   @IsMongoId()
   environmentPosition: string;
+
+  @IsOptional()
+  @IsMongoId()
+  position: string;
 
   @IsOptional()
   @IsMongoId()
@@ -96,13 +108,29 @@ export class CreateUserDto {
   nationality: string;
 
   @IsOptional()
+  @IsString()
+  regionOrigine: string;
+
+  @IsOptional()
   profilePicture: string;
 
   @IsOptional()
   cv: string;
 
   @IsOptional()
-  videoPresentation: string;
+  presentationVideo: string;
+
+  @IsOptional()
+  @IsString()
+  contractProjet: string;
+
+  @IsOptional()
+  @IsString()
+  matricule: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isLucrative: boolean;
 
   @IsOptional()
   entryDate: Date;
@@ -136,12 +164,16 @@ export class CreateLabStaffDto {
   @IsMongoId()
   environmentPosition: string;
 
+  @IsOptional()
+  @IsMongoId()
+  position: string;
+
   @IsNotEmpty()
   @IsMongoId()
   contractType: string;
 
   @IsOptional()
-  region:string
+  region: string;
 
   @IsOptional()
   subSpecialities: string[];
@@ -184,13 +216,29 @@ export class CreateLabStaffDto {
   nationality: string;
 
   @IsOptional()
+  @IsString()
+  regionOrigine: string;
+
+  @IsOptional()
   profilePicture: string;
 
   @IsOptional()
   cv: string;
 
   @IsOptional()
-  videoPresentation: string;
+  presentationVideo: string;
+
+  @IsOptional()
+  @IsString()
+  contractProjet: string;
+
+  @IsOptional()
+  @IsString()
+  matricule: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isLucrative: boolean;
 
   @IsNotEmpty()
   entryDate: Date;

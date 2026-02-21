@@ -35,6 +35,10 @@ export const UserSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  regionOrigine: {
+    type: String,
+    default: null,
+  },
   identificationType: {
     type: String,
     default: null,
@@ -65,6 +69,18 @@ export const UserSchema = new mongoose.Schema({
   },
   bloodGroup: {
     type: String,
+  },
+  contractProjet: {
+    type: String,
+    default: null,
+  },
+  matricule: {
+    type: String,
+    default: null,
+  },
+  isLucrative: {
+    type: Boolean,
+    default: false,
   },
   entryDate: {
     type: Date,
@@ -99,6 +115,11 @@ export const UserSchema = new mongoose.Schema({
   environmentPosition: {
     type: mongoose.Schema.ObjectId,
     ref: 'EnvironmentPosition',
+    default: null,
+  },
+  position: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Position',
     default: null,
   },
   contractType: {
@@ -138,7 +159,7 @@ export const UserSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
-  videoPresentation: {
+  presentationVideo: {
     type: String,
     default: null,
   },

@@ -74,9 +74,7 @@ export class UserService {
       const cvFile = files?.find((file) => file.fieldname === 'cv');
       const presentationVideoFile = files?.find(
         (file) =>
-          file.fieldname === 'videoPresentation' ||
-          file.fieldname === 'presentationVideo' ||
-          file.fieldname === 'video',
+          file.fieldname === 'presentationVideo' || file.fieldname === 'video',
       );
       if (profilePhotoFile) {
         try {
@@ -99,7 +97,9 @@ export class UserService {
           cvUrl = await uploadFile(cvFile);
           logger.info(`---USER.SERVICE.UPLOAD_CV SUCCESS--- url=${cvUrl}`);
         } catch (uploadError) {
-          logger.error(`---USER.SERVICE.UPLOAD_CV ERROR--- ${uploadError.message}`);
+          logger.error(
+            `---USER.SERVICE.UPLOAD_CV ERROR--- ${uploadError.message}`,
+          );
           throw new HttpException(
             `Erreur lors de l'upload du CV: ${uploadError.message}`,
             HttpStatus.INTERNAL_SERVER_ERROR,
@@ -133,7 +133,7 @@ export class UserService {
         user.cv = cvUrl;
       }
       if (presentationVideoUrl) {
-        user.videoPresentation = presentationVideoUrl;
+        user.presentationVideo = presentationVideoUrl;
       }
       await user.save();
       logger.info(`---USER.SERVICE.CREATE SUCCESS---`);
@@ -196,7 +196,9 @@ export class UserService {
 
   async createMultiple(usersDto: CreateUserDto[]) {
     try {
-      logger.info(`---USER.SERVICE.CREATE_MULTIPLE INIT--- count=${usersDto.length}`);
+      logger.info(
+        `---USER.SERVICE.CREATE_MULTIPLE INIT--- count=${usersDto.length}`,
+      );
       const results = [];
       const errors = [];
 
@@ -213,7 +215,9 @@ export class UserService {
         }
       }
 
-      logger.info(`---USER.SERVICE.CREATE_MULTIPLE SUCCESS--- created=${results.length}, failed=${errors.length}`);
+      logger.info(
+        `---USER.SERVICE.CREATE_MULTIPLE SUCCESS--- created=${results.length}, failed=${errors.length}`,
+      );
       return {
         message: `${results.length} utilisateurs créés avec succès`,
         data: results,
@@ -241,12 +245,14 @@ export class UserService {
       // Si un lab est spécifié, on l'utilise directement
       if (lab) {
         filters.lab = new mongoose.Types.ObjectId(lab);
-      } 
+      }
       // Sinon, si region ou district est spécifié, on cherche les labs correspondants
       else if (region || district) {
         const structureFilters: any = {};
-        if (region) structureFilters.region = new mongoose.Types.ObjectId(region);
-        if (district) structureFilters.district = new mongoose.Types.ObjectId(district);
+        if (region)
+          structureFilters.region = new mongoose.Types.ObjectId(region);
+        if (district)
+          structureFilters.district = new mongoose.Types.ObjectId(district);
 
         // Trouver les structures
         const labs = await this.labModel.aggregate([
@@ -264,19 +270,19 @@ export class UserService {
               $or: [
                 { 'structureInfo.region': structureFilters.region },
                 { 'structureInfo.district': structureFilters.district },
-              ].filter(f => Object.values(f)[0] !== undefined)
-            }
+              ].filter((f) => Object.values(f)[0] !== undefined),
+            },
           },
-          { $project: { _id: 1 } }
+          { $project: { _id: 1 } },
         ]);
 
-        const labIds = labs.map(l => l._id);
-        
+        const labIds = labs.map((l) => l._id);
+
         // Pour les stats, on inclut aussi les RegionAdmin de cette région
         if (region) {
           filters.$or = [
             { lab: { $in: labIds } },
-            { region: new mongoose.Types.ObjectId(region) }
+            { region: new mongoose.Types.ObjectId(region) },
           ];
         } else {
           filters.lab = { $in: labIds };
@@ -288,12 +294,8 @@ export class UserService {
         {
           $facet: {
             total: [{ $count: 'count' }],
-            byGender: [
-              { $group: { _id: '$gender', count: { $sum: 1 } } }
-            ],
-            byRole: [
-              { $group: { _id: '$role', count: { $sum: 1 } } }
-            ],
+            byGender: [{ $group: { _id: '$gender', count: { $sum: 1 } } }],
+            byRole: [{ $group: { _id: '$role', count: { $sum: 1 } } }],
             byEnvironment: [
               {
                 $lookup: {
@@ -303,8 +305,10 @@ export class UserService {
                   as: 'envInfo',
                 },
               },
-              { $unwind: { path: '$envInfo', preserveNullAndEmptyArrays: true } },
-              { $group: { _id: '$envInfo.name', count: { $sum: 1 } } }
+              {
+                $unwind: { path: '$envInfo', preserveNullAndEmptyArrays: true },
+              },
+              { $group: { _id: '$envInfo.name', count: { $sum: 1 } } },
             ],
             byContractType: [
               {
@@ -315,11 +319,16 @@ export class UserService {
                   as: 'contractInfo',
                 },
               },
-              { $unwind: { path: '$contractInfo', preserveNullAndEmptyArrays: true } },
-              { $group: { _id: '$contractInfo.name', count: { $sum: 1 } } }
-            ]
-          }
-        }
+              {
+                $unwind: {
+                  path: '$contractInfo',
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              { $group: { _id: '$contractInfo.name', count: { $sum: 1 } } },
+            ],
+          },
+        },
       ]);
 
       const result = stats[0];
@@ -406,7 +415,8 @@ export class UserService {
         filters.bloodGroup = { $regex: `^${bloodGroup}$`, $options: 'i' };
       if (lab) filters.lab = lab;
       if (environment) filters.environment = environment;
-      if (environmentPosition) filters.environmentPosition = environmentPosition;
+      if (environmentPosition)
+        filters.environmentPosition = environmentPosition;
       if (level) filters.level = level;
       if (region) filters.region = region;
       if (contractType) filters.contractType = contractType;
@@ -461,6 +471,7 @@ export class UserService {
             path: 'environmentPosition',
             populate: { path: 'position' },
           })
+          .populate('position', 'title')
           .populate('contractType')
           .populate({
             path: 'level',
@@ -561,6 +572,7 @@ export class UserService {
           path: 'environmentPosition',
           populate: { path: 'position' },
         })
+        .populate('position', 'title')
         .populate('contractType')
         .populate({
           path: 'level',
@@ -605,12 +617,14 @@ export class UserService {
   async findByEmail(email: string): Promise<any> {
     try {
       const user = await this.userModel
-        .findOne({ email, active: true }).populate('lab')
+        .findOne({ email, active: true })
+        .populate('lab')
         .populate('environment')
         .populate({
           path: 'environmentPosition',
           populate: { path: 'position' },
         })
+        .populate('position', 'title')
         .populate('contractType')
         .populate({
           path: 'level',
@@ -650,7 +664,7 @@ export class UserService {
   async findLogin(createAuthDto: CreateAuthDto) {
     try {
       const user = await this.findByEmail(createAuthDto.email);
-      
+
       const passwordMatched = await bcrypt.compare(
         createAuthDto.password,
         user.password,
@@ -724,10 +738,7 @@ export class UserService {
       );
       const cvFile = files?.find((file) => file.fieldname === 'cv');
       const presentationVideoFile = files?.find(
-        (file) =>
-          file.fieldname === 'videoPresentation' ||
-          file.fieldname === 'presentationVideo' ||
-          file.fieldname === 'video',
+        (file) => file.fieldname === 'presentationVideo',
       );
       if (profilePhotoFile) {
         try {
@@ -750,7 +761,9 @@ export class UserService {
           cvUrl = await uploadFile(cvFile);
           logger.info(`---USER.SERVICE.UPLOAD_CV SUCCESS--- url=${cvUrl}`);
         } catch (uploadError) {
-          logger.error(`---USER.SERVICE.UPLOAD_CV ERROR--- ${uploadError.message}`);
+          logger.error(
+            `---USER.SERVICE.UPLOAD_CV ERROR--- ${uploadError.message}`,
+          );
           throw new HttpException(
             `Erreur lors de l'upload du CV: ${uploadError.message}`,
             HttpStatus.INTERNAL_SERVER_ERROR,
@@ -782,7 +795,7 @@ export class UserService {
         updateData.cv = cvUrl;
       }
       if (presentationVideoUrl) {
-        updateData.videoPresentation = presentationVideoUrl;
+        updateData.presentationVideo = presentationVideoUrl;
       }
 
       const updated = await this.userModel
@@ -798,6 +811,7 @@ export class UserService {
           path: 'environmentPosition',
           populate: { path: 'position' },
         })
+        .populate('position', 'title')
         .populate('contractType')
         .populate({
           path: 'level',
@@ -1013,6 +1027,7 @@ export class UserService {
           select: 'title',
           populate: [{ path: 'environment', select: 'name' }],
         })
+        .populate('position', 'title')
         .populate('level', 'name description')
         .populate('specialities', 'name description')
         .populate('subSpecialities', 'name description')
