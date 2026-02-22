@@ -101,16 +101,20 @@ export class LabsController {
   async findAll(@Query() query: FindLabsDto, @Res() res) {
     try {
       const result = await this.labsService.findAll(query);
-
-      return res.status(HttpStatus.OK).json({
+      const response: any = {
         message: 'Liste des laboratoires',
         data: result.data,
-        pagination: {
+      };
+      if (query.paginate !== false) {
+        response.pagination = {
           total: result.total,
           page: result.page,
+          limit: result.limit,
           totalPages: result.totalPages,
-        },
-      });
+        };
+      }
+
+      return res.status(HttpStatus.OK).json(response);
     } catch (error: any) {
       return res.status(error.status || 500).json({
         message: error.message || 'Erreur serveur',
@@ -146,10 +150,19 @@ export class LabsController {
         regionId,
         query,
       );
-      return res.status(HttpStatus.OK).json({
+      const response: any = {
         message: 'Nombre de Laboratoires par région',
-        data: groupByRegion,
-      });
+        data: groupByRegion.data,
+      };
+      if (query.paginate !== false) {
+        response.pagination = {
+          total: groupByRegion.total,
+          page: groupByRegion.page,
+          limit: groupByRegion.limit,
+          totalPages: groupByRegion.totalPages,
+        };
+      }
+      return res.status(HttpStatus.OK).json(response);
     } catch (error: any) {
       return res.status(error.status || 500).json({
         message: error.message || 'Erreur serveur',

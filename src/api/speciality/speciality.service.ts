@@ -51,11 +51,33 @@ export class SpecialityService {
 
       const [data, total] = await Promise.all([
         this.specialityModel
-          .find(filters)
-          .sort({ name: 1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
+          .aggregate([
+            { $match: filters },
+            {
+              $addFields: {
+                rankValue: {
+                  $convert: {
+                    input: '$rank',
+                    to: 'int',
+                    onError: null,
+                    onNull: null,
+                  },
+                },
+              },
+            },
+            {
+              $addFields: {
+                hasNoRank: {
+                  $cond: [{ $eq: ['$rankValue', null] }, 1, 0],
+                },
+              },
+            },
+            { $sort: { hasNoRank: 1, rankValue: 1, name: 1 } },
+            { $skip: skip },
+            { $limit: limit },
+            { $project: { hasNoRank: 0, rankValue: 0 } },
+          ])
+          .exec(),
         this.specialityModel.countDocuments(filters),
       ]);
 

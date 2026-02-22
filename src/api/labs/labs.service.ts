@@ -285,6 +285,7 @@ export class LabsService {
       const {
         page = 1,
         limit = 10,
+        paginate = true,
         structure,
         type,
         region,
@@ -294,6 +295,7 @@ export class LabsService {
         search,
         specialities,
       } = query;
+      const shouldPaginate = paginate !== false;
 
       const skip = (page - 1) * limit;
 
@@ -349,6 +351,9 @@ export class LabsService {
 
         if (structureIds.length === 0) {
           // Aucune structure ne correspond, donc aucun lab ne correspondra
+          if (!shouldPaginate) {
+            return { data: [] };
+          }
           return {
             data: [],
             total: 0,
@@ -365,6 +370,9 @@ export class LabsService {
           const matchingStructureIds = structureIds.map((id) => id.toString());
           if (!matchingStructureIds.includes(structureIdStr)) {
             // Le structure spécifié ne correspond pas aux filtres region/department
+            if (!shouldPaginate) {
+              return { data: [] };
+            }
             return {
               data: [],
               total: 0,
@@ -379,45 +387,45 @@ export class LabsService {
         }
       }
 
-      const [data, total] = await Promise.all([
-        this.labModel
-          .find(labFilters)
-          .populate({
-            path: 'type',
-            select: 'name code description active',
-          })
-          .populate({
-            path: 'structure',
-            populate: [
-              { path: 'region department district', select: 'name code' },
-            ],
-          })
-          .populate({
-            path: 'specialities',
-            select: 'name description',
-          })
-          .populate({
-            path: 'director',
-            select: 'email firstname lastname phoneNumber level specialities',
-            populate: [
-              { path: 'level', select: 'name description' },
-              { path: 'specialities', select: 'name description' },
-            ],
-          })
-          .populate({
-            path: 'responsible',
-            select: 'email firstname lastname phoneNumber level specialities',
-            populate: [
-              { path: 'level', select: 'name description' },
-              { path: 'specialities', select: 'name description' },
-            ],
-          })
-          .skip(skip)
-          .limit(limit)
-          .sort({ created_at: -1 })
-          .lean(),
+      const labsQuery = this.labModel
+        .find(labFilters)
+        .populate({
+          path: 'type',
+          select: 'name code description active',
+        })
+        .populate({
+          path: 'structure',
+          populate: [{ path: 'region department district', select: 'name code' }],
+        })
+        .populate({
+          path: 'specialities',
+          select: 'name description',
+        })
+        .populate({
+          path: 'director',
+          select: 'email firstname lastname phoneNumber level specialities',
+          populate: [
+            { path: 'level', select: 'name description' },
+            { path: 'specialities', select: 'name description' },
+          ],
+        })
+        .populate({
+          path: 'responsible',
+          select: 'email firstname lastname phoneNumber level specialities',
+          populate: [
+            { path: 'level', select: 'name description' },
+            { path: 'specialities', select: 'name description' },
+          ],
+        })
+        .sort({ created_at: -1 });
 
-        this.labModel.countDocuments(labFilters),
+      if (shouldPaginate) {
+        labsQuery.skip(skip).limit(limit);
+      }
+
+      const [data, total] = await Promise.all([
+        labsQuery.lean(),
+        shouldPaginate ? this.labModel.countDocuments(labFilters) : Promise.resolve(0),
       ]);
 
       // Sanitizer les utilisateurs (director et responsible) dans les résultats
@@ -431,10 +439,15 @@ export class LabsService {
         return lab;
       });
 
+      if (!shouldPaginate) {
+        return { data: sanitizedData };
+      }
+
       return {
         data: sanitizedData,
         total,
         page,
+        limit,
         totalPages: Math.ceil(total / limit),
       };
     } catch (error: any) {

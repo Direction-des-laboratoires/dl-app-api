@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class CreateSpecialityDto {
   @IsNotEmpty()
@@ -6,4 +7,9 @@ export class CreateSpecialityDto {
 
   @IsOptional()
   description: string;
+
+  @IsOptional()
+  @Transform(({ value }) => parseInt(value))
+  @IsNumber()
+  rank?: number;
 }
