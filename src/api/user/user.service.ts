@@ -368,6 +368,8 @@ export class UserService {
     contractType?: string;
     gender?: string;
     maritalStatus?: string;
+    experienceDuration?: string;
+    dureeLabo?: string;
     disabled?: boolean;
   }): Promise<any> {
     try {
@@ -391,6 +393,8 @@ export class UserService {
         contractType,
         gender,
         maritalStatus,
+        experienceDuration,
+        dureeLabo,
         disabled,
       } = query;
 
@@ -422,6 +426,8 @@ export class UserService {
       if (contractType) filters.contractType = contractType;
       if (gender) filters.gender = gender;
       if (maritalStatus) filters.maritalStatus = maritalStatus;
+      if (experienceDuration) filters.experienceDuration = experienceDuration;
+      // if (dureeLabo) filters.dureeLabo = dureeLabo;
       if (disabled !== undefined) filters.disabled = disabled;
 
       if (role && role !== Role.SdrAdmin) {

@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { Role } from 'src/utils/enums/roles.enum';
 import { Gender } from 'src/utils/enums/gender.enum';
 import { MaritalStatus } from 'src/utils/enums/marital-status.enum';
+import { ExperienceRange } from 'src/utils/enums/experience-range.enum';
 export const UserSchema = new mongoose.Schema({
   firstname: {
     type: String,
@@ -70,6 +71,16 @@ export const UserSchema = new mongoose.Schema({
   bloodGroup: {
     type: String,
   },
+  experienceDuration: {
+    type: String,
+    enum: ExperienceRange,
+    default: null,
+  },
+  // laborDuration: {
+  //   type: String,
+  //   enum: ExperienceRange,
+  //   default: null,
+  // },
   contractProjet: {
     type: String,
     default: null,
@@ -80,7 +91,6 @@ export const UserSchema = new mongoose.Schema({
   },
   isLucrative: {
     type: Boolean,
-    default: false,
   },
   entryDate: {
     type: Date,

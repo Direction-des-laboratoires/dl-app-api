@@ -10,6 +10,7 @@ import {
 import { Transform } from 'class-transformer';
 import { Gender } from 'src/utils/enums/gender.enum';
 import { MaritalStatus } from 'src/utils/enums/marital-status.enum';
+import { ExperienceRange } from 'src/utils/enums/experience-range.enum';
 
 /* eslint-disable prettier/prettier */
 export class CreateUserDto {
@@ -137,6 +138,14 @@ export class CreateUserDto {
 
   @IsOptional()
   bloodGroup: string;
+
+  @IsOptional()
+  @IsEnum(ExperienceRange)
+  experienceDuration: ExperienceRange;
+
+  // @IsOptional()
+  // @IsEnum(ExperienceRange)
+  // dureeLabo: ExperienceRange;
 }
 
 export class CreateLabStaffDto {
@@ -245,4 +254,12 @@ export class CreateLabStaffDto {
 
   @IsOptional()
   bloodGroup: string;
+
+  @IsOptional()
+  @IsEnum(ExperienceRange)
+  experienceMetier: ExperienceRange;
+
+  @IsOptional()
+  @IsEnum(ExperienceRange)
+  dureeLabo: ExperienceRange;
 }

@@ -2,6 +2,7 @@
 /* eslint-disable prettier/prettier */
 
 import { Document } from 'mongoose';
+import { ExperienceRange } from 'src/utils/enums/experience-range.enum';
 
 export interface User extends Document {
   firstname: string;
@@ -15,6 +16,8 @@ export interface User extends Document {
   identificationType?: string;
   identificationNumber?: string;
   bloodGroup?: string;
+  experienceDuration?: ExperienceRange | string;
+  // dureeLabo?: ExperienceRange | string;
   contractProjet?: string;
   matricule?: string;
   isLucrative?: boolean;

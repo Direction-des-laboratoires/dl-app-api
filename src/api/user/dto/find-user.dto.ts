@@ -9,6 +9,7 @@ import {
 import { Transform } from 'class-transformer';
 import { Gender } from 'src/utils/enums/gender.enum';
 import { MaritalStatus } from 'src/utils/enums/marital-status.enum';
+import { ExperienceRange } from 'src/utils/enums/experience-range.enum';
 
 export class FindUsersDto {
   @IsOptional()
@@ -42,6 +43,14 @@ export class FindUsersDto {
   @IsOptional()
   @IsEnum(MaritalStatus)
   maritalStatus?: MaritalStatus;
+
+  @IsOptional()
+  @IsEnum(ExperienceRange)
+  experienceDuration?: ExperienceRange;
+
+  // @IsOptional()
+  // @IsEnum(ExperienceRange)
+  // dureeLabo?: ExperienceRange;
 
   @IsOptional()
   @Transform(({ value }) => {
