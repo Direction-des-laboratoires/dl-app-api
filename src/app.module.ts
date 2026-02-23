@@ -151,7 +151,7 @@ export class AppModule {
         { path: 'departments', method: RequestMethod.GET },
         { path: 'structure-levels', method: RequestMethod.GET },
         { path: 'structures', method: RequestMethod.GET },
-        { path: 'regions-poles', method: RequestMethod.GET },
+        { path: 'region-poles', method: RequestMethod.GET },
         { path: 'lab-types', method: RequestMethod.GET },
         { path: 'lab-type-positions', method: RequestMethod.GET },
         { path: 'contract-types', method: RequestMethod.GET },
