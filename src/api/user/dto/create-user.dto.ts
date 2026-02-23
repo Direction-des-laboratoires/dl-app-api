@@ -143,9 +143,9 @@ export class CreateUserDto {
   @IsEnum(ExperienceRange)
   experienceDuration: ExperienceRange;
 
-  // @IsOptional()
-  // @IsEnum(ExperienceRange)
-  // dureeLabo: ExperienceRange;
+  @IsOptional()
+  @IsEnum(ExperienceRange)
+  durationInLab: ExperienceRange;
 }
 
 export class CreateLabStaffDto {
@@ -257,9 +257,9 @@ export class CreateLabStaffDto {
 
   @IsOptional()
   @IsEnum(ExperienceRange)
-  experienceMetier: ExperienceRange;
+  experienceDuration: ExperienceRange;
 
   @IsOptional()
   @IsEnum(ExperienceRange)
-  dureeLabo: ExperienceRange;
+  durationInLab: ExperienceRange;
 }

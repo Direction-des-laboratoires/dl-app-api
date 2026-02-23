@@ -145,6 +145,19 @@ export class AppModule {
         { path: 'amm-imports', method: RequestMethod.POST }, // Exclure la création de demande AMM (accessible sans authentification)
         { path: 'lab-openings', method: RequestMethod.POST }, // Exclure la création de demande Lab Opening (accessible sans authentification)
         { path: 'sdr-accreditations', method: RequestMethod.POST }, // Exclure la création de demande SDR (accessible sans authentification)
+        { path: 'regions', method: RequestMethod.GET },
+        { path: 'districts', method: RequestMethod.GET },
+        { path: 'labs', method: RequestMethod.GET },
+        { path: 'departments', method: RequestMethod.GET },
+        { path: 'structure-levels', method: RequestMethod.GET },
+        { path: 'structures', method: RequestMethod.GET },
+        { path: 'regions-poles', method: RequestMethod.GET },
+        { path: 'lab-types', method: RequestMethod.GET },
+        { path: 'lab-type-positions', method: RequestMethod.GET },
+        { path: 'contract-types', method: RequestMethod.GET },
+        { path: 'positions', method: RequestMethod.GET },
+        { path: 'specialities', method: RequestMethod.GET },
+        { path: 'staff-levels', method: RequestMethod.GET },
       )
       .forRoutes('*'); // Appliquer à toutes les routes sauf exclusions
   }
