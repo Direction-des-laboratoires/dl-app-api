@@ -145,7 +145,7 @@ export const UserSchema = new mongoose.Schema({
   },
   subSpecialities: {
     type: [mongoose.Schema.Types.ObjectId],
-    ref: 'Speciality',
+    ref: 'SubSpeciality',
     default: [],
     autopopulate: true,
   },

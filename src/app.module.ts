@@ -50,6 +50,7 @@ import { PositionModule } from './api/position/position.module';
 import { RegionPoleModule } from './api/region-pole/region-pole.module';
 import { LabTypeModule } from './api/lab-type/lab-type.module';
 import { LabTypePositionModule } from './api/lab-type-position/lab-type-position.module';
+import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module';
 
 @Module({
   imports: [
@@ -127,6 +128,7 @@ import { LabTypePositionModule } from './api/lab-type-position/lab-type-position
     RegionPoleModule,
     LabTypeModule,
     LabTypePositionModule,
+    SubSpecialityModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
@@ -157,6 +159,7 @@ export class AppModule {
         { path: 'contract-types', method: RequestMethod.GET },
         { path: 'positions', method: RequestMethod.GET },
         { path: 'specialities', method: RequestMethod.GET },
+        { path: 'sub-specialities', method: RequestMethod.GET },
         { path: 'staff-levels', method: RequestMethod.GET },
       )
       .forRoutes('*'); // Appliquer à toutes les routes sauf exclusions
