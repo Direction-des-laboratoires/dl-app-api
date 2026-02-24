@@ -17,6 +17,7 @@ import { uploadFile } from 'src/utils/functions/file.upload';
 import { ProfessionalExperience } from '../professional-experience/interfaces/professional-experience.interface';
 import { Training } from '../training/interfaces/training.interface';
 import { Lab } from '../labs/interfaces/labs.interface';
+import { SubSpeciality } from '../sub-speciality/interfaces/sub-speciality.interface';
 
 @Injectable()
 export class UserService {
@@ -26,6 +27,8 @@ export class UserService {
     private professionalExperienceModel: Model<ProfessionalExperience>,
     @InjectModel('Training') private trainingModel: Model<Training>,
     @InjectModel('Lab') private labModel: Model<Lab>,
+    @InjectModel('SubSpeciality')
+    private subSpecialityModel: Model<SubSpeciality>,
     private mailService: MailService,
   ) {}
   /**
@@ -53,6 +56,59 @@ export class UserService {
       .split('')
       .sort(() => Math.random() - 0.5)
       .join('');
+  }
+
+  private async resolveSubSpecialities(
+    subSpecialitiesInput: unknown,
+  ): Promise<mongoose.Types.ObjectId[] | undefined> {
+    if (subSpecialitiesInput === undefined || subSpecialitiesInput === null) {
+      return undefined;
+    }
+
+    let values: string[] = [];
+
+    if (Array.isArray(subSpecialitiesInput)) {
+      values = subSpecialitiesInput
+        .map((item) => String(item).trim())
+        .filter((item) => item.length > 0);
+    } else if (typeof subSpecialitiesInput === 'string') {
+      const raw = subSpecialitiesInput.trim();
+      values = raw.includes(',')
+        ? raw.split(',').map((item) => item.trim()).filter(Boolean)
+        : raw
+          ? [raw]
+          : [];
+    } else {
+      values = [String(subSpecialitiesInput).trim()].filter(Boolean);
+    }
+
+    const resolvedIds: mongoose.Types.ObjectId[] = [];
+
+    for (const value of values) {
+      if (mongoose.Types.ObjectId.isValid(value)) {
+        resolvedIds.push(new mongoose.Types.ObjectId(value));
+        continue;
+      }
+
+      const existing = await this.subSpecialityModel.findOne({
+        name: { $regex: `^${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+      });
+
+      if (existing) {
+        resolvedIds.push(existing._id as any);
+        continue;
+      }
+
+      const created = await this.subSpecialityModel.create({ name: value });
+      resolvedIds.push(created._id as any);
+    }
+
+    // Dédupliquer les IDs
+    const uniqueIds = Array.from(new Set(resolvedIds.map((id) => String(id)))).map(
+      (id) => new mongoose.Types.ObjectId(id),
+    );
+
+    return uniqueIds;
   }
 
   async create(
@@ -121,6 +177,13 @@ export class UserService {
             HttpStatus.INTERNAL_SERVER_ERROR,
           );
         }
+      }
+
+      const resolvedSubSpecialities = await this.resolveSubSpecialities(
+        (createUserDto as any).subSpecialities,
+      );
+      if (resolvedSubSpecialities !== undefined) {
+        (createUserDto as any).subSpecialities = resolvedSubSpecialities;
       }
 
       const user = new this.userModel(createUserDto);
