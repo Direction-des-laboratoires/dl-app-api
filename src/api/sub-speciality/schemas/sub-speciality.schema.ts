@@ -16,6 +16,11 @@ export const SubSpecialitySchema = new mongoose.Schema({
     default: null,
   },
 
+  isFromOther: {
+    type: Boolean,
+    default: false,
+  },
+
   created_at: {
     type: Date,
     default: Date.now(),

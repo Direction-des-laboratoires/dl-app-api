@@ -4,6 +4,7 @@ export interface SubSpeciality extends Document {
   name: string;
   description: string;
   rank?: number;
+  isFromOther: boolean;
   created_at: Date;
   updated_at: Date;
 }

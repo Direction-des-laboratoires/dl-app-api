@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class CreateSubSpecialityDto {
   @IsNotEmpty()
@@ -12,4 +12,8 @@ export class CreateSubSpecialityDto {
   @Transform(({ value }) => parseInt(value))
   @IsNumber()
   rank?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isFromOther?: boolean;
 }

@@ -99,7 +99,10 @@ export class UserService {
         continue;
       }
 
-      const created = await this.subSpecialityModel.create({ name: value });
+      const created = await this.subSpecialityModel.create({
+        name: value,
+        isFromOther: true,
+      });
       resolvedIds.push(created._id as any);
     }
 
