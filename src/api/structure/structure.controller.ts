@@ -53,6 +53,7 @@ export class StructureController {
     @Query('level') level?: string,
     @Query('type') type?: string,
     @Query('name') name?: string,
+    @Query('search') search?: string,
   ) {
     try {
       const pageNum = parseInt(page, 10) || 1;
@@ -67,6 +68,7 @@ export class StructureController {
         level,
         type,
         name,
+        search,
       });
 
       return res.status(HttpStatus.OK).json({

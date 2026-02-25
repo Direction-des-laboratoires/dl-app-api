@@ -23,7 +23,9 @@ export class StructureService {
 
   async createMultiple(structuresDto: CreateStructureDto[]) {
     try {
-      logger.info(`---STRUCTURE.SERVICE.CREATE_MULTIPLE INIT--- count=${structuresDto.length}`);
+      logger.info(
+        `---STRUCTURE.SERVICE.CREATE_MULTIPLE INIT--- count=${structuresDto.length}`,
+      );
       const results = [];
       const errors = [];
 
@@ -39,7 +41,9 @@ export class StructureService {
         }
       }
 
-      logger.info(`---STRUCTURE.SERVICE.CREATE_MULTIPLE SUCCESS--- created=${results.length}, failed=${errors.length}`);
+      logger.info(
+        `---STRUCTURE.SERVICE.CREATE_MULTIPLE SUCCESS--- created=${results.length}, failed=${errors.length}`,
+      );
       return {
         message: `${results.length} structures créées avec succès`,
         data: results,
@@ -62,6 +66,7 @@ export class StructureService {
     district?: string;
     level?: string;
     name?: string;
+    search?: string;
     type?: string;
   }) {
     try {
@@ -73,6 +78,7 @@ export class StructureService {
         district,
         level,
         name,
+        search,
         type,
       } = query;
 
@@ -84,7 +90,13 @@ export class StructureService {
       if (district)
         filters.district = new mongoose.Types.ObjectId(district) || null;
       if (level) filters.level = new mongoose.Types.ObjectId(level) || null;
-      if (name) filters.name = { $regex: name, $options: 'i' }; // recherche insensible à la casse
+      if (name) filters.name = { $regex: name, $options: 'i' };
+      if (search) {
+        filters.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+        ];
+      }
       if (type) filters.type = type;
       // Pagination
       const skip = (page - 1) * limit;
