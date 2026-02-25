@@ -25,10 +25,34 @@ import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import { FindUsersDto } from './dto/find-user.dto';
 import { UploadHelper } from 'src/utils/functions/upload-image.helper';
+import { CreateLabAdminAccountDto } from '../auth/dto/create-lab-admin-account.dto';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  @Post('register-lab-admin')
+  async registerLabAdmin(
+    @Body() createLabAdminDto: CreateLabAdminAccountDto,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---USER.CONTROLLER.REGISTER_LAB_ADMIN INIT---`);
+      const user = await this.userService.createLabAdminAccount(
+        createLabAdminDto as any,
+      );
+      logger.info(`---USER.CONTROLLER.REGISTER_LAB_ADMIN SUCCESS---`);
+      return res.status(HttpStatus.CREATED).json({
+        message: 'Compte LabAdmin créé avec succés!',
+        data: user,
+      });
+    } catch (error) {
+      logger.error(`---USER.CONTROLLER.REGISTER_LAB_ADMIN ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
 
   @Roles(Role.LabAdmin, Role.SuperAdmin)
   @UseInterceptors(
