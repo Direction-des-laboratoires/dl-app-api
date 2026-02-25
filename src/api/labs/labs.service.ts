@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateLabDto } from './dto/create-lab.dto';
 import { UpdateLabDto } from './dto/update-lab.dto';
 import { FindLabsDto } from './dto/find-lab.dto';
+import { LabsStatsDto } from './dto/labs-stats.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Lab } from './interfaces/labs.interface';
@@ -10,6 +11,7 @@ import logger from 'src/utils/logger';
 import mongoose from 'mongoose';
 import { sanitizeUserObject } from 'src/utils/functions/sanitizer';
 import { Role } from 'src/utils/enums/roles.enum';
+import { Gender } from 'src/utils/enums/gender.enum';
 import { User } from '../user/interfaces/user.interface';
 import { MailService } from 'src/providers/mail-service/mail.service';
 
@@ -665,6 +667,213 @@ export class LabsService {
       return await this.findAll({ ...query, region: regionId });
     } catch (error) {
       throw new HttpException(error.message, 500);
+    }
+  }
+
+  async getStats(query: LabsStatsDto): Promise<any> {
+    try {
+      const { pole, region, district, type } = query;
+      const allLabTypes = await this.labModel.db
+        .collection('labtypes')
+        .find({}, { projection: { _id: 1, name: 1, code: 1 } })
+        .toArray();
+      const defaultLabsByType = allLabTypes.map((labType: any) => ({
+        _id: labType._id,
+        typeName: labType.name,
+        typeCode: labType.code,
+        total: 0,
+      }));
+      const defaultPersonnelByRole = Object.values(Role).map((role) => ({
+        _id: role,
+        total: 0,
+      }));
+      const defaultPersonnelByGender = Object.values(Gender).map((gender) => ({
+        _id: gender,
+        total: 0,
+      }));
+
+      const labFilters: any = {};
+      if (type) {
+        labFilters.type = new mongoose.Types.ObjectId(type);
+      }
+
+      // Résolution des structures selon filtres géographiques
+      if (pole || region || district) {
+        const structurePipeline: any[] = [];
+        const structureMatch: any = {};
+
+        if (region) structureMatch.region = new mongoose.Types.ObjectId(region);
+        if (district) structureMatch.district = new mongoose.Types.ObjectId(district);
+
+        if (Object.keys(structureMatch).length > 0) {
+          structurePipeline.push({ $match: structureMatch });
+        }
+
+        if (pole) {
+          structurePipeline.push(
+            {
+              $lookup: {
+                from: 'regions',
+                localField: 'region',
+                foreignField: '_id',
+                as: 'regionInfo',
+              },
+            },
+            { $unwind: '$regionInfo' },
+            {
+              $match: {
+                'regionInfo.pole': new mongoose.Types.ObjectId(pole),
+              },
+            },
+          );
+        }
+
+        structurePipeline.push({ $project: { _id: 1 } });
+
+        const matchingStructures =
+          await this.structureModel.aggregate(structurePipeline);
+        const structureIds = matchingStructures.map((s) => s._id);
+
+        if (structureIds.length === 0) {
+          return {
+            filters: query,
+            totalLabs: 0,
+            totalPersonnel: 0,
+            labsByType: defaultLabsByType,
+            personnelByRole: defaultPersonnelByRole,
+            personnelByGender: defaultPersonnelByGender,
+          };
+        }
+
+        labFilters.structure = { $in: structureIds };
+      }
+
+      const labs = await this.labModel.find(labFilters).select('_id').lean();
+      const labIds = labs.map((lab) => lab._id);
+      const totalLabs = labIds.length;
+
+      const labsByType = await this.labModel.aggregate([
+        { $match: labFilters },
+        {
+          $lookup: {
+            from: 'labtypes',
+            localField: 'type',
+            foreignField: '_id',
+            as: 'typeInfo',
+          },
+        },
+        {
+          $unwind: {
+            path: '$typeInfo',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $group: {
+            _id: '$typeInfo._id',
+            typeName: { $first: '$typeInfo.name' },
+            typeCode: { $first: '$typeInfo.code' },
+            total: { $sum: 1 },
+          },
+        },
+        { $sort: { total: -1 } },
+      ]);
+      const labsByTypeMap = new Map(
+        labsByType.map((item) => [String(item._id || ''), item.total]),
+      );
+      const labsByTypeWithDefaults = defaultLabsByType.map((item) => ({
+        ...item,
+        total: labsByTypeMap.get(String(item._id)) ?? 0,
+      }));
+      const knownLabTypeIds = new Set(
+        defaultLabsByType.map((item) => String(item._id)),
+      );
+      const labsByTypeExtras = labsByType
+        .filter((item) => !knownLabTypeIds.has(String(item._id || '')))
+        .map((item) => ({
+          _id: item._id ?? null,
+          typeName: item.typeName || 'Non defini',
+          typeCode: item.typeCode || null,
+          total: item.total || 0,
+        }));
+      const finalLabsByType = [...labsByTypeWithDefaults, ...labsByTypeExtras];
+
+      if (labIds.length === 0) {
+        return {
+          filters: query,
+          totalLabs,
+          totalPersonnel: 0,
+          labsByType: finalLabsByType,
+          personnelByRole: defaultPersonnelByRole,
+          personnelByGender: defaultPersonnelByGender,
+        };
+      }
+
+      const personnelFilters = {
+        lab: { $in: labIds },
+        active: true,
+      };
+
+      const [totalPersonnel, personnelByRole, personnelByGender] = await Promise.all(
+        [
+          this.userModel.countDocuments(personnelFilters),
+          this.userModel.aggregate([
+            { $match: personnelFilters },
+            { $group: { _id: '$role', total: { $sum: 1 } } },
+            { $sort: { total: -1 } },
+          ]),
+          this.userModel.aggregate([
+            { $match: personnelFilters },
+            { $group: { _id: '$gender', total: { $sum: 1 } } },
+            { $sort: { total: -1 } },
+          ]),
+        ],
+      );
+      const personnelByRoleMap = new Map(
+        personnelByRole.map((item) => [String(item._id || ''), item.total]),
+      );
+      const personnelByGenderMap = new Map(
+        personnelByGender.map((item) => [String(item._id || ''), item.total]),
+      );
+      const personnelByRoleWithDefaults = defaultPersonnelByRole.map((item) => ({
+        ...item,
+        total: personnelByRoleMap.get(item._id) ?? 0,
+      }));
+      const knownRoles = new Set<string>(
+        defaultPersonnelByRole.map((item) => String(item._id)),
+      );
+      const personnelByRoleExtras = personnelByRole.filter(
+        (item) => !knownRoles.has(String(item._id || '')),
+      );
+      const personnelByGenderWithDefaults = defaultPersonnelByGender.map(
+        (item) => ({
+          ...item,
+          total: personnelByGenderMap.get(item._id) ?? 0,
+        }),
+      );
+      const knownGenders = new Set<string>(
+        defaultPersonnelByGender.map((item) => String(item._id)),
+      );
+      const personnelByGenderExtras = personnelByGender.filter(
+        (item) => !knownGenders.has(String(item._id || '')),
+      );
+
+      return {
+        filters: query,
+        totalLabs,
+        totalPersonnel,
+        labsByType: finalLabsByType,
+        personnelByRole: [...personnelByRoleWithDefaults, ...personnelByRoleExtras],
+        personnelByGender: [
+          ...personnelByGenderWithDefaults,
+          ...personnelByGenderExtras,
+        ],
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Erreur lors de la récupération des statistiques',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

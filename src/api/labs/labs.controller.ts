@@ -15,6 +15,7 @@ import { CreateLabDto } from './dto/create-lab.dto';
 import { CreateMultipleLabsDto } from './dto/create-multiple-labs.dto';
 import { UpdateLabDto } from './dto/update-lab.dto';
 import { FindLabsDto } from './dto/find-lab.dto';
+import { LabsStatsDto } from './dto/labs-stats.dto';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
@@ -132,6 +133,25 @@ export class LabsController {
         data: groupByRegion,
       });
     } catch (error: any) {
+      return res.status(error.status || 500).json({
+        message: error.message || 'Erreur serveur',
+      });
+    }
+  }
+
+  @Roles(Role.SuperAdmin, Role.RegionAdmin, Role.LabAdmin)
+  @Get('stats')
+  async getStats(@Query() query: LabsStatsDto, @Res() res) {
+    try {
+      logger.info(`---LABS.CONTROLLER.GET_STATS INIT---`);
+      const stats = await this.labsService.getStats(query);
+      logger.info(`---LABS.CONTROLLER.GET_STATS SUCCESS---`);
+      return res.status(HttpStatus.OK).json({
+        message: 'Statistiques des laboratoires récupérées',
+        data: stats,
+      });
+    } catch (error: any) {
+      logger.error(`---LABS.CONTROLLER.GET_STATS ERROR ${error}---`);
       return res.status(error.status || 500).json({
         message: error.message || 'Erreur serveur',
       });
