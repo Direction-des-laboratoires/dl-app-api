@@ -74,10 +74,13 @@ export class UserService {
     } else if (typeof subSpecialitiesInput === 'string') {
       const raw = subSpecialitiesInput.trim();
       values = raw.includes(',')
-        ? raw.split(',').map((item) => item.trim()).filter(Boolean)
+        ? raw
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean)
         : raw
-          ? [raw]
-          : [];
+        ? [raw]
+        : [];
     } else {
       values = [String(subSpecialitiesInput).trim()].filter(Boolean);
     }
@@ -91,7 +94,10 @@ export class UserService {
       }
 
       const existing = await this.subSpecialityModel.findOne({
-        name: { $regex: `^${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+        name: {
+          $regex: `^${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+          $options: 'i',
+        },
       });
 
       if (existing) {
@@ -107,9 +113,9 @@ export class UserService {
     }
 
     // Dédupliquer les IDs
-    const uniqueIds = Array.from(new Set(resolvedIds.map((id) => String(id)))).map(
-      (id) => new mongoose.Types.ObjectId(id),
-    );
+    const uniqueIds = Array.from(
+      new Set(resolvedIds.map((id) => String(id))),
+    ).map((id) => new mongoose.Types.ObjectId(id));
 
     return uniqueIds;
   }
@@ -117,6 +123,9 @@ export class UserService {
   async create(
     createUserDto: CreateUserDto | CreateLabStaffDto,
     files?: Express.Multer.File[],
+    options?: {
+      isLabAdmin?: boolean;
+    },
   ) {
     try {
       logger.info(`---USER.SERVICE.CREATE INIT---`);
@@ -204,8 +213,8 @@ export class UserService {
       await user.save();
       logger.info(`---USER.SERVICE.CREATE SUCCESS---`);
 
-      // Envoyer les accès par email si l'utilisateur a un email
-      if (user.email) {
+      // Envoyer les accès par email si l'utilisateur a un email et si c'est pas un LabAdmin
+      if (user.email && options?.isLabAdmin !== true) {
         try {
           const fullName =
             `${user.firstname || ''} ${user.lastname || ''}`.trim() ||
@@ -247,7 +256,9 @@ export class UserService {
         role: Role.LabAdmin,
         active: false,
       };
-      const user = await this.create(payload as any, files || []);
+      const user = await this.create(payload as any, files || [], {
+        isLabAdmin: true,
+      });
       logger.info(`---USER.SERVICE.CREATE_LAB_ADMIN_ACCOUNT SUCCESS---`);
       return user;
     } catch (error) {
