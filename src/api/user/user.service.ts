@@ -238,6 +238,7 @@ export class UserService {
 
   async createLabAdminAccount(
     createLabAdminDto: CreateUserDto | CreateLabStaffDto,
+    files: Express.Multer.File[] = [],
   ) {
     try {
       logger.info(`---USER.SERVICE.CREATE_LAB_ADMIN_ACCOUNT INIT---`);
@@ -246,7 +247,7 @@ export class UserService {
         role: Role.LabAdmin,
         active: false,
       };
-      const user = await this.create(payload as any);
+      const user = await this.create(payload as any, files || []);
       logger.info(`---USER.SERVICE.CREATE_LAB_ADMIN_ACCOUNT SUCCESS---`);
       return user;
     } catch (error) {

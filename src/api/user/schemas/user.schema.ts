@@ -227,11 +227,11 @@ UserSchema.pre('save', async function (next) {
           'Un personnel de laboratoire doit avoir un laboratoryId',
         );
       }
-      if (!this.entryDate) {
-        throw new Error(
-          "Un personnel de laboratoire doit avoir une date d'entrée",
-        );
-      }
+      // if (!this.entryDate) {
+      //   throw new Error(
+      //     "Un personnel de laboratoire doit avoir une date d'entrée",
+      //   );
+      // }
     }
 
     return next();

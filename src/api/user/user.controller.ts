@@ -31,15 +31,22 @@ import { CreateLabAdminAccountDto } from '../auth/dto/create-lab-admin-account.d
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      storage: diskStorage({ destination: UploadHelper.uploadDirectory }),
+    }),
+  )
   @Post('register-lab-admin')
   async registerLabAdmin(
     @Body() createLabAdminDto: CreateLabAdminAccountDto,
+    @UploadedFiles() files: Express.Multer.File[],
     @Res() res,
   ) {
     try {
       logger.info(`---USER.CONTROLLER.REGISTER_LAB_ADMIN INIT---`);
       const user = await this.userService.createLabAdminAccount(
         createLabAdminDto as any,
+        files || [],
       );
       logger.info(`---USER.CONTROLLER.REGISTER_LAB_ADMIN SUCCESS---`);
       return res.status(HttpStatus.CREATED).json({
@@ -69,12 +76,15 @@ export class UserController {
   ) {
     try {
       logger.info(`---USER.CONTROLLER.CREATE INIT---`);
-      
+
       // Si c'est un LabAdmin, on force son labo et le rôle LabStaff
       if (req.user.role === Role.LabAdmin) {
         const labId = req.user.lab?._id?.toString() || req.user.lab?.toString();
         if (!labId) {
-          throw new HttpException("Vous n'avez pas de laboratoire associé", HttpStatus.FORBIDDEN);
+          throw new HttpException(
+            "Vous n'avez pas de laboratoire associé",
+            HttpStatus.FORBIDDEN,
+          );
         }
         createUserDto.lab = labId;
         createUserDto.role = Role.LabStaff;
@@ -106,7 +116,7 @@ export class UserController {
   ) {
     try {
       // Forcer le labo du LabAdmin
-      if(req.user.role === Role.LabAdmin){
+      if (req.user.role === Role.LabAdmin) {
         createUserDto.lab = req.user.lab?._id.toString();
       }
       logger.info(`---USER.CONTROLLER.CREATE_LAB_STAFF INIT---`);
@@ -130,21 +140,28 @@ export class UserController {
   ) {
     try {
       logger.info(`---USER.CONTROLLER.CREATE_MULTIPLE INIT---`);
-      
+
       // Si c'est un LabAdmin, on force son labo pour tous les utilisateurs et le rôle LabStaff
       if (req.user.role === Role.LabAdmin) {
         const labId = req.user.lab?._id?.toString() || req.user.lab?.toString();
         if (!labId) {
-          throw new HttpException("Vous n'avez pas de laboratoire associé", HttpStatus.FORBIDDEN);
+          throw new HttpException(
+            "Vous n'avez pas de laboratoire associé",
+            HttpStatus.FORBIDDEN,
+          );
         }
-        createMultipleUsersDto.users = createMultipleUsersDto.users.map(user => ({
-          ...user,
-          lab: labId,
-          role: Role.LabStaff
-        }));
+        createMultipleUsersDto.users = createMultipleUsersDto.users.map(
+          (user) => ({
+            ...user,
+            lab: labId,
+            role: Role.LabStaff,
+          }),
+        );
       }
 
-      const result = await this.userService.createMultiple(createMultipleUsersDto.users);
+      const result = await this.userService.createMultiple(
+        createMultipleUsersDto.users,
+      );
       return res.status(HttpStatus.CREATED).json(result);
     } catch (error) {
       logger.error(`---USER.CONTROLLER.CREATE_MULTIPLE ERROR ${error}---`);
@@ -172,7 +189,8 @@ export class UserController {
       let finalLab = lab;
 
       if (requester.role === Role.RegionAdmin) {
-        finalRegion = requester.region?._id?.toString() || requester.region?.toString();
+        finalRegion =
+          requester.region?._id?.toString() || requester.region?.toString();
       } else if (requester.role === Role.LabAdmin) {
         finalLab = requester.lab?._id?.toString() || requester.lab?.toString();
       }
@@ -195,7 +213,7 @@ export class UserController {
     }
   }
 
-  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff,Role.RegionAdmin)
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff, Role.RegionAdmin)
   @Get()
   async findAll(@Query() query: FindUsersDto, @Req() req, @Res() res) {
     try {
