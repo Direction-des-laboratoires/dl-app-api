@@ -952,6 +952,78 @@ export class UserService {
     }
   }
 
+  async validateUserAndSendAccess(userId: string): Promise<any> {
+    try {
+      logger.info(
+        `---USER.SERVICE.VALIDATE_USER_AND_SEND_ACCESS INIT--- userId=${userId}`,
+      );
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new HttpException('Utilisateur non trouvé', HttpStatus.NOT_FOUND);
+      }
+      if (!user.email) {
+        throw new HttpException(
+          "Impossible d'envoyer les accès: email manquant",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (user.active === true) {
+        throw new HttpException(
+          'Cet utilisateur est déjà actif',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const previousState = {
+        active: user.active,
+        password: user.password,
+        isFirstLogin: user.isFirstLogin,
+      };
+
+      const temporaryPassword = this.generateRandomPassword(8);
+      user.password = temporaryPassword;
+      user.active = true;
+      user.isFirstLogin = true;
+      user.updated_at = new Date();
+      await user.save();
+
+      try {
+        const fullName =
+          `${user.firstname || ''} ${user.lastname || ''}`.trim() ||
+          'Utilisateur';
+        await this.mailService.sendWelcomeEmail(
+          user.email,
+          fullName,
+          temporaryPassword,
+        );
+      } catch (mailError) {
+        await this.userModel.findByIdAndUpdate(userId, {
+          active: previousState.active,
+          password: previousState.password,
+          isFirstLogin: previousState.isFirstLogin,
+          updated_at: new Date(),
+        });
+        throw new HttpException(
+          `Compte non validé: échec d'envoi des accès par email (${mailError.message})`,
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      logger.info(
+        `---USER.SERVICE.VALIDATE_USER_AND_SEND_ACCESS SUCCESS--- userId=${userId}`,
+      );
+      return sanitizeUser(user);
+    } catch (error) {
+      logger.error(
+        `---USER.SERVICE.VALIDATE_USER_AND_SEND_ACCESS ERROR--- ${error.message}`,
+      );
+      throw new HttpException(
+        error.message || "Erreur lors de la validation de l'utilisateur",
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   isSuperAdminOrLabAdmin(user: User, labId: string) {
     return (
       user.role == Role.SuperAdmin ||

@@ -478,4 +478,24 @@ export class UserController {
         .json({ message: error.message });
     }
   }
+
+  @Roles(Role.SuperAdmin)
+  @Patch(':id/validate')
+  async validateUser(@Param('id') id: string, @Res() res) {
+    try {
+      logger.info(`---USER.CONTROLLER.VALIDATE_USER INIT--- userId=${id}`);
+      const data = await this.userService.validateUserAndSendAccess(id);
+      logger.info(`---USER.CONTROLLER.VALIDATE_USER SUCCESS--- userId=${id}`);
+      return res.status(HttpStatus.OK).json({
+        message:
+          "Utilisateur validé avec succès. Les accès ont été envoyés par email.",
+        data,
+      });
+    } catch (error) {
+      logger.error(`---USER.CONTROLLER.VALIDATE_USER ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
 }
