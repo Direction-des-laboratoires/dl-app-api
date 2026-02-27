@@ -8,6 +8,8 @@ export interface User extends Document {
   firstname: string;
   lastname: string;
   phoneNumber: string;
+  phoneNumber2?: string;
+  whatsappNumber?: string;
   email: string;
   birthday?: Date;
   nationality?: string;

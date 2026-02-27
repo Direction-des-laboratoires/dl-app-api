@@ -23,6 +23,14 @@ export class CreateUserDto {
   @IsNotEmpty()
   phoneNumber: string;
 
+  @IsOptional()
+  @IsString()
+  phoneNumber2: string;
+
+  @IsOptional()
+  @IsString()
+  whatsappNumber: string;
+
   @IsNotEmpty()
   email: string;
 
@@ -157,6 +165,14 @@ export class CreateLabStaffDto {
 
   @IsNotEmpty()
   phoneNumber: string;
+
+  @IsOptional()
+  @IsString()
+  phoneNumber2: string;
+
+  @IsOptional()
+  @IsString()
+  whatsappNumber: string;
 
   @IsNotEmpty()
   email: string;

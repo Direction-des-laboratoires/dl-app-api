@@ -18,6 +18,14 @@ export const UserSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  phoneNumber2: {
+    type: String,
+    default: null,
+  },
+  whatsappNumber: {
+    type: String,
+    default: null,
+  },
   email: {
     type: String,
     unique: true,
