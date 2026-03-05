@@ -18,6 +18,8 @@ import { ProfessionalExperience } from '../professional-experience/interfaces/pr
 import { Training } from '../training/interfaces/training.interface';
 import { Lab } from '../labs/interfaces/labs.interface';
 import { SubSpeciality } from '../sub-speciality/interfaces/sub-speciality.interface';
+import { Position } from '../position/interfaces/position.interface';
+import { LabTypePosition } from '../lab-type-position/interfaces/lab-type-position.interface';
 
 @Injectable()
 export class UserService {
@@ -29,6 +31,9 @@ export class UserService {
     @InjectModel('Lab') private labModel: Model<Lab>,
     @InjectModel('SubSpeciality')
     private subSpecialityModel: Model<SubSpeciality>,
+    @InjectModel('Position') private positionModel: Model<Position>,
+    @InjectModel('LabTypePosition')
+    private labTypePositionModel: Model<LabTypePosition>,
     private mailService: MailService,
   ) {}
   /**
@@ -120,6 +125,79 @@ export class UserService {
     return uniqueIds;
   }
 
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private async resolvePosition(
+    positionInput: unknown,
+    labId?: string,
+  ): Promise<mongoose.Types.ObjectId | undefined> {
+    if (positionInput === undefined || positionInput === null) {
+      return undefined;
+    }
+
+    const raw = String(positionInput).trim();
+    if (!raw) {
+      return undefined;
+    }
+
+    // Si c'est déjà un ObjectId valide, on le renvoie tel quel
+    if (mongoose.Types.ObjectId.isValid(raw)) {
+      return new mongoose.Types.ObjectId(raw);
+    }
+
+    // Sinon, on traite comme un libellé de poste
+    const title = raw;
+
+    // Rechercher une position existante (insensible à la casse)
+    let position = await this.positionModel.findOne({
+      title: {
+        $regex: `^${this.escapeRegex(title)}$`,
+        $options: 'i',
+      },
+    });
+
+    // Si elle n'existe pas, on la crée
+    if (!position) {
+      position = await this.positionModel.create({ title });
+    }
+
+    // Si un labo est fourni, tenter de créer l'association LabTypePosition
+    if (labId && mongoose.Types.ObjectId.isValid(labId)) {
+      const lab = await this.labModel
+        .findById(labId)
+        .select('type')
+        .lean();
+
+      const labTypeValue: any = lab?.type;
+      const labTypeId =
+        typeof labTypeValue === 'object' && labTypeValue !== null
+          ? labTypeValue._id
+          : labTypeValue;
+
+      if (labTypeId && mongoose.Types.ObjectId.isValid(String(labTypeId))) {
+        const labTypeObjectId = new mongoose.Types.ObjectId(
+          String(labTypeId),
+        );
+
+        const existingLink = await this.labTypePositionModel.findOne({
+          labType: labTypeObjectId,
+          position: position._id,
+        });
+
+        if (!existingLink) {
+          await this.labTypePositionModel.create({
+            labType: labTypeObjectId,
+            position: position._id,
+          });
+        }
+      }
+    }
+
+    return position._id as any;
+  }
+
   async create(
     createUserDto: CreateUserDto | CreateLabStaffDto,
     files?: Express.Multer.File[],
@@ -196,6 +274,14 @@ export class UserService {
       );
       if (resolvedSubSpecialities !== undefined) {
         (createUserDto as any).subSpecialities = resolvedSubSpecialities;
+      }
+
+      const resolvedPosition = await this.resolvePosition(
+        (createUserDto as any).position,
+        (createUserDto as any).lab,
+      );
+      if (resolvedPosition !== undefined) {
+        (createUserDto as any).position = resolvedPosition;
       }
 
       const user = new this.userModel(createUserDto);

@@ -46,7 +46,7 @@ export class CreateUserDto {
   environmentPosition: string;
 
   @IsOptional()
-  @IsMongoId()
+  @IsString()
   position: string;
 
   @IsOptional()
@@ -190,7 +190,7 @@ export class CreateLabStaffDto {
   environmentPosition: string;
 
   @IsOptional()
-  @IsMongoId()
+  @IsString()
   position: string;
 
   @IsNotEmpty()
