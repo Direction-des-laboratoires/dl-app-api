@@ -18,6 +18,7 @@ import { ProfessionalExperience } from '../professional-experience/interfaces/pr
 import { Training } from '../training/interfaces/training.interface';
 import { Lab } from '../labs/interfaces/labs.interface';
 import { SubSpeciality } from '../sub-speciality/interfaces/sub-speciality.interface';
+import { Structure } from '../structure/interfaces/structure.interface';
 import { Position } from '../position/interfaces/position.interface';
 import { LabTypePosition } from '../lab-type-position/interfaces/lab-type-position.interface';
 
@@ -31,6 +32,7 @@ export class UserService {
     @InjectModel('Lab') private labModel: Model<Lab>,
     @InjectModel('SubSpeciality')
     private subSpecialityModel: Model<SubSpeciality>,
+    @InjectModel('Structure') private structureModel: Model<Structure>,
     @InjectModel('Position') private positionModel: Model<Position>,
     @InjectModel('LabTypePosition')
     private labTypePositionModel: Model<LabTypePosition>,
@@ -123,6 +125,107 @@ export class UserService {
     ).map((id) => new mongoose.Types.ObjectId(id));
 
     return uniqueIds;
+  }
+
+  private async resolveLabIdsByGeoFilters(params: {
+    pole?: string;
+    region?: string;
+    district?: string;
+  }): Promise<mongoose.Types.ObjectId[]> {
+    const { pole, region, district } = params;
+
+    if (!pole && !region && !district) {
+      return [];
+    }
+
+    const structurePipeline: any[] = [];
+    const structureMatch: any = {};
+
+    if (region) {
+      structureMatch.region = new mongoose.Types.ObjectId(region);
+    }
+    if (district) {
+      structureMatch.district = new mongoose.Types.ObjectId(district);
+    }
+
+    if (Object.keys(structureMatch).length > 0) {
+      structurePipeline.push({ $match: structureMatch });
+    }
+
+    if (pole) {
+      structurePipeline.push(
+        {
+          $lookup: {
+            from: 'regions',
+            localField: 'region',
+            foreignField: '_id',
+            as: 'regionInfo',
+          },
+        },
+        { $unwind: '$regionInfo' },
+        {
+          $match: {
+            'regionInfo.pole': new mongoose.Types.ObjectId(pole),
+          },
+        },
+      );
+    }
+
+    structurePipeline.push({ $project: { _id: 1 } });
+
+    const matchingStructures = await this.structureModel.aggregate(
+      structurePipeline,
+    );
+    const structureIds = matchingStructures.map((s) => s._id);
+
+    if (structureIds.length === 0) {
+      return [];
+    }
+
+    const labs = await this.labModel
+      .find({ structure: { $in: structureIds } })
+      .select('_id')
+      .lean();
+
+    return labs.map((lab) => lab._id as any);
+  }
+
+  private async resolveRegionFromLab(
+    labId: string,
+  ): Promise<mongoose.Types.ObjectId | undefined> {
+    if (!labId || !mongoose.Types.ObjectId.isValid(labId)) {
+      return undefined;
+    }
+
+    const lab = await this.labModel
+      .findById(labId)
+      .select('structure')
+      .lean();
+
+    if (!lab || !lab['structure']) {
+      return undefined;
+    }
+
+    const structureId =
+      typeof lab['structure'] === 'object' && lab['structure'] !== null
+        ? lab['structure']['_id'] || lab['structure']
+        : lab['structure'];
+
+    if (!structureId || !mongoose.Types.ObjectId.isValid(String(structureId))) {
+      return undefined;
+    }
+
+    const structure = await this.structureModel
+      .findById(structureId)
+      .select('region')
+      .lean();
+
+    const regionValue = structure?.['region'];
+    if (!regionValue) {
+      return undefined;
+    }
+
+    return new mongoose.Types.ObjectId(String(regionValue));
   }
 
   private escapeRegex(value: string): string {
@@ -284,6 +387,20 @@ export class UserService {
         (createUserDto as any).position = resolvedPosition;
       }
 
+      // Résoudre automatiquement la région à partir du labo si non fournie
+      if (
+        !(createUserDto as any).region &&
+        (createUserDto as any).lab &&
+        typeof (createUserDto as any).lab === 'string'
+      ) {
+        const resolvedRegion = await this.resolveRegionFromLab(
+          (createUserDto as any).lab,
+        );
+        if (resolvedRegion) {
+          (createUserDto as any).region = resolvedRegion;
+        }
+      }
+
       const user = new this.userModel(createUserDto);
       const password = this.generateRandomPassword(8);
       user.password = password;
@@ -396,54 +513,40 @@ export class UserService {
   }
 
   async getStats(query: {
+    pole?: string;
     region?: string;
     district?: string;
     lab?: string;
   }): Promise<any> {
     try {
       logger.info(`---USER.SERVICE.GET_STATS INIT---`);
-      const { region, district, lab } = query;
+      const { pole, region, district, lab } = query;
 
       const filters: any = { active: true };
 
       // Si un lab est spécifié, on l'utilise directement
       if (lab) {
         filters.lab = new mongoose.Types.ObjectId(lab);
-      }
-      // Sinon, si region ou district est spécifié, on cherche les labs correspondants
-      else if (region || district) {
-        const structureFilters: any = {};
-        if (region)
-          structureFilters.region = new mongoose.Types.ObjectId(region);
-        if (district)
-          structureFilters.district = new mongoose.Types.ObjectId(district);
+      } else if (pole || region || district) {
+        // Résoudre les labs à partir des structures / régions / pôles
+        const labIds = await this.resolveLabIdsByGeoFilters({
+          pole,
+          region,
+          district,
+        });
 
-        // Trouver les structures
-        const labs = await this.labModel.aggregate([
-          {
-            $lookup: {
-              from: 'structures',
-              localField: 'structure',
-              foreignField: '_id',
-              as: 'structureInfo',
-            },
-          },
-          { $unwind: '$structureInfo' },
-          {
-            $match: {
-              $or: [
-                { 'structureInfo.region': structureFilters.region },
-                { 'structureInfo.district': structureFilters.district },
-              ].filter((f) => Object.values(f)[0] !== undefined),
-            },
-          },
-          { $project: { _id: 1 } },
-        ]);
+        if (!labIds.length) {
+          return {
+            total: 0,
+            byGender: [],
+            byRole: [],
+            byEnvironment: [],
+            byContractType: [],
+          };
+        }
 
-        const labIds = labs.map((l) => l._id);
-
-        // Pour les stats, on inclut aussi les RegionAdmin de cette région
-        if (region) {
+        if (region && !pole) {
+          // Pour les stats par région uniquement, inclure aussi les RegionAdmin de cette région
           filters.$or = [
             { lab: { $in: labIds } },
             { region: new mongoose.Types.ObjectId(region) },
@@ -524,6 +627,9 @@ export class UserService {
     environmentPosition?: string;
     level?: string;
     region?: string;
+    pole?: string;
+    district?: string;
+    structure?: string;
     role?: string;
     active?: boolean;
     specialities?: string[];
@@ -560,6 +666,9 @@ export class UserService {
         experienceDuration,
         dureeLabo,
         disabled,
+        pole,
+        district,
+        structure,
       } = query;
 
       const filters: any = {};
@@ -586,13 +695,112 @@ export class UserService {
       if (environmentPosition)
         filters.environmentPosition = environmentPosition;
       if (level) filters.level = level;
-      if (region) filters.region = region;
       if (contractType) filters.contractType = contractType;
       if (gender) filters.gender = gender;
       if (maritalStatus) filters.maritalStatus = maritalStatus;
       if (experienceDuration) filters.experienceDuration = experienceDuration;
       // if (dureeLabo) filters.dureeLabo = dureeLabo;
       if (disabled !== undefined) filters.disabled = disabled;
+
+      // Filtres géographiques: structure prioritaire, sinon pole/region/district
+      if (structure) {
+        const labsForStructure = await this.labModel
+          .find({ structure })
+          .select('_id')
+          .lean();
+        const labIds = labsForStructure.map((l) => l._id as any);
+
+        if (!labIds.length) {
+          return {
+            data: [],
+            limit,
+            total: 0,
+            page,
+            totalPages: 0,
+          };
+        }
+
+        if (lab) {
+          const labMatchesStructure = labIds.some(
+            (id) => String(id) === String(lab),
+          );
+          if (!labMatchesStructure) {
+            return {
+              data: [],
+              limit,
+              total: 0,
+              page,
+              totalPages: 0,
+            };
+          }
+          // lab déjà dans les filtres, rien à changer
+        } else {
+          filters.lab = { $in: labIds };
+        }
+      } else if (pole) {
+        const labIds = await this.resolveLabIdsByGeoFilters({ pole });
+
+        if (!labIds.length) {
+          return {
+            data: [],
+            limit,
+            total: 0,
+            page,
+            totalPages: 0,
+          };
+        }
+
+        if (lab) {
+          const labMatchesPole = labIds.some(
+            (id) => String(id) === String(lab),
+          );
+          if (!labMatchesPole) {
+            return {
+              data: [],
+              limit,
+              total: 0,
+              page,
+              totalPages: 0,
+            };
+          }
+          // lab déjà dans les filtres, rien à changer
+        } else {
+          filters.lab = { $in: labIds };
+        }
+      } else if (region || district) {
+        const labIds = await this.resolveLabIdsByGeoFilters({
+          region,
+          district,
+        });
+
+        if (!labIds.length) {
+          return {
+            data: [],
+            limit,
+            total: 0,
+            page,
+            totalPages: 0,
+          };
+        }
+
+        if (lab) {
+          const labMatchesRegion = labIds.some(
+            (id) => String(id) === String(lab),
+          );
+          if (!labMatchesRegion) {
+            return {
+              data: [],
+              limit,
+              total: 0,
+              page,
+              totalPages: 0,
+            };
+          }
+          // lab déjà dans les filtres, rien à changer
+        } else {
+          filters.lab = { $in: labIds };
+        }
+      }
 
       if (role && role !== Role.SdrAdmin) {
         filters.role = role;
@@ -898,6 +1106,30 @@ export class UserService {
     try {
       logger.info(`---USER.SERVICE.UPDATE INIT---`);
 
+      const existingUser = await this.userModel
+        .findById(id)
+        .select('lab region')
+        .lean();
+      if (!existingUser) {
+        throw new HttpException('Utilisateur non trouvé', HttpStatus.NOT_FOUND);
+      }
+
+      // Résoudre automatiquement la région si absente dans le DTO
+      let resolvedRegionForUpdate:
+        | mongoose.Types.ObjectId
+        | undefined = undefined;
+      if ((updateUserDto as any).region) {
+        // région explicitement fournie : on ne touche pas
+      } else {
+        const labIdForRegion =
+          (updateUserDto as any).lab || existingUser['lab'];
+        if (labIdForRegion) {
+          resolvedRegionForUpdate = await this.resolveRegionFromLab(
+            String(labIdForRegion),
+          );
+        }
+      }
+
       // Traiter l'upload de la photo de profil si présente
       let profilePhotoUrl: string | undefined;
       let cvUrl: string | undefined;
@@ -958,6 +1190,9 @@ export class UserService {
       }
 
       const updateData: any = { ...updateUserDto, updated_at: new Date() };
+      if (resolvedRegionForUpdate) {
+        updateData.region = resolvedRegionForUpdate;
+      }
       if (profilePhotoUrl) {
         updateData.profilePhoto = profilePhotoUrl;
       }

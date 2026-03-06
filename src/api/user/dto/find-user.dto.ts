@@ -90,6 +90,18 @@ export class FindUsersDto {
   region?: string;
 
   @IsOptional()
+  @IsMongoId()
+  pole?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  district?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  structure?: string;
+
+  @IsOptional()
   @IsString()
   role?: string;
 

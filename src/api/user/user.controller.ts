@@ -174,6 +174,7 @@ export class UserController {
   @Roles(Role.SuperAdmin, Role.LabAdmin, Role.RegionAdmin)
   @Get('stats')
   async getStats(
+    @Query('pole') pole: string,
     @Query('region') region: string,
     @Query('district') district: string,
     @Query('lab') lab: string,
@@ -196,6 +197,7 @@ export class UserController {
       }
 
       const stats = await this.userService.getStats({
+        pole,
         region: finalRegion,
         district,
         lab: finalLab,

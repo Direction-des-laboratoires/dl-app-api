@@ -13,6 +13,7 @@ import { EnvironmentPositionSchema } from '../environment-position/schemas/envir
 import { EnvironmentSchema } from '../environment/schemas/environment.schema';
 import { SubSpecialitySchema } from '../sub-speciality/schemas/sub-speciality.schema';
 import { LabTypePositionSchema } from '../lab-type-position/schemas/lab-type-position.schema';
+import { StructureSchema } from '../structure/schemas/structure.schema';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { LabTypePositionSchema } from '../lab-type-position/schemas/lab-type-pos
       { name: 'EnvironmentPosition', schema: EnvironmentPositionSchema },
       { name: 'Environment', schema: EnvironmentSchema },
       { name: 'SubSpeciality', schema: SubSpecialitySchema },
+      { name: 'Structure', schema: StructureSchema },
       { name: 'LabTypePosition', schema: LabTypePositionSchema },
     ]),
     ContractTypeModule,
