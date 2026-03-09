@@ -4,7 +4,7 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Post } from './interfaces/post.interface';
-import { uploadFile } from 'src/utils/functions/file.upload';
+import { minioUploadFile, uploadFile } from 'src/utils/functions/file.upload';
 import logger from 'src/utils/logger';
 import { PostTypesEnum } from 'src/utils/enums/post.enum';
 import * as mongoose from 'mongoose';
@@ -18,9 +18,10 @@ export class PostService {
     files: [Express.Multer.File],
   ) {
     try {
+      console.log('files', files);
       const filesUrls = await Promise.all(
         files.map((file) => {
-          return uploadFile(file);
+          return minioUploadFile(file);
         }),
       );
       const post = new this.postModel(createPostDto);
