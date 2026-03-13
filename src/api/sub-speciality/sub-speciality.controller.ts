@@ -46,16 +46,19 @@ export class SubSpecialityController {
       logger.info(`---SUB_SPECIALITY.CONTROLLER.FIND_ALL INIT---`);
       const result = await this.subSpecialityService.findAll(query);
       logger.info(`---SUB_SPECIALITY.CONTROLLER.FIND_ALL SUCCESS---`);
-      return res.status(HttpStatus.OK).json({
+      const response: any = {
         message: 'Liste des sous-spécialités',
         data: result.data,
-        pagination: {
+      };
+      if (result.total !== undefined) {
+        response.pagination = {
           total: result.total,
           page: result.page,
           limit: result.limit,
           totalPages: result.totalPages,
-        },
-      });
+        };
+      }
+      return res.status(HttpStatus.OK).json(response);
     } catch (error) {
       logger.error(`---SUB_SPECIALITY.CONTROLLER.FIND_ALL ERROR ${error}---`);
       return res

@@ -15,8 +15,8 @@ export class EnvironmentPositionController {
 
   @Post('bulk')
   createBulk(
-    @Body('environmentId') environment: string,
-    @Body('positionIds') positions: string[],
+    @Body('environment') environment: string,
+    @Body('positions') positions: string[],
   ) {
     return this.environmentPositionService.createBulk(environment, positions);
   }

@@ -46,16 +46,19 @@ export class SpecialityController {
       logger.info(`---SPECIALITY.CONTROLLER.FIND_ALL INIT---`);
       const result = await this.specialityService.findAll(query);
       logger.info(`---SPECIALITY.CONTROLLER.FIND_ALL SUCCESS---`);
-      return res.status(HttpStatus.OK).json({
+      const response: any = {
         message: 'Liste des spécialités',
         data: result.data,
-        pagination: {
+      };
+      if (result.total !== undefined) {
+        response.pagination = {
           total: result.total,
           page: result.page,
           limit: result.limit,
           totalPages: result.totalPages,
-        },
-      });
+        };
+      }
+      return res.status(HttpStatus.OK).json(response);
     } catch (error) {
       logger.error(`---SPECIALITY.CONTROLLER.FIND_ALL ERROR ${error}---`);
       return res

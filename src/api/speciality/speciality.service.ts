@@ -31,11 +31,12 @@ export class SpecialityService {
     page?: number;
     limit?: number;
     search?: string;
+    paginate?: boolean;
   }): Promise<any> {
     try {
       logger.info(`---SPECIALITY.SERVICE.FIND_ALL INIT---`);
 
-      const { page = 1, limit = 10, search } = query;
+      const { page = 1, limit = 10, search, paginate = true } = query;
       const skip = (page - 1) * limit;
 
       const filters: any = {};
@@ -49,39 +50,56 @@ export class SpecialityService {
         ];
       }
 
+      const pipeline: any[] = [
+        { $match: filters },
+        {
+          $addFields: {
+            rankValue: {
+              $convert: {
+                input: '$rank',
+                to: 'int',
+                onError: null,
+                onNull: null,
+              },
+            },
+          },
+        },
+        {
+          $addFields: {
+            hasNoRank: {
+              $cond: [{ $eq: ['$rankValue', null] }, 1, 0],
+            },
+            isAutres: {
+              $cond: [
+                {
+                  $eq: [
+                    { $toLower: { $ifNull: ['$name', ''] } },
+                    'autres',
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+        { $sort: { isAutres: 1, hasNoRank: 1, rankValue: 1, name: 1 } },
+        { $project: { hasNoRank: 0, rankValue: 0, isAutres: 0 } },
+      ];
+
+      if (paginate) {
+        pipeline.push({ $skip: skip }, { $limit: limit });
+      }
+
       const [data, total] = await Promise.all([
-        this.specialityModel
-          .aggregate([
-            { $match: filters },
-            {
-              $addFields: {
-                rankValue: {
-                  $convert: {
-                    input: '$rank',
-                    to: 'int',
-                    onError: null,
-                    onNull: null,
-                  },
-                },
-              },
-            },
-            {
-              $addFields: {
-                hasNoRank: {
-                  $cond: [{ $eq: ['$rankValue', null] }, 1, 0],
-                },
-              },
-            },
-            { $sort: { hasNoRank: 1, rankValue: 1, name: 1 } },
-            { $skip: skip },
-            { $limit: limit },
-            { $project: { hasNoRank: 0, rankValue: 0 } },
-          ])
-          .exec(),
-        this.specialityModel.countDocuments(filters),
+        this.specialityModel.aggregate(pipeline).exec(),
+        paginate ? this.specialityModel.countDocuments(filters) : Promise.resolve(0),
       ]);
 
       logger.info(`---SPECIALITY.SERVICE.FIND_ALL SUCCESS---`);
+      if (!paginate) {
+        return { data };
+      }
       return {
         data,
         total,

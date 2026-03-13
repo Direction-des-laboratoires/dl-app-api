@@ -68,19 +68,33 @@ export class EquipmentTypesService {
   async findAll(query: {
     page?: number;
     limit?: number;
+    paginate?: boolean;
+    category?: string;
     equipmentCategory?: string;
     search?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
   }): Promise<any> {
     try {
       logger.info(`---EQUIPMENT_TYPES.SERVICE.FIND_ALL INIT---`);
 
-      const { page = 1, limit = 10, equipmentCategory, search } = query;
+      const {
+        page = 1,
+        limit = 10,
+        paginate = true,
+        category,
+        equipmentCategory,
+        search,
+        sortBy = 'name',
+        sortOrder = 'asc',
+      } = query;
+
       const skip = (page - 1) * limit;
+      const categoryId = category || equipmentCategory;
 
       const filters: any = {};
-      if (equipmentCategory) filters.equipmentCategory = equipmentCategory;
+      if (categoryId) filters.equipmentCategory = categoryId;
 
-      // Recherche globale
       if (search && search.trim() !== '') {
         const searchRegex = new RegExp(search.trim(), 'i');
         filters.$or = [
@@ -90,17 +104,27 @@ export class EquipmentTypesService {
         ];
       }
 
+      const sortField = sortBy || 'name';
+      const sortDir = sortOrder === 'desc' ? -1 : 1;
+      const sortObj: Record<string, 1 | -1> = { [sortField]: sortDir as 1 | -1 };
+
+      const queryBuilder = this.equipmentTypeModel
+        .find(filters)
+        .populate('equipmentCategory', 'name')
+        .sort(sortObj);
+
+      if (paginate) {
+        queryBuilder.skip(skip).limit(limit);
+      }
+
       const [data, total] = await Promise.all([
-        this.equipmentTypeModel
-          .find(filters)
-          .populate('equipmentCategory', 'name')
-          .sort({ name: 1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        this.equipmentTypeModel.countDocuments(filters),
+        queryBuilder.lean(),
+        paginate ? this.equipmentTypeModel.countDocuments(filters) : Promise.resolve(0),
       ]);
 
+      if (!paginate) {
+        return { data };
+      }
       return {
         data,
         pagination: {
