@@ -75,6 +75,9 @@ export class EquipmentsService {
         equipmentCategory,
         status,
         inventoryStatus,
+        acquisitionModality,
+        donationSource,
+        donationSourceMshp,
         affectedTo,
         brand,
         modelName,
@@ -93,6 +96,9 @@ export class EquipmentsService {
       if (equipmentType) filters.equipmentType = equipmentType;
       if (status) filters.status = status;
       if (inventoryStatus) filters.inventoryStatus = inventoryStatus;
+      if (acquisitionModality) filters.acquisitionModality = acquisitionModality;
+      if (donationSource) filters.donationSource = donationSource;
+      if (donationSourceMshp) filters.donationSourceMshp = donationSourceMshp;
       if (affectedTo) filters.affectedTo = affectedTo;
       if (brand) filters.brand = { $regex: brand, $options: 'i' };
       if (modelName) filters.modelName = { $regex: modelName, $options: 'i' };

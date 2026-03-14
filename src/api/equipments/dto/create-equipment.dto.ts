@@ -7,7 +7,14 @@ import {
   IsDateString,
   IsBoolean,
 } from 'class-validator';
-import { EquipmentStatus, InventoryStatus, ReceptionStatus } from '../schemas/equipment.schema';
+import {
+  EquipmentStatus,
+  InventoryStatus,
+  ReceptionStatus,
+  AcquisitionModality,
+  DonSource,
+  DonSourceMshp,
+} from '../schemas/equipment.schema';
 
 export class CreateEquipmentDto {
   @IsOptional()
@@ -81,6 +88,26 @@ export class CreateEquipmentDto {
   @IsOptional()
   @IsBoolean()
   isCritical?: boolean;
+
+  @IsOptional()
+  @IsEnum(AcquisitionModality)
+  acquisitionModality?: AcquisitionModality;
+
+  @IsOptional()
+  @IsEnum(DonSource)
+  donationSource?: DonSource;
+
+  @IsOptional()
+  @IsEnum(DonSourceMshp)
+  donationSourceMshp?: DonSourceMshp;
+
+  @IsOptional()
+  @IsString()
+  donationSourcePrecision?: string;
+
+  @IsOptional()
+  @IsString()
+  onLoanSupplier?: string;
 
   @IsOptional()
   @IsString()

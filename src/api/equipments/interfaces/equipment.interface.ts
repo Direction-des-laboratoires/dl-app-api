@@ -3,6 +3,9 @@ import {
   EquipmentStatus,
   InventoryStatus,
   ReceptionStatus,
+  AcquisitionModality,
+  DonSource,
+  DonSourceMshp,
 } from '../schemas/equipment.schema';
 
 export interface Equipment extends Document {
@@ -25,6 +28,11 @@ export interface Equipment extends Document {
   lastCalibrationDate?: Date;
   nextCalibrationDate?: Date;
   isCritical?: boolean;
+  acquisitionModality?: AcquisitionModality;
+  donationSource?: DonSource;
+  donationSourceMshp?: DonSourceMshp;
+  donationSourcePrecision?: string;
+  onLoanSupplier?: string;
   notes?: string;
   createdBy?: string;
   created_at: Date;

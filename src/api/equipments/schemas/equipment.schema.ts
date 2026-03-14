@@ -20,6 +20,35 @@ export enum ReceptionStatus {
   DAMAGED = 'damaged',
 }
 
+export enum AcquisitionModality {
+  ACHAT_DIRECT = 'achat_direct',
+  DON = 'don',
+  MISE_A_DISPOSITION = 'mise_a_disposition',
+  INCONNU = 'inconnu',
+}
+
+/** Source du don (niveau 1) : MSHP, Partenaire, ONG, etc. */
+export enum DonSource {
+  MSHP = 'MSHP',
+  PARTENAIRE = 'PARTENAIRE',
+  ONG = 'ONG',
+  PARTICULIER = 'PARTICULIER',
+  ASSOCIATION = 'ASSOCIATION',
+  INDUSTRIE = 'INDUSTRIE',
+  AUTRES = 'AUTRES',
+}
+
+/** Entité MSHP (niveau 2) : pertinent uniquement si donationSource = MSHP */
+export enum DonSourceMshp {
+  DL = 'DL',
+  DEM = 'DEM',
+  PNLP = 'PNLP',
+  DLSI = 'DLSI',
+  CNLS = 'CNLS',
+  DSME = 'DSME',
+  AUTRES = 'AUTRES',
+}
+
 export const EquipmentSchema = new mongoose.Schema({
   lab: {
     type: mongoose.Schema.ObjectId,
@@ -103,6 +132,29 @@ export const EquipmentSchema = new mongoose.Schema({
   isCritical: {
     type: Boolean,
     default: false,
+  },
+  acquisitionModality: {
+    type: String,
+    enum: Object.values(AcquisitionModality),
+    default: null,
+  },
+  donationSource: {
+    type: String,
+    enum: Object.values(DonSource),
+    default: null,
+  },
+  donationSourceMshp: {
+    type: String,
+    enum: Object.values(DonSourceMshp),
+    default: null,
+  },
+  donationSourcePrecision: {
+    type: String,
+    default: null,
+  },
+  onLoanSupplier: {
+    type: String,
+    default: null,
   },
   notes: {
     type: String,

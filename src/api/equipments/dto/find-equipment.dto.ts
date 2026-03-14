@@ -6,7 +6,13 @@ import {
   IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { EquipmentStatus, InventoryStatus } from '../schemas/equipment.schema';
+import {
+  EquipmentStatus,
+  InventoryStatus,
+  AcquisitionModality,
+  DonSource,
+  DonSourceMshp,
+} from '../schemas/equipment.schema';
 
 export class FindEquipmentDto {
   @IsOptional()
@@ -38,6 +44,18 @@ export class FindEquipmentDto {
   @IsOptional()
   @IsEnum(InventoryStatus)
   inventoryStatus?: InventoryStatus;
+
+  @IsOptional()
+  @IsEnum(AcquisitionModality)
+  acquisitionModality?: AcquisitionModality;
+
+  @IsOptional()
+  @IsEnum(DonSource)
+  donationSource?: DonSource;
+
+  @IsOptional()
+  @IsEnum(DonSourceMshp)
+  donationSourceMshp?: DonSourceMshp;
 
   @IsOptional()
   @IsMongoId()
