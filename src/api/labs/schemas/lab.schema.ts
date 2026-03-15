@@ -1,5 +1,5 @@
 import * as mongoose from 'mongoose';
-import * as autopopulate from 'mongoose-autopopulate';
+import autopopulate from 'mongoose-autopopulate';
 
 export const LabSchema = new mongoose.Schema({
   name: {
