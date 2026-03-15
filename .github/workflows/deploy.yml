@@ -20,6 +20,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          password: ${{ secrets.SSH_PASSWORD }}
           debug: true
           script: |
             cd /www/wwwroot/dl-app-api
