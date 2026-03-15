@@ -30,10 +30,7 @@ export class AuthService {
   async generateToken(user: any) {
     try {
       const payload = { email: user.email, role: user.role, userId: user._id };
-      return this.jwtService.sign(payload, {
-        secret: this.configService.get<string>('privateKey'),
-        expiresIn: '1d',
-      });
+      return this.jwtService.sign(payload);
     } catch (error) {
       logger.error(`---GENERATE TOKEN ERROR ${error}`);
       throw new HttpException(error.message, error.status);
@@ -42,9 +39,7 @@ export class AuthService {
 
   async verifyToken(token: string) {
     try {
-      return this.jwtService.verify(token, {
-        secret: this.configService.get<string>('privateKey'),
-      });
+      return this.jwtService.verify(token);
     } catch (error) {
       throw new HttpException(error.message, error.status);
     }

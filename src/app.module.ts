@@ -65,21 +65,11 @@ import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module'
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        secret: Buffer.from(
-          configService.get<string>('privateKey').replace(/\\n/g, '\n'), // Remplace \n par une vraie nouvelle ligne
-          'utf-8',
-        ),
-        privateKey: Buffer.from(
-          configService.get<string>('privateKey').replace(/\\n/g, '\n'), // Remplace \n par une vraie nouvelle ligne
-          'utf-8',
-        ),
-        publicKey: Buffer.from(
-          configService.get<string>('publicKey').replace(/\\n/g, '\n'), // Remplace \n par une vraie nouvelle ligne
-          'utf-8',
-        ),
+        privateKey: configService.get<string>('privateKey').replace(/\\n/g, '\n'),
+        publicKey: configService.get<string>('publicKey').replace(/\\n/g, '\n'),
         signOptions: {
-          algorithm: 'RS256', // Utilisation de l'algorithme RS256 pour la signature avec clé privée
-          expiresIn: '1d', // Expiration : 1 jour
+          algorithm: 'RS256',
+          expiresIn: '1d',
         },
       }),
     }),
