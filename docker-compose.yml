@@ -12,8 +12,8 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=${NODE_ENV}
-      - PORT=${PROD_PORT}
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PROD_PORT:-8040}
     networks:
       - dl-app-network
 
