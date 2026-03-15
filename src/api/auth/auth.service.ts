@@ -7,10 +7,6 @@ import { UserService } from '../user/user.service';
 import logger from 'src/utils/logger';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { ConfigService } from '@nestjs/config';
-import { sanitizeUser } from 'src/utils/functions/sanitizer';
-import { MessageSentFor } from 'src/utils/enums/message_sent_for.enum';
-import { MessageTypes } from 'src/utils/enums/message_types.enum';
-import { PhoneVerificationDto } from './dto/phone-verification.dto';
 import { expirationDate } from 'src/utils/functions/expiration_date';
 import { generateDigits } from 'src/utils/functions/code_generation';
 import { SendCodeVerificationDto } from './dto/send-code-verification.dto';
@@ -169,7 +165,7 @@ export class AuthService {
   async registerLabAdmin(createLabAdminDto: CreateLabAdminAccountDto): Promise<any> {
     try {
       logger.info(`---AUTH.SERVICE.REGISTER_LAB_ADMIN INIT---`);
-      const user = await this.userService.createLabAdminAccount(
+      await this.userService.createLabAdminAccount(
         createLabAdminDto as any,
       );
       // const token = await this.generateToken(user);
@@ -203,7 +199,7 @@ export class AuthService {
 
   async loginByPhoneNumber(phoneNumber: string) {
     try {
-      const user = await this.findByPhoneNumber(phoneNumber);
+      await this.findByPhoneNumber(phoneNumber);
       // const phoneMessageDto = new CreatePhoneMessageDto(
       //   MessageTypes.sms,
       //   MessageSentFor.phoneNumberVerification,
@@ -228,9 +224,8 @@ export class AuthService {
 
   async sendCodeVerificationToUnknownNumber(phoneNumber: string) {
     try {
-      const user = await this.userService.checkPhoneNumber(phoneNumber);
+      await this.userService.checkPhoneNumber(phoneNumber);
       const code = generateDigits(6);
-      const expiration = expirationDate(5);
       let phoneMessageDto = new SendCodeVerificationDto();
       phoneMessageDto.phoneNumber = phoneNumber;
       this.promobileSmsService.sendSms({

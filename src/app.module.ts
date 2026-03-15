@@ -10,7 +10,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './api/auth/auth.module';
 import { AuthMiddleware } from './middlewares/auth.middleware';
 import { ScheduleModule } from '@nestjs/schedule';
-import { LoanJobsService } from './jobs/loan-job/loan-job.service';
 import { LabsModule } from './api/labs/labs.module';
 import { DistrictModule } from './api/district/district.module';
 import { StructureModule } from './api/structure/structure.module';

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import logger from 'src/utils/logger';
 import { MailTemplates } from './mail.templates';
 
-const nodemailer = require('nodemailer');
+import * as nodemailer from 'nodemailer';
 
 export interface MailOptions {
   to: string | string[];
@@ -26,7 +26,6 @@ export class MailService {
 
   constructor(private configService: ConfigService) {
     const port = this.configService.get<number>('MAIL_PORT');
-    const secureFromEnv = this.configService.get<boolean>('MAIL_SECURE');
 
     // Déterminer automatiquement 'secure' en fonction du port si non spécifié
     // Port 465 = SSL direct (secure: true)

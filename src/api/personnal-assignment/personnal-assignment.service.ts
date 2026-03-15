@@ -8,13 +8,7 @@ import logger from 'src/utils/logger';
 import { Role } from 'src/utils/enums/roles.enum';
 import { User } from '../user/interfaces/user.interface';
 
-interface FindAllResult {
-  data: any[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
+
 
 @Injectable()
 export class PersonnalAssignmentService {

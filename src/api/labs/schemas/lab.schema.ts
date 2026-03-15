@@ -1,5 +1,5 @@
 import * as mongoose from 'mongoose';
-const autopopulate = require('mongoose-autopopulate');
+import * as autopopulate from 'mongoose-autopopulate';
 
 export const LabSchema = new mongoose.Schema({
   name: {
@@ -72,7 +72,6 @@ LabSchema.pre(
       const labId = query._id;
 
       if (labId) {
-        const mongoose = require('mongoose');
 
         // Delete related Equipments
         await mongoose.model('Equipment').deleteMany({ lab: labId });

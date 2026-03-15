@@ -3,8 +3,8 @@ import logger from '../logger';
 import { S3 } from 'aws-sdk';
 import { Express } from 'express';
 
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'fs';
+import * as path from 'path';
 
 export async function uploadFile(file: Express.Multer.File) {
   try {

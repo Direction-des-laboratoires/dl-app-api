@@ -12,7 +12,7 @@ import {
   ScheduleFrequency,
 } from './schemas/maintenance.schema';
 
-import { Role } from 'src/utils/enums/roles.enum';
+
 import { User } from '../user/interfaces/user.interface';
 import { buildStatisticsFilters } from 'src/utils/functions/filter-builder';
 import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';

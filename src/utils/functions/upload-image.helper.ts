@@ -1,4 +1,4 @@
-const fs = require('fs');
+import * as fs from 'fs';
 export class UploadHelper {
   static customFileName = (req, file, cb) => {
     let customName = (Date.now() + Math.round(Math.random())).toString();
