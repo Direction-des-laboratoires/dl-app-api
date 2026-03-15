@@ -9,30 +9,14 @@ services:
     restart: unless-stopped
     ports:
       - "8040:8040"
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=production
-      - PROD_PORT=8040
-      - PORT=8040
-      - PROD_DB_URL=mongodb://mongo:27017/dl-app
-      - PRIVATE_KEY=placeholder_private_key
-      - PUBLIC_KEY=placeholder_public_key
-    depends_on:
-      - mongo
-    networks:
-      - dl-app-network
-
-  mongo:
-    image: mongo:latest
-    container_name: dl-app-mongo
-    restart: unless-stopped
-    volumes:
-      - mongo-data:/data/db
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PROD_PORT}
     networks:
       - dl-app-network
 
 networks:
   dl-app-network:
     driver: bridge
-
-volumes:
-  mongo-data:
