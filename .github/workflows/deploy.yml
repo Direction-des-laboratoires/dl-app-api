@@ -2,8 +2,8 @@ name: Continuous Deployment
 
 on:
   workflow_run:
-    workflows: ["Continuous Integration"]
-    branches: [ main ]
+    workflows: ['Continuous Integration']
+    branches: [main]
     types:
       - completed
 
@@ -19,7 +19,8 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          debug: true
           script: |
             cd /www/wwwroot/dl-app-api
             git pull origin main
