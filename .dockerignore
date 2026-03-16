@@ -4,3 +4,7 @@ dist
 .git
 .env
 .env.*
+*.postman_collection.json
+Jenkinsfile
+README.md
+test
