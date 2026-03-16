@@ -1,37 +1,17 @@
-# ================= Stage 1: Build =================
-FROM node:22-slim AS builder
-
-WORKDIR /app
-
-# Copier les fichiers de dépendances
-COPY package*.json ./
-COPY tsconfig*.json ./
-COPY nest-cli.json ./
-
-# Installer toutes les dépendances (dev + prod)
-RUN npm ci
-
-# Copier le code source
-COPY src ./src
-
-# Compiler NestJS avec limitation de RAM pour éviter les crashs pendant le build
-RUN NODE_OPTIONS="--max-old-space-size=512" npm run build
-
-# ================= Stage 2: Production =================
+# ================= Production Image =================
 FROM node:22-slim
 
 WORKDIR /app
 
-# Créer un utilisateur non-root en avance
+# Créer un utilisateur non-root
 RUN groupadd -r nodejs && useradd -r -g nodejs nestjs
 
 # Copier package.json et installer uniquement les dépendances prod
-# On utilise --chown ici pour éviter un chown -R lent plus tard
 COPY --chown=nestjs:nodejs package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
-# Copier le build compilé depuis le builder avec les bonnes permissions
-COPY --chown=nestjs:nodejs --from=builder /app/dist ./dist
+# Copier le dossier dist déjà compilé par GitHub Actions
+COPY --chown=nestjs:nodejs ./dist ./dist
 
 # Passer à l'utilisateur non-root
 USER nestjs
