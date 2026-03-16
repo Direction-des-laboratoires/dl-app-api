@@ -25,5 +25,19 @@ jobs:
           script: |
             cd /www/wwwroot/dl-app-api
             git pull origin main
+            # S'assurer que les anciens conteneurs sont bien purgés pour libérer du cache
+            docker-compose down
+            # Lancement avec build optimisé
             docker-compose up -d --build
+            # Attendre que le backend s'initialise (Mongo connection, JWT, etc)
+            sleep 15
+            # Health check final : si l'API ne répond pas, on affiche les logs et on échoue
+            if [ "\$(docker inspect -f '{{.State.Running}}' dl-app-api)" = "true" ]; then
+                echo "--- DÉPLOIEMENT RÉUSSI : L'API EST EN LIGNE ---"
+            else
+                echo "--- ERREUR CRITIQUE : LE CONTENEUR A CRASHÉ ---"
+                docker logs dl-app-api --tail 50
+                exit 1
+            fi
+            # Nettoyage des images orphelines pour libérer de l'espace disque
             docker image prune -f

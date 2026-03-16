@@ -14,8 +14,8 @@ RUN npm ci
 # Copier le code source
 COPY src ./src
 
-# Compiler NestJS
-RUN npm run build
+# Compiler NestJS avec limitation de RAM pour éviter les crashs pendant le build
+RUN NODE_OPTIONS="--max-old-space-size=512" npm run build
 
 # ================= Stage 2: Production =================
 FROM node:22-slim
