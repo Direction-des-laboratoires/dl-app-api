@@ -29,7 +29,7 @@ jobs:
         run: npm run build
 
       - name: Create Deployment Package
-        run: tar -czf deploy.tar.gz dist Dockerfile package*.json docker-compose.yml
+        run: tar -czf deploy.tar.gz dist Dockerfile package*.json docker-compose.yml .dockerignore
 
       - name: Copy package via SCP
         uses: appleboy/scp-action@v0.1.7
