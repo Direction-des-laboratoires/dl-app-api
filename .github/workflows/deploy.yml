@@ -34,6 +34,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
           source: "dist/*,Dockerfile,package*.json,docker-compose.yml"
           target: "/www/wwwroot/dl-app-api/"
@@ -44,15 +45,14 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             cd /www/wwwroot/dl-app-api
-            # On relance le conteneur sans build local (juste à partir des fichiers copiés)
+            # On relance le conteneur sans build local
             docker-compose down
             docker-compose up -d --build
-            # Nettoyage des images inutiles
             docker image prune -f
-            # Health check rapide
             sleep 10
             if [ "$(docker inspect -f '{{.State.Running}}' dl-app-api)" = "true" ]; then
                 echo "--- DÉPLOIEMENT RÉUSSI : L'API EST EN LIGNE ---"
