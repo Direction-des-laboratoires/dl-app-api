@@ -12,9 +12,11 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - PORT=${PROD_PORT:-8040}
+      - NODE_ENV=\${NODE_ENV:-production}
+      - PORT=\${PROD_PORT:-8040}
+    mem_limit: 512m
     networks:
+
       - dl-app-shared-network
 
 networks:
