@@ -15,9 +15,8 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PROD_PORT:-8040}
     networks:
-      - dl-app-network
+      - dl-app-shared-network
 
 networks:
-  dl-app-network:
-    driver: bridge
-
+  dl-app-shared-network:
+    external: true
