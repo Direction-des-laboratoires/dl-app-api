@@ -28,7 +28,10 @@ jobs:
       - name: Build Application (on GitHub RAM)
         run: npm run build
 
-      - name: Copy built files via SCP
+      - name: Create Deployment Package
+        run: tar -czf deploy.tar.gz dist Dockerfile package*.json docker-compose.yml
+
+      - name: Copy package via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -36,8 +39,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          # On utilise "dist/**" pour inclure le dossier lui-même
-          source: "dist/**,Dockerfile,package*.json,docker-compose.yml"
+          source: "deploy.tar.gz"
           target: "/www/wwwroot/dl-app-api/"
 
       - name: Execute Docker Deployment via SSH
@@ -50,17 +52,21 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             cd /www/wwwroot/dl-app-api
-            # On s'assure que le dossier dist existe bien (cas de première install ou nettoyage)
+            # Extraire l'archive (écrase les anciens fichiers proprement)
+            tar -xzf deploy.tar.gz
+            # S'assurer que dist existe
             ls -d dist
-            # On relance le conteneur
+            # Relancer Docker
             docker-compose down
             docker-compose up -d --build
+            # Nettoyage
+            rm deploy.tar.gz
             docker image prune -f
             sleep 10
             if [ "$(docker inspect -f '{{.State.Running}}' dl-app-api)" = "true" ]; then
-                echo "--- DÉPLOIEMENT RÉUSSI : L'API EST EN LIGNE ---"
+                echo "--- DÉPLOIEMENT RÉUSSI ---"
             else
-                echo "--- ERREUR CRITIQUE : ÉCHEC DU DÉMARRAGE ---"
+                echo "--- ÉCHEC DU DÉMARRAGE ---"
                 docker logs dl-app-api --tail 50
                 exit 1
             fi
