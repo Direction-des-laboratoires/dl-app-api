@@ -14,7 +14,7 @@ services:
     environment:
       - NODE_ENV=\${NODE_ENV:-production}
       - PORT=\${PROD_PORT:-8040}
-    mem_limit: 512m
+    mem_limit: 1024m
     networks:
 
       - dl-app-shared-network
