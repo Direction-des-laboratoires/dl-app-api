@@ -61,6 +61,7 @@ import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module'
       }),
     }),
     JwtModule.registerAsync({
+      global: true,
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
