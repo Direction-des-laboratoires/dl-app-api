@@ -53,12 +53,9 @@ import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module'
 
 @Module({
   imports: [
-    MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('dbUrl'),
-      }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
     }),
     JwtModule.registerAsync({
       global: true,
@@ -73,9 +70,12 @@ import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module'
         },
       }),
     }),
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [configuration],
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        uri: configService.get<string>('dbUrl'),
+      }),
     }),
     AuthModule,
     UserModule,
