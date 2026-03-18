@@ -2,7 +2,7 @@ import * as mongoose from 'mongoose';
 
 export enum EquipmentStatus {
   OPERATIONAL = 'operational',
-  BROKEN = 'broken',
+  //BROKEN = 'broken',
   MAINTENANCE = 'maintenance',
   OUT_OF_ORDER = 'out_of_order',
 }
@@ -47,6 +47,25 @@ export enum DonSourceMshp {
   CNLS = 'CNLS',
   DSME = 'DSME',
   AUTRES = 'AUTRES',
+}
+
+/** Intrant disponible : Oui, Non, Non applicable */
+export enum IntrantDispo {
+  YES = 'yes',
+  NO = 'no',
+  NA = 'na',
+}
+
+/** Contrat de maintenance : Oui, Non */
+export enum ContratMaintenance {
+  YES = 'yes',
+  NO = 'no',
+}
+
+/** Type de contrat de maintenance : pertinent si contratMaintenance = yes */
+export enum ContratMaintenanceType {
+  MAINTENANCE_PIECE_MDO = 'maintenance_piece_mdo', // maintenance piece et main d'oeuvre
+  MAINTENANCE_ANNUELLE = 'maintenance_annuelle',
 }
 
 export const EquipmentSchema = new mongoose.Schema({
@@ -152,8 +171,43 @@ export const EquipmentSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  partnerDonationSourcePrecision: {
+    type: String,
+    default: null,
+  },
+  mshpDonationSourcePrecision: {
+    type: String,
+    default: null,
+  },
   onLoanSupplier: {
     type: String,
+    default: null,
+  },
+  intrantDispo: {
+    type: String,
+    enum: Object.values(IntrantDispo),
+    default: null,
+  },
+  intrantNonRaison: {
+    type: String,
+    default: null,
+  },
+  contratMaintenance: {
+    type: String,
+    enum: Object.values(ContratMaintenance),
+    default: null,
+  },
+  contratMaintenanceType: {
+    type: String,
+    enum: Object.values(ContratMaintenanceType),
+    default: null,
+  },
+  maintenanceRequired: {
+    type: Boolean,
+    default: null,
+  },
+  firstUsedDate: {
+    type: Date,
     default: null,
   },
   notes: {

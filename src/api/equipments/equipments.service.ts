@@ -78,6 +78,10 @@ export class EquipmentsService {
         acquisitionModality,
         donationSource,
         donationSourceMshp,
+        intrantDispo,
+        contratMaintenance,
+        contratMaintenanceType,
+        maintenanceRequired,
         affectedTo,
         brand,
         modelName,
@@ -99,6 +103,12 @@ export class EquipmentsService {
       if (acquisitionModality) filters.acquisitionModality = acquisitionModality;
       if (donationSource) filters.donationSource = donationSource;
       if (donationSourceMshp) filters.donationSourceMshp = donationSourceMshp;
+      if (intrantDispo) filters.intrantDispo = intrantDispo;
+      if (contratMaintenance) filters.contratMaintenance = contratMaintenance;
+      if (contratMaintenanceType)
+        filters.contratMaintenanceType = contratMaintenanceType;
+      if (maintenanceRequired !== undefined)
+        filters.maintenanceRequired = maintenanceRequired;
       if (affectedTo) filters.affectedTo = affectedTo;
       if (brand) filters.brand = { $regex: brand, $options: 'i' };
       if (modelName) filters.modelName = { $regex: modelName, $options: 'i' };

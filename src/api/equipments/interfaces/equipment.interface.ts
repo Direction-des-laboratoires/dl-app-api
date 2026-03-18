@@ -6,6 +6,9 @@ import {
   AcquisitionModality,
   DonSource,
   DonSourceMshp,
+  IntrantDispo,
+  ContratMaintenance,
+  ContratMaintenanceType,
 } from '../schemas/equipment.schema';
 
 export interface Equipment extends Document {
@@ -32,7 +35,15 @@ export interface Equipment extends Document {
   donationSource?: DonSource;
   donationSourceMshp?: DonSourceMshp;
   donationSourcePrecision?: string;
+  partnerDonationSourcePrecision?: string;
+  mshpDonationSourcePrecision?: string;
   onLoanSupplier?: string;
+  intrantDispo?: IntrantDispo;
+  intrantNonRaison?: string;
+  contratMaintenance?: ContratMaintenance;
+  contratMaintenanceType?: ContratMaintenanceType;
+  maintenanceRequired?: boolean;
+  firstUsedDate?: Date;
   notes?: string;
   createdBy?: string;
   created_at: Date;

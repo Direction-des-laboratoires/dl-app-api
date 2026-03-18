@@ -14,6 +14,9 @@ import {
   AcquisitionModality,
   DonSource,
   DonSourceMshp,
+  IntrantDispo,
+  ContratMaintenance,
+  ContratMaintenanceType,
 } from '../schemas/equipment.schema';
 
 export class CreateEquipmentDto {
@@ -107,7 +110,39 @@ export class CreateEquipmentDto {
 
   @IsOptional()
   @IsString()
+  partnerDonationSourcePrecision?: string;
+
+  @IsOptional()
+  @IsString()
+  mshpDonationSourcePrecision?: string;
+
+  @IsOptional()
+  @IsString()
   onLoanSupplier?: string;
+
+  @IsOptional()
+  @IsEnum(IntrantDispo)
+  intrantDispo?: IntrantDispo;
+
+  @IsOptional()
+  @IsString()
+  intrantNonRaison?: string;
+
+  @IsOptional()
+  @IsEnum(ContratMaintenance)
+  contratMaintenance?: ContratMaintenance;
+
+  @IsOptional()
+  @IsEnum(ContratMaintenanceType)
+  contratMaintenanceType?: ContratMaintenanceType;
+
+  @IsOptional()
+  @IsBoolean()
+  maintenanceRequired?: boolean;
+
+  @IsOptional()
+  @IsDateString()
+  firstUsedDate?: Date;
 
   @IsOptional()
   @IsString()
