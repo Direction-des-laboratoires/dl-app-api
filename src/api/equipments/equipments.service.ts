@@ -94,7 +94,8 @@ export class EquipmentsService {
 
       // Filtre par labo si non SuperAdmin
       if (user && user.role !== Role.SuperAdmin) {
-        filters.lab = user.lab.toString();
+        const labId = user.lab?._id?.toString() || user.lab?.toString();
+        if (labId) filters.lab = labId;
       }
 
       if (equipmentType) filters.equipmentType = equipmentType;
@@ -245,9 +246,10 @@ export class EquipmentsService {
         }
 
         const isSuperAdmin = user.role === Role.SuperAdmin;
+        const userLabId = user.lab?._id?.toString() || user.lab?.toString();
         const isLabAdminOfThisLab =
           user.role === Role.LabAdmin &&
-          user.lab?.toString() === existing.lab.toString();
+          userLabId === existing.lab?.toString();
 
         if (!isSuperAdmin && !isLabAdminOfThisLab) {
           throw new HttpException(
