@@ -13,6 +13,9 @@ RUN npm ci --only=production && npm cache clean --force
 # Copier le dossier dist déjà compilé par GitHub Actions
 COPY --chown=nestjs:nodejs ./dist ./dist
 
+# Créer le dossier uploads avec les permissions pour l'utilisateur nestjs
+RUN mkdir -p /app/uploads && chown -R nestjs:nodejs /app/uploads
+
 # Passer à l'utilisateur non-root
 USER nestjs
 
