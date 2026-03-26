@@ -51,6 +51,7 @@ export class StructureLevelEquipmentTypeController {
     @Query('structureLevel') structureLevel?: string,
     @Query('equipmentType') equipmentType?: string,
     @Query('levelCode') levelCode?: string,
+    @Query('search') search?: string,
   ) {
     try {
       logger.info(`---STRUCTURE_LEVEL_EQUIPMENT_TYPE.CONTROLLER.FIND_ALL INIT---`);
@@ -58,6 +59,7 @@ export class StructureLevelEquipmentTypeController {
         structureLevel,
         equipmentType,
         levelCode,
+        search,
       });
       logger.info(`---STRUCTURE_LEVEL_EQUIPMENT_TYPE.CONTROLLER.FIND_ALL SUCCESS---`);
       return res.status(HttpStatus.OK).json({

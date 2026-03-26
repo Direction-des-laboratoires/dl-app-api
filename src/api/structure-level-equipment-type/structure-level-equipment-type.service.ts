@@ -52,14 +52,18 @@ export class StructureLevelEquipmentTypeService {
     structureLevel?: string;
     equipmentType?: string;
     levelCode?: string;
+    search?: string;
   }): Promise<StructureLevelEquipmentType[]> {
     try {
       logger.info(`---STRUCTURE_LEVEL_EQUIPMENT_TYPE.SERVICE.FIND_ALL INIT---`);
-      const filters: any = {};
-      if (query?.equipmentType) filters.equipmentType = query.equipmentType;
+      const andConditions: any[] = [];
+
+      if (query?.equipmentType) {
+        andConditions.push({ equipmentType: query.equipmentType });
+      }
 
       if (query?.structureLevel) {
-        filters.structureLevel = query.structureLevel;
+        andConditions.push({ structureLevel: query.structureLevel });
       } else if (query?.levelCode?.trim()) {
         const StructureLevelModel = this.model.db.model('StructureLevel');
         const escaped = query.levelCode.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -72,8 +76,59 @@ export class StructureLevelEquipmentTypeService {
         if (ids.length === 0) {
           return [];
         }
-        filters.structureLevel = { $in: ids };
+        andConditions.push({ structureLevel: { $in: ids } });
       }
+
+      if (query?.search?.trim()) {
+        const searchRegex = new RegExp(
+          query.search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+          'i',
+        );
+        const StructureLevelModel = this.model.db.model('StructureLevel');
+        const EquipmentTypeModel = this.model.db.model('EquipmentType');
+
+        const [matchingLevels, matchingEquipmentTypes] = await Promise.all([
+          StructureLevelModel.find({
+            $or: [
+              { name: searchRegex },
+              { code: searchRegex },
+              { description: searchRegex },
+            ],
+          })
+            .select('_id')
+            .lean(),
+          EquipmentTypeModel.find({
+            $or: [
+              { name: searchRegex },
+              { description: searchRegex },
+              { notes: searchRegex },
+            ],
+          })
+            .select('_id')
+            .lean(),
+        ]);
+
+        const slIds = matchingLevels.map((l: any) => l._id);
+        const etIds = matchingEquipmentTypes.map((e: any) => e._id);
+        if (slIds.length === 0 && etIds.length === 0) {
+          return [];
+        }
+        const searchOr: any[] = [];
+        if (slIds.length > 0) {
+          searchOr.push({ structureLevel: { $in: slIds } });
+        }
+        if (etIds.length > 0) {
+          searchOr.push({ equipmentType: { $in: etIds } });
+        }
+        andConditions.push({ $or: searchOr });
+      }
+
+      const filters =
+        andConditions.length === 0
+          ? {}
+          : andConditions.length === 1
+            ? andConditions[0]
+            : { $and: andConditions };
 
       const result = await this.model
         .find(filters)
