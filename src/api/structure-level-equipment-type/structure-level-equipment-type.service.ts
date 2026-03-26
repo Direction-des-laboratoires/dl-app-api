@@ -51,6 +51,7 @@ export class StructureLevelEquipmentTypeService {
   async findAll(query?: {
     structureLevel?: string;
     equipmentType?: string;
+    equipmentCategory?: string;
     levelCode?: string;
     search?: string;
   }): Promise<StructureLevelEquipmentType[]> {
@@ -60,6 +61,20 @@ export class StructureLevelEquipmentTypeService {
 
       if (query?.equipmentType) {
         andConditions.push({ equipmentType: query.equipmentType });
+      }
+
+      if (query?.equipmentCategory) {
+        const EquipmentTypeModel = this.model.db.model('EquipmentType');
+        const typesInCategory = await EquipmentTypeModel.find({
+          equipmentCategory: query.equipmentCategory,
+        })
+          .select('_id')
+          .lean();
+        const categoryTypeIds = typesInCategory.map((e: any) => e._id);
+        if (categoryTypeIds.length === 0) {
+          return [];
+        }
+        andConditions.push({ equipmentType: { $in: categoryTypeIds } });
       }
 
       if (query?.structureLevel) {
@@ -133,7 +148,8 @@ export class StructureLevelEquipmentTypeService {
       const result = await this.model
         .find(filters)
         .populate('structureLevel', 'name code')
-        .populate('equipmentType', 'name description')
+        .populate('equipmentType', 'name description equipmentCategory')
+        .populate('equipmentType.equipmentCategory', 'name')
         .sort({ created_at: -1 })
         .exec();
       logger.info(`---STRUCTURE_LEVEL_EQUIPMENT_TYPE.SERVICE.FIND_ALL SUCCESS---`);

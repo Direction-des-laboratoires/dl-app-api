@@ -50,6 +50,7 @@ export class StructureLevelEquipmentTypeController {
     @Res() res,
     @Query('structureLevel') structureLevel?: string,
     @Query('equipmentType') equipmentType?: string,
+    @Query('equipmentCategory') equipmentCategory?: string,
     @Query('levelCode') levelCode?: string,
     @Query('search') search?: string,
   ) {
@@ -58,6 +59,7 @@ export class StructureLevelEquipmentTypeController {
       const list = await this.structureLevelEquipmentTypeService.findAll({
         structureLevel,
         equipmentType,
+        equipmentCategory,
         levelCode,
         search,
       });
