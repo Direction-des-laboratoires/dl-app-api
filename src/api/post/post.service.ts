@@ -15,14 +15,12 @@ export class PostService {
   async create(
     createPostDto: CreatePostDto,
     userId: string,
-    files: [Express.Multer.File],
+    files?: Express.Multer.File[],
   ) {
     try {
-      console.log('files', files);
+      const fileList = files || [];
       const filesUrls = await Promise.all(
-        files.map((file) => {
-          return minioUploadFile(file);
-        }),
+        fileList.map((file) => minioUploadFile(file)),
       );
       const post = new this.postModel(createPostDto);
       post.author = userId;

@@ -50,6 +50,7 @@ import { RegionPoleModule } from './api/region-pole/region-pole.module';
 import { LabTypeModule } from './api/lab-type/lab-type.module';
 import { LabTypePositionModule } from './api/lab-type-position/lab-type-position.module';
 import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module';
+import { StructureLevelEquipmentTypeModule } from './api/structure-level-equipment-type/structure-level-equipment-type.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module'
     RegionModule,
     DepartmentModule,
     StructureLevelModule,
+    StructureLevelEquipmentTypeModule,
     PostModule,
     RequestsModule,
     MailModule,
@@ -143,6 +145,8 @@ export class AppModule {
         { path: 'labs/:id', method: RequestMethod.GET },
         { path: 'departments', method: RequestMethod.GET },
         { path: 'structure-levels', method: RequestMethod.GET },
+        { path: 'structure-level-equipment-types', method: RequestMethod.GET },
+        { path: 'structure-level-equipment-types/:id', method: RequestMethod.GET },
         { path: 'structures', method: RequestMethod.GET },
         { path: 'region-poles', method: RequestMethod.GET },
         { path: 'lab-types', method: RequestMethod.GET },
@@ -153,6 +157,13 @@ export class AppModule {
         { path: 'specialities', method: RequestMethod.GET },
         { path: 'sub-specialities', method: RequestMethod.GET },
         { path: 'staff-levels', method: RequestMethod.GET },
+        { path: 'equipment-categories', method: RequestMethod.GET },
+        { path: 'equipment-types', method: RequestMethod.GET },
+        { path: 'equipment-orders', method: RequestMethod.GET },
+        { path: 'intrants', method: RequestMethod.GET },
+        { path: 'intrant-categories', method: RequestMethod.GET },
+        { path: 'intrant-types', method: RequestMethod.GET },
+        { path: 'structure-levels-equipment-types', method: RequestMethod.GET },
       )
       .forRoutes('*'); // Appliquer à toutes les routes sauf exclusions
   }
