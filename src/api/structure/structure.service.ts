@@ -110,7 +110,7 @@ export class StructureService {
           .populate('region', 'name code')
           .populate('department', 'name')
           .populate('district', 'name')
-          .populate('level', 'name'),
+          .populate('level', 'name code'),
         this.structureModel.countDocuments(filters),
       ]);
 
@@ -132,7 +132,7 @@ export class StructureService {
         .populate('region', 'name code')
         .populate('department', 'name')
         .populate('district', 'name')
-        .populate('level', 'name');
+        .populate('level', 'name code');
       return structure;
     } catch (error) {
       throw new HttpException(error.message, error.status);
