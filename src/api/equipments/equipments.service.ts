@@ -14,6 +14,55 @@ import { User } from '../user/interfaces/user.interface';
 import logger from 'src/utils/logger';
 import { buildStatisticsFilters } from 'src/utils/functions/filter-builder';
 import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
+import { EquipmentLifeEventsService } from '../equipment-life-events/equipment-life-events.service';
+import { EquipmentLifeEventKind } from '../equipment-life-events/schemas/equipment-life-event.schema';
+
+/** Champs suivis sur une mise à jour d’équipement (hors timestamps). */
+const EQUIPMENT_UPDATE_TRACKED_FIELDS = [
+  'lab',
+  'equipmentType',
+  'serialNumber',
+  'modelName',
+  'brand',
+  'status',
+  'inventoryStatus',
+  'receptionStatus',
+  'affectedTo',
+  'affectedToBy',
+  'receivedBy',
+  'receivedDate',
+  'purchaseDate',
+  'commissioningDate',
+  'warrantyExpiryDate',
+  'lastMaintenanceDate',
+  'nextMaintenanceDate',
+  'lastCalibrationDate',
+  'nextCalibrationDate',
+  'isCritical',
+  'acquisitionModality',
+  'donationSource',
+  'donationSourceMshp',
+  'donationSourcePrecision',
+  'partnerDonationSourcePrecision',
+  'mshpDonationSourcePrecision',
+  'onLoanSupplier',
+  'intrantDispo',
+  'intrantNonRaison',
+  'contratMaintenance',
+  'contratMaintenanceType',
+  'maintenanceRequired',
+  'firstUsedDate',
+  'notes',
+] as const;
+
+const EQUIPMENT_REF_FIELDS = new Set<string>([
+  'lab',
+  'equipmentType',
+  'affectedTo',
+  'affectedToBy',
+  'receivedBy',
+  'createdBy',
+]);
 
 @Injectable()
 export class EquipmentsService {
@@ -26,7 +75,114 @@ export class EquipmentsService {
     @InjectModel('EquipmentOrder') private equipmentOrderModel: Model<any>,
     @InjectModel('Lab') private labModel: Model<any>,
     @InjectModel('Structure') private structureModel: Model<any>,
+    private equipmentLifeEventsService: EquipmentLifeEventsService,
   ) {}
+
+  private getEquipmentFieldRaw(doc: any, field: string): unknown {
+    const v = doc?.[field];
+    if (v == null) {
+      return null;
+    }
+    if (
+      EQUIPMENT_REF_FIELDS.has(field) &&
+      typeof v === 'object' &&
+      v !== null &&
+      '_id' in v
+    ) {
+      return (v as { _id: unknown })._id;
+    }
+    return v;
+  }
+
+  private normalizeEquipmentFieldValue(val: unknown): string {
+    if (val == null) {
+      return '';
+    }
+    if (val instanceof Date) {
+      return val.toISOString();
+    }
+    return String(val);
+  }
+
+  /**
+   * Journalise les changements réels entre l’état avant/après update (évite les faux positifs si le DTO ne contient pas un champ).
+   */
+  private async recordLifeEventsForEquipmentUpdate(
+    existing: Equipment,
+    updated: Equipment,
+    user?: any,
+  ): Promise<void> {
+    const equipmentId = String(updated._id);
+    const actorId = user?._id?.toString();
+
+    const changes: Record<string, { from: string; to: string }> = {};
+    for (const field of EQUIPMENT_UPDATE_TRACKED_FIELDS) {
+      const from = this.normalizeEquipmentFieldValue(
+        this.getEquipmentFieldRaw(existing, field),
+      );
+      const to = this.normalizeEquipmentFieldValue(
+        this.getEquipmentFieldRaw(updated, field),
+      );
+      if (from !== to) {
+        changes[field] = { from, to };
+      }
+    }
+
+    if (changes.status) {
+      await this.equipmentLifeEventsService.tryRecordEvent({
+        equipmentId,
+        kind: EquipmentLifeEventKind.EQUIPMENT_STATUS_CHANGED,
+        previousValue: changes.status.from,
+        newValue: changes.status.to,
+        summary: `Statut opérationnel : ${changes.status.from || '—'} → ${changes.status.to}`,
+        actorId,
+      });
+      delete changes.status;
+    }
+
+    if (changes.inventoryStatus) {
+      await this.equipmentLifeEventsService.tryRecordEvent({
+        equipmentId,
+        kind: EquipmentLifeEventKind.EQUIPMENT_INVENTORY_STATUS_CHANGED,
+        previousValue: changes.inventoryStatus.from,
+        newValue: changes.inventoryStatus.to,
+        summary: `Statut d’inventaire : ${changes.inventoryStatus.from || '—'} → ${changes.inventoryStatus.to}`,
+        actorId,
+      });
+      delete changes.inventoryStatus;
+    }
+
+    if (changes.receptionStatus) {
+      await this.equipmentLifeEventsService.tryRecordEvent({
+        equipmentId,
+        kind: EquipmentLifeEventKind.EQUIPMENT_RECEPTION_STATUS_CHANGED,
+        previousValue: changes.receptionStatus.from,
+        newValue: changes.receptionStatus.to,
+        summary: `Statut de réception : ${changes.receptionStatus.from || '—'} → ${changes.receptionStatus.to}`,
+        actorId,
+      });
+      delete changes.receptionStatus;
+    }
+
+    const rest = Object.keys(changes);
+    if (rest.length === 0) {
+      return;
+    }
+
+    let payload = JSON.stringify(changes);
+    const maxLen = 2000;
+    if (payload.length > maxLen) {
+      payload = `${payload.slice(0, maxLen)}…`;
+    }
+
+    await this.equipmentLifeEventsService.tryRecordEvent({
+      equipmentId,
+      kind: EquipmentLifeEventKind.EQUIPMENT_DETAILS_UPDATED,
+      newValue: payload,
+      summary: `Mise à jour de la fiche : ${rest.join(', ')}`,
+      actorId,
+    });
+  }
 
   async create(
     createEquipmentDto: CreateEquipmentDto,
@@ -52,6 +208,14 @@ export class EquipmentsService {
         'affectedTo',
         'firstname lastname phoneNumber email',
       );
+
+      await this.equipmentLifeEventsService.tryRecordEvent({
+        equipmentId: equipment._id.toString(),
+        kind: EquipmentLifeEventKind.EQUIPMENT_CREATED,
+        newValue: `${equipment.status}|${equipment.inventoryStatus}`,
+        summary: `Équipement créé — statut ${equipment.status}, inventaire ${equipment.inventoryStatus}`,
+        actorId: userId,
+      });
 
       logger.info(`---EQUIPMENTS.SERVICE.CREATE SUCCESS---`);
       return equipment;
@@ -283,6 +447,14 @@ export class EquipmentsService {
         })
         .exec();
 
+      if (updated) {
+        await this.recordLifeEventsForEquipmentUpdate(
+          existing,
+          updated,
+          user,
+        );
+      }
+
       logger.info(`---EQUIPMENTS.SERVICE.UPDATE SUCCESS--- id=${id}`);
       return updated;
     } catch (error) {
@@ -294,13 +466,22 @@ export class EquipmentsService {
     }
   }
 
-  async remove(id: string): Promise<Equipment> {
+  async remove(id: string, actorId?: string): Promise<Equipment> {
     try {
       logger.info(`---EQUIPMENTS.SERVICE.REMOVE INIT--- id=${id}`);
       const equipment = await this.equipmentModel.findById(id);
       if (!equipment) {
         throw new HttpException('Équipement non trouvé', HttpStatus.NOT_FOUND);
       }
+
+      await this.equipmentLifeEventsService.tryRecordEvent({
+        equipmentId: id,
+        kind: EquipmentLifeEventKind.EQUIPMENT_REMOVED,
+        summary: equipment.serialNumber
+          ? `Équipement supprimé (n° série ${equipment.serialNumber})`
+          : 'Équipement supprimé',
+        actorId,
+      });
 
       const deleted = await this.equipmentModel.findByIdAndDelete(id).exec();
 
@@ -358,6 +539,15 @@ export class EquipmentsService {
         'receivedBy',
         'firstname lastname phoneNumber email',
       );
+
+      await this.equipmentLifeEventsService.tryRecordEvent({
+        equipmentId: id,
+        kind: EquipmentLifeEventKind.EQUIPMENT_RECEIVED,
+        previousValue: InventoryStatus.IN_DELIVERY,
+        newValue: InventoryStatus.AVAILABLE,
+        summary: 'Réception : passage en disponible',
+        actorId: userId,
+      });
 
       logger.info(`---EQUIPMENTS.SERVICE.RECEIVE SUCCESS--- id=${id}`);
       return updated;

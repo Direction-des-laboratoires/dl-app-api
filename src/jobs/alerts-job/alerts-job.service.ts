@@ -58,9 +58,7 @@ export class AlertsJobService {
           await this.alertModel.create({
             type: AlertType.MAINTENANCE_REMINDER,
             title: 'Rappel de Maintenance',
-            message: `Une maintenance ${
-              schedule.maintenanceType
-            } est prévue pour l'équipement ${
+            message: `Une maintenance est prévue pour l'équipement ${
               schedule.equipment?.equipmentType?.name
             } le ${schedule.nextMaintenanceDate.toLocaleDateString()}.`,
             recipient: schedule.technician?._id,

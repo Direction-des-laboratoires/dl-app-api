@@ -8,9 +8,11 @@ import { EquipmentTypesModule } from '../equipment-types/equipment-types.module'
 import { EquipmentOrderSchema } from '../equipment-orders/schemas/equipment-order.schema';
 import { LabSchema } from '../labs/schemas/lab.schema';
 import { StructureSchema } from '../structure/schemas/structure.schema';
+import { EquipmentLifeEventsModule } from '../equipment-life-events/equipment-life-events.module';
 
 @Module({
   imports: [
+    EquipmentLifeEventsModule,
     MongooseModule.forFeature([
       { name: 'Equipment', schema: EquipmentSchema },
       { name: 'EquipmentOrder', schema: EquipmentOrderSchema },

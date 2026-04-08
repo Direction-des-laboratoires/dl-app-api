@@ -1,5 +1,5 @@
 import { IsOptional, IsString, IsNumberString, IsMongoId, IsEnum } from 'class-validator';
-import { MaintenanceType, MaintenanceStatus, ScheduleFrequency } from '../schemas/maintenance.schema';
+import { MaintenanceStatus, ScheduleFrequency } from '../schemas/maintenance.schema';
 
 export class FindMaintenanceDto {
   @IsOptional()
@@ -13,10 +13,6 @@ export class FindMaintenanceDto {
   @IsOptional()
   @IsMongoId()
   equipment?: string;
-
-  @IsOptional()
-  @IsEnum(MaintenanceType)
-  maintenanceType?: MaintenanceType;
 
   @IsOptional()
   @IsEnum(MaintenanceStatus)

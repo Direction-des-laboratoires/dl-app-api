@@ -5366,7 +5366,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"equipment\":\"69659befdf8a63532edc7ecd\",\n    \"maintenanceType\":\"preventive\", // preventive, corrective, calibration\n    \"technician\":\"694f27d7221c91608e33c7bb\",\n    \"date\":\"2027-07-23\",\n    \"frequency\":\"yearly\",//daily, weekly, monthly, yearly\n    \"description\":\"Une maintenance\",\n    \"cost\":12000,\n    \"notes\":\"RAS\"\n}",
+                  "raw": "{\n    \"equipment\":\"69659befdf8a63532edc7ecd\",\n    \"technician\":\"694f27d7221c91608e33c7bb\",\n    \"startDate\":\"2027-07-23\",\n    \"frequency\":\"yearly\",\n    \"description\":\"Une maintenance\",\n    \"cost\":12000,\n    \"notes\":\"RAS\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"

@@ -8,7 +8,6 @@ import { Maintenance } from './entities/maintenance.entity';
 import logger from 'src/utils/logger';
 import {
   MaintenanceStatus,
-  MaintenanceType,
   ScheduleFrequency,
 } from './schemas/maintenance.schema';
 
@@ -16,6 +15,8 @@ import {
 import { User } from '../user/interfaces/user.interface';
 import { buildStatisticsFilters } from 'src/utils/functions/filter-builder';
 import { StatisticsFilterDto } from 'src/utils/dto/statistics-filter.dto';
+import { EquipmentLifeEventsService } from '../equipment-life-events/equipment-life-events.service';
+import { EquipmentLifeEventKind } from '../equipment-life-events/schemas/equipment-life-event.schema';
 
 @Injectable()
 export class MaintenancesService {
@@ -30,6 +31,7 @@ export class MaintenancesService {
     private labModel: Model<any>,
     @InjectModel('Structure')
     private structureModel: Model<any>,
+    private equipmentLifeEventsService: EquipmentLifeEventsService,
   ) {}
 
   private calculateNextDate(
@@ -60,13 +62,36 @@ export class MaintenancesService {
     return nextDate;
   }
 
-  async create(createMaintenanceDto: CreateMaintenanceDto) {
+  private assertStartBeforeEnd(
+    startDate?: string | Date,
+    endDate?: string | Date,
+  ): void {
+    if (!startDate || !endDate) {
+      return;
+    }
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (end < start) {
+      throw new HttpException(
+        'endDate doit être postérieure ou égale à startDate',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  async create(createMaintenanceDto: CreateMaintenanceDto, actorId?: string) {
     try {
       logger.info(`---MAINTENANCES.SERVICE.CREATE INIT---`);
 
-      const maintenanceDate = createMaintenanceDto.date
-        ? new Date(createMaintenanceDto.date)
-        : new Date();
+      this.assertStartBeforeEnd(
+        createMaintenanceDto.startDate,
+        createMaintenanceDto.endDate,
+      );
+
+      const maintenanceDate =
+        createMaintenanceDto.startDate != null
+          ? new Date(createMaintenanceDto.startDate)
+          : new Date();
 
       // 1. Si la maintenance est déjà "COMPLETED", on enregistre la date de réalisation
       if (createMaintenanceDto.status === MaintenanceStatus.COMPLETED) {
@@ -101,6 +126,14 @@ export class MaintenancesService {
         'technician',
         'firstname lastname phoneNumber email',
       );
+      await this.equipmentLifeEventsService.tryRecordEvent({
+        equipmentId: String(createMaintenanceDto.equipment),
+        kind: EquipmentLifeEventKind.MAINTENANCE_CREATED,
+        maintenanceId: String(maintenance._id),
+        newValue: maintenance.status,
+        summary: `Maintenance enregistrée (statut : ${maintenance.status})`,
+        actorId,
+      });
       logger.info(`---MAINTENANCES.SERVICE.CREATE SUCCESS---`);
       return maintenance;
     } catch (error) {
@@ -120,7 +153,6 @@ export class MaintenancesService {
         limit = 10,
         search,
         equipment,
-        maintenanceType,
         status,
         technician,
         frequency,
@@ -129,7 +161,6 @@ export class MaintenancesService {
 
       const filters: any = {};
       if (equipment) filters.equipment = equipment;
-      if (maintenanceType) filters.maintenanceType = maintenanceType;
       if (status) filters.status = status;
       if (technician) filters.technician = technician;
       if (frequency) filters.frequency = frequency;
@@ -234,7 +265,11 @@ export class MaintenancesService {
     }
   }
 
-  async update(id: string, updateMaintenanceDto: UpdateMaintenanceDto) {
+  async update(
+    id: string,
+    updateMaintenanceDto: UpdateMaintenanceDto,
+    actorId?: string,
+  ) {
     try {
       logger.info(`---MAINTENANCES.SERVICE.UPDATE INIT--- id=${id}`);
 
@@ -248,11 +283,20 @@ export class MaintenancesService {
       }
 
       // Si le statut passe à COMPLETED, ou si on met à jour une maintenance déjà COMPLETED
+      this.assertStartBeforeEnd(
+        updateMaintenanceDto.startDate ?? current.startDate,
+        updateMaintenanceDto.endDate ?? current.endDate,
+      );
+
+      const previousMaintenanceStatus = current.status;
       const newStatus = updateMaintenanceDto.status || current.status;
       if (newStatus === MaintenanceStatus.COMPLETED) {
-        const maintenanceDate = updateMaintenanceDto.date
-          ? new Date(updateMaintenanceDto.date)
-          : current.date || new Date();
+        const maintenanceDate =
+          updateMaintenanceDto.startDate != null
+            ? new Date(updateMaintenanceDto.startDate)
+            : current.startDate
+              ? new Date(current.startDate)
+              : new Date();
 
         updateMaintenanceDto.lastMaintenanceDate = maintenanceDate;
 
@@ -267,10 +311,10 @@ export class MaintenancesService {
         }
       } else {
         // Si le statut n'est pas COMPLETED (ex: SCHEDULED)
-        // On met à jour nextMaintenanceDate si la date ou la fréquence change
-        if (updateMaintenanceDto.date) {
+        // On met à jour nextMaintenanceDate si startDate change
+        if (updateMaintenanceDto.startDate != null) {
           updateMaintenanceDto.nextMaintenanceDate = new Date(
-            updateMaintenanceDto.date,
+            updateMaintenanceDto.startDate,
           );
         }
       }
@@ -290,6 +334,22 @@ export class MaintenancesService {
         })
         .populate('technician', 'firstname lastname phoneNumber email')
         .exec();
+
+      if (
+        updated &&
+        updateMaintenanceDto.status !== undefined &&
+        previousMaintenanceStatus !== updated.status
+      ) {
+        await this.equipmentLifeEventsService.tryRecordEvent({
+          equipmentId: String(updated.equipment),
+          kind: EquipmentLifeEventKind.MAINTENANCE_STATUS_CHANGED,
+          maintenanceId: String(updated._id),
+          previousValue: String(previousMaintenanceStatus),
+          newValue: String(updated.status),
+          summary: `Maintenance : ${previousMaintenanceStatus} → ${updated.status}`,
+          actorId,
+        });
+      }
 
       logger.info(`---MAINTENANCES.SERVICE.UPDATE SUCCESS---`);
       return updated;
@@ -332,7 +392,7 @@ export class MaintenancesService {
         query,
         this.labModel,
         this.structureModel,
-        'date',
+        'startDate',
       );
 
       const pipeline: any[] = [];
@@ -352,7 +412,7 @@ export class MaintenancesService {
 
       // Appliquer les filtres
       const matchFilters: any = {};
-      if (filters.date) matchFilters.date = filters.date;
+      if (filters.startDate) matchFilters.startDate = filters.startDate;
       if (filters.lab) matchFilters['equipmentData.lab'] = filters.lab;
 
       if (Object.keys(matchFilters).length > 0) {
@@ -362,7 +422,6 @@ export class MaintenancesService {
       const [
         total,
         byStatus,
-        byType,
         byFrequency,
         upcomingCount,
         overdueCount,
@@ -371,10 +430,6 @@ export class MaintenancesService {
         this.maintenanceModel.aggregate([
           ...pipeline,
           { $group: { _id: '$status', count: { $sum: 1 } } },
-        ]),
-        this.maintenanceModel.aggregate([
-          ...pipeline,
-          { $group: { _id: '$maintenanceType', count: { $sum: 1 } } },
         ]),
         this.maintenanceModel.aggregate([
           ...pipeline,
@@ -413,11 +468,6 @@ export class MaintenancesService {
         byStatus: Object.values(MaintenanceStatus).reduce((acc: any, status) => {
           const found = byStatus.find((s) => s._id === status);
           acc[status] = found ? found.count : 0;
-          return acc;
-        }, {}),
-        byType: Object.values(MaintenanceType).reduce((acc: any, type) => {
-          const found = byType.find((t) => t._id === type);
-          acc[type] = found ? found.count : 0;
           return acc;
         }, {}),
         byFrequency: Object.values(ScheduleFrequency).reduce(

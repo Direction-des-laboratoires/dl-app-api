@@ -51,6 +51,7 @@ import { LabTypeModule } from './api/lab-type/lab-type.module';
 import { LabTypePositionModule } from './api/lab-type-position/lab-type-position.module';
 import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module';
 import { StructureLevelEquipmentTypeModule } from './api/structure-level-equipment-type/structure-level-equipment-type.module';
+import { EquipmentLifeEventsModule } from './api/equipment-life-events/equipment-life-events.module';
 
 @Module({
   imports: [
@@ -105,6 +106,7 @@ import { StructureLevelEquipmentTypeModule } from './api/structure-level-equipme
     EquipmentCategoriesModule,
     EquipmentTypesModule,
     EquipmentsModule,
+    EquipmentLifeEventsModule,
     EquipmentStocksModule,
     EquipmentOrdersModule,
     IntrantCategoriesModule,

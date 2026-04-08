@@ -12,6 +12,8 @@ import {
   Req,
 } from '@nestjs/common';
 import { EquipmentsService } from './equipments.service';
+import { EquipmentLifeEventsService } from '../equipment-life-events/equipment-life-events.service';
+import { FindEquipmentLifeEventDto } from '../equipment-life-events/dto/find-equipment-life-event.dto';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { FindEquipmentDto } from './dto/find-equipment.dto';
@@ -22,7 +24,10 @@ import logger from 'src/utils/logger';
 
 @Controller('equipments')
 export class EquipmentsController {
-  constructor(private readonly equipmentsService: EquipmentsService) {}
+  constructor(
+    private readonly equipmentsService: EquipmentsService,
+    private readonly equipmentLifeEventsService: EquipmentLifeEventsService,
+  ) {}
 
   @Roles(Role.SuperAdmin, Role.LabAdmin)
   @Post()
@@ -87,6 +92,33 @@ export class EquipmentsController {
     }
   }
 
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff, Role.Technician)
+  @Get(':id/life-events')
+  async getLifeEvents(
+    @Param('id') id: string,
+    @Query() query: FindEquipmentLifeEventDto,
+    @Req() req,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---EQUIPMENTS.CONTROLLER.LIFE_EVENTS INIT--- id=${id}`);
+      const result = await this.equipmentLifeEventsService.findAll(
+        { ...query, equipment: id },
+        req.user,
+      );
+      logger.info(`---EQUIPMENTS.CONTROLLER.LIFE_EVENTS SUCCESS--- id=${id}`);
+      return res.status(HttpStatus.OK).json({
+        message: 'Fiche de vie de l’équipement',
+        ...result,
+      });
+    } catch (error) {
+      logger.error(`---EQUIPMENTS.CONTROLLER.LIFE_EVENTS ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @Res() res) {
     try {
@@ -135,10 +167,13 @@ export class EquipmentsController {
 
   @Roles(Role.SuperAdmin)
   @Delete(':id')
-  async remove(@Param('id') id: string, @Res() res) {
+  async remove(@Param('id') id: string, @Req() req, @Res() res) {
     try {
       logger.info(`---EQUIPMENTS.CONTROLLER.REMOVE INIT--- id=${id}`);
-      const deleted = await this.equipmentsService.remove(id);
+      const deleted = await this.equipmentsService.remove(
+        id,
+        req.user?._id?.toString(),
+      );
       logger.info(`---EQUIPMENTS.CONTROLLER.REMOVE SUCCESS--- id=${id}`);
       return res.status(HttpStatus.OK).json({
         message: `Équipement ${id} supprimé`,
