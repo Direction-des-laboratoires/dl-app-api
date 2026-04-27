@@ -143,8 +143,8 @@ export class AppModule {
         { path: 'sdr-accreditations', method: RequestMethod.POST }, // Exclure la création de demande SDR (accessible sans authentification)
         { path: 'regions', method: RequestMethod.GET },
         { path: 'districts', method: RequestMethod.GET },
+        /** Liste des labos : accès public. Ne pas exclure `labs/:id` : cela capturait aussi `labs/stats`, `labs/stats-by-region`, etc. */
         { path: 'labs', method: RequestMethod.GET },
-        { path: 'labs/:id', method: RequestMethod.GET },
         { path: 'departments', method: RequestMethod.GET },
         { path: 'structure-levels', method: RequestMethod.GET },
         { path: 'structure-level-equipment-types', method: RequestMethod.GET },

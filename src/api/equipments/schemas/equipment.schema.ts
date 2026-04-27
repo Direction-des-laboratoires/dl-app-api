@@ -98,7 +98,7 @@ export const EquipmentSchema = new mongoose.Schema({
   inventoryStatus: {
     type: String,
     enum: Object.values(InventoryStatus),
-    default: InventoryStatus.IN_DELIVERY,
+    default: InventoryStatus.AVAILABLE,
   },
   receptionStatus: {
     type: String,
