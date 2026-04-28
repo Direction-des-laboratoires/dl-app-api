@@ -64,7 +64,7 @@ export class EquipmentOrdersService {
             item.modelName,
           );
         }
-        await this.createEquipmentsFromOrder(order, user?._id?.toString());
+        await this.createEquipmentsFromOrder(order, user);
       }
 
       await order.populate('lab', 'name');
@@ -295,7 +295,7 @@ export class EquipmentOrdersService {
               item.modelName,
             );
           }
-          await this.createEquipmentsFromOrder(updated, user?._id?.toString());
+          await this.createEquipmentsFromOrder(updated, user);
         }
       }
 
@@ -404,7 +404,7 @@ export class EquipmentOrdersService {
     }
   }
 
-  private async createEquipmentsFromOrder(order: any, userId?: string) {
+  private async createEquipmentsFromOrder(order: any, user?: User) {
     try {
       for (const item of order.cart) {
         for (let i = 0; i < item.quantity; i++) {
@@ -413,8 +413,8 @@ export class EquipmentOrdersService {
               lab: order.lab?._id
                 ? order.lab._id.toString()
                 : order.lab
-                ? order.lab.toString()
-                : null,
+                  ? order.lab.toString()
+                  : null,
               equipmentType: item.equipmentType._id
                 ? item.equipmentType._id.toString()
                 : item.equipmentType.toString(),
@@ -425,7 +425,7 @@ export class EquipmentOrdersService {
               inventoryStatus: InventoryStatus.IN_STOCK,
               notes: `Créé automatiquement depuis la commande ${order._id}`,
             },
-            userId,
+            user,
           );
         }
       }

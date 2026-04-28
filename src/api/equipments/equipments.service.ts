@@ -186,39 +186,10 @@ export class EquipmentsService {
 
   async create(
     createEquipmentDto: CreateEquipmentDto,
-    userId?: string,
+    user?: User,
   ): Promise<Equipment> {
     try {
-      logger.info(`---EQUIPMENTS.SERVICE.CREATE INIT---`);
-      const { lab, equipmentType } = createEquipmentDto;
-
-      const equipment = await this.equipmentModel.create({
-        ...createEquipmentDto,
-        createdBy: userId,
-        affectedToBy: createEquipmentDto['affectedTo'] ? userId : null,
-      });
-
-      await equipment.populate('lab', 'name');
-      await equipment.populate('equipmentType', 'name');
-      await equipment.populate(
-        'createdBy',
-        'firstname lastname phoneNumber email',
-      );
-      await equipment.populate(
-        'affectedTo',
-        'firstname lastname phoneNumber email',
-      );
-
-      await this.equipmentLifeEventsService.tryRecordEvent({
-        equipmentId: equipment._id.toString(),
-        kind: EquipmentLifeEventKind.EQUIPMENT_CREATED,
-        newValue: `${equipment.status}|${equipment.inventoryStatus}`,
-        summary: `Équipement créé — statut ${equipment.status}, inventaire ${equipment.inventoryStatus}`,
-        actorId: userId,
-      });
-
-      logger.info(`---EQUIPMENTS.SERVICE.CREATE SUCCESS---`);
-      return equipment;
+      return await this.persistNewEquipment(createEquipmentDto, user);
     } catch (error) {
       logger.error(`---EQUIPMENTS.SERVICE.CREATE ERROR ${error}---`);
       throw new HttpException(
@@ -226,6 +197,104 @@ export class EquipmentsService {
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  /**
+   * Création en lot : continue malgré les lignes en erreur (ex. n° série dupliqué).
+   */
+  async createBulk(
+    items: CreateEquipmentDto[],
+    user?: User,
+  ): Promise<{
+    successCount: number;
+    failedCount: number;
+    totalCount: number;
+    created: Equipment[];
+    errors: { index: number; serialNumber?: string; message: string }[];
+  }> {
+    const created: Equipment[] = [];
+    const errors: { index: number; serialNumber?: string; message: string }[] =
+      [];
+    for (let i = 0; i < items.length; i++) {
+      try {
+        const equipment = await this.persistNewEquipment(items[i], user);
+        created.push(equipment);
+      } catch (error: any) {
+        const raw =
+          error?.response?.message ?? error?.message ?? 'Erreur inconnue';
+        const message = Array.isArray(raw) ? raw.join('; ') : String(raw);
+        logger.error(
+          `---EQUIPMENTS.SERVICE.CREATE_BULK ITEM ${i} ERROR ${message}---`,
+        );
+        errors.push({
+          index: i,
+          serialNumber: items[i]?.serialNumber,
+          message,
+        });
+      }
+    }
+    return {
+      successCount: created.length,
+      failedCount: errors.length,
+      totalCount: items.length,
+      created,
+      errors,
+    };
+  }
+
+  private async persistNewEquipment(
+    createEquipmentDto: CreateEquipmentDto,
+    user?: User,
+  ): Promise<Equipment> {
+    logger.info(`---EQUIPMENTS.SERVICE.CREATE INIT---`);
+
+    const userId = user?._id?.toString();
+    const payload: CreateEquipmentDto = { ...createEquipmentDto };
+
+    if (user?.role === Role.LabAdmin) {
+      const labRef = user.lab as any;
+      const labId =
+        labRef?._id != null
+          ? String(labRef._id)
+          : labRef != null
+            ? String(labRef)
+            : '';
+      if (!labId) {
+        throw new HttpException(
+          'Laboratoire non défini pour cet administrateur de laboratoire',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      payload.lab = labId;
+    }
+
+    const equipment = await this.equipmentModel.create({
+      ...payload,
+      createdBy: userId,
+      affectedToBy: payload['affectedTo'] ? userId : null,
+    });
+
+    await equipment.populate('lab', 'name');
+    await equipment.populate('equipmentType', 'name');
+    await equipment.populate(
+      'createdBy',
+      'firstname lastname phoneNumber email',
+    );
+    await equipment.populate(
+      'affectedTo',
+      'firstname lastname phoneNumber email',
+    );
+
+    await this.equipmentLifeEventsService.tryRecordEvent({
+      equipmentId: equipment._id.toString(),
+      kind: EquipmentLifeEventKind.EQUIPMENT_CREATED,
+      newValue: `${equipment.status}|${equipment.inventoryStatus}`,
+      summary: `Équipement créé — statut ${equipment.status}, inventaire ${equipment.inventoryStatus}`,
+      actorId: userId,
+    });
+
+    logger.info(`---EQUIPMENTS.SERVICE.CREATE SUCCESS---`);
+    return equipment;
   }
 
   async findAll(query: FindEquipmentDto, user?: User): Promise<any> {
