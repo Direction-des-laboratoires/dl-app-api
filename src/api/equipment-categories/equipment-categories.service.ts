@@ -45,10 +45,20 @@ export class EquipmentCategoriesService {
 
       const [data, total] = await Promise.all([
         this.equipmentCategoryModel
-          .find(filters)
-          .sort({ name: 1 })
-          .skip(skip)
-          .limit(limit)
+          .aggregate([
+            { $match: filters },
+            {
+              $addFields: {
+                rankNullOrder: {
+                  $cond: [{ $eq: [{ $ifNull: ['$rank', null] }, null] }, 1, 0],
+                },
+              },
+            },
+            { $sort: { rankNullOrder: 1, rank: 1, name: 1 } },
+            { $skip: skip },
+            { $limit: limit },
+            { $project: { rankNullOrder: 0 } },
+          ])
           .exec(),
         this.equipmentCategoryModel.countDocuments(filters).exec(),
       ]);
