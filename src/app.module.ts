@@ -52,6 +52,8 @@ import { LabTypePositionModule } from './api/lab-type-position/lab-type-position
 import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module';
 import { StructureLevelEquipmentTypeModule } from './api/structure-level-equipment-type/structure-level-equipment-type.module';
 import { EquipmentLifeEventsModule } from './api/equipment-life-events/equipment-life-events.module';
+import { QuestionsModule } from './api/questions/questions.module';
+import { ResponsesModule } from './api/responses/responses.module';
 
 @Module({
   imports: [
@@ -123,6 +125,8 @@ import { EquipmentLifeEventsModule } from './api/equipment-life-events/equipment
     LabTypeModule,
     LabTypePositionModule,
     SubSpecialityModule,
+    QuestionsModule,
+    ResponsesModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
