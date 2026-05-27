@@ -54,6 +54,8 @@ import { StructureLevelEquipmentTypeModule } from './api/structure-level-equipme
 import { EquipmentLifeEventsModule } from './api/equipment-life-events/equipment-life-events.module';
 import { QuestionsModule } from './api/questions/questions.module';
 import { ResponsesModule } from './api/responses/responses.module';
+import { InvestigationsModule } from './api/investigations/investigations.module';
+import { InvestigationQuestionsModule } from './api/investigation-questions/investigation-questions.module';
 
 @Module({
   imports: [
@@ -127,6 +129,8 @@ import { ResponsesModule } from './api/responses/responses.module';
     SubSpecialityModule,
     QuestionsModule,
     ResponsesModule,
+    InvestigationsModule,
+    InvestigationQuestionsModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

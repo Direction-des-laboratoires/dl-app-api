@@ -1,7 +1,7 @@
 import { IsMongoId, IsNumber, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class FindResponseDto {
+export class FindInvestigationQuestionDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -11,10 +11,6 @@ export class FindResponseDto {
   @Type(() => Number)
   @IsNumber()
   limit?: number;
-
-  @IsOptional()
-  @IsMongoId()
-  lab?: string;
 
   @IsOptional()
   @IsMongoId()

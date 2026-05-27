@@ -2,6 +2,8 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Response } from './interfaces/response.interface';
+import { Investigation } from '../investigations/interfaces/investigation.interface';
+import { InvestigationQuestion } from '../investigation-questions/interfaces/investigation-question.interface';
 import { Question } from '../questions/interfaces/question.interface';
 import { CreateResponseDto } from './dto/create-response.dto';
 import { UpdateResponseDto } from './dto/update-response.dto';
@@ -9,6 +11,7 @@ import { FindResponseDto } from './dto/find-response.dto';
 import { validateResponseValue } from '../questions/utils/validate-response-value';
 import { User } from '../user/interfaces/user.interface';
 import { Role } from 'src/utils/enums/roles.enum';
+import { assertInvestigationAcceptsResponses } from '../investigations/utils/assert-investigation-accepts-responses';
 import logger from 'src/utils/logger';
 
 @Injectable()
@@ -16,6 +19,10 @@ export class ResponsesService {
   constructor(
     @InjectModel('Response') private responseModel: Model<Response>,
     @InjectModel('Question') private questionModel: Model<Question>,
+    @InjectModel('Investigation')
+    private investigationModel: Model<Investigation>,
+    @InjectModel('InvestigationQuestion')
+    private investigationQuestionModel: Model<InvestigationQuestion>,
   ) {}
 
   private async getQuestionOrThrow(questionId: string): Promise<Question> {
@@ -25,6 +32,39 @@ export class ResponsesService {
     }
     return question;
   }
+
+  private async validateInvestigationContext(
+    investigationId: string,
+    questionId: string,
+  ): Promise<void> {
+    const investigation = await this.investigationModel
+      .findById(investigationId)
+      .exec();
+    if (!investigation) {
+      throw new HttpException('Enquête non trouvée', HttpStatus.NOT_FOUND);
+    }
+
+    const link = await this.investigationQuestionModel
+      .findOne({ investigation: investigationId, question: questionId })
+      .exec();
+    if (!link) {
+      throw new HttpException(
+        'Cette question ne fait pas partie de cette enquête',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    assertInvestigationAcceptsResponses(investigation);
+  }
+
+  private readonly responsePopulate = [
+    { path: 'lab', select: 'name' },
+    {
+      path: 'investigation',
+      select: 'title active status startDate endDate',
+    },
+    { path: 'question', select: 'category label responseValueType isRequired' },
+  ];
 
   private resolveUserLabId(user: User): string {
     if (!user.lab) {
@@ -41,18 +81,20 @@ export class ResponsesService {
 
   private async persistResponse(payload: {
     lab: string;
+    investigation: string;
     question: string;
     responseValue: string | number;
     responseValuePrecision?: string;
   }) {
+    await this.validateInvestigationContext(
+      payload.investigation,
+      payload.question,
+    );
     const question = await this.getQuestionOrThrow(payload.question);
     validateResponseValue(question.responseValueType, payload.responseValue);
 
     const response = await this.responseModel.create(payload);
-    await response.populate([
-      { path: 'lab', select: 'name' },
-      { path: 'question', select: 'category label responseValueType isRequired' },
-    ]);
+    await response.populate(this.responsePopulate);
     return response;
   }
 
@@ -64,7 +106,7 @@ export class ResponsesService {
     const err = error as { code?: number; message?: string; status?: number };
     if (err?.code === 11000) {
       throw new HttpException(
-        'Une réponse existe déjà pour ce laboratoire et cette question',
+        'Une réponse existe déjà pour ce laboratoire, cette enquête et cette question',
         HttpStatus.CONFLICT,
       );
     }
@@ -103,10 +145,11 @@ export class ResponsesService {
       logger.info(`---RESPONSES.SERVICE.CREATE INIT---`);
       const lab = this.resolveLabForCreate(createResponseDto, user);
       const response = await this.persistResponse({
+        lab,
+        investigation: createResponseDto.investigation,
         question: createResponseDto.question,
         responseValue: createResponseDto.responseValue,
         responseValuePrecision: createResponseDto.responseValuePrecision,
-        lab,
       });
       logger.info(`---RESPONSES.SERVICE.CREATE SUCCESS---`);
       return response;
@@ -118,17 +161,19 @@ export class ResponsesService {
   async findAll(query: FindResponseDto) {
     try {
       logger.info(`---RESPONSES.SERVICE.FIND_ALL INIT---`);
-      const { page = 1, limit = 10, lab, question } = query;
+      const { page = 1, limit = 10, lab, investigation, question } = query;
       const skip = (page - 1) * limit;
 
       const filters: Record<string, unknown> = {};
       if (lab) filters.lab = lab;
+      if (investigation) filters.investigation = investigation;
       if (question) filters.question = question;
 
       const [data, total] = await Promise.all([
         this.responseModel
           .find(filters)
           .populate('lab', 'name')
+          .populate('investigation', 'title active status startDate endDate')
           .populate('question', 'category label responseValueType isRequired')
           .sort({ created_at: -1 })
           .skip(skip)
@@ -162,8 +207,7 @@ export class ResponsesService {
       logger.info(`---RESPONSES.SERVICE.FIND_ONE INIT---`);
       const response = await this.responseModel
         .findById(id)
-        .populate('lab', 'name')
-        .populate('question', 'category label responseValueType isRequired')
+        .populate(this.responsePopulate)
         .exec();
       if (!response) {
         throw new HttpException('Réponse non trouvée', HttpStatus.NOT_FOUND);
@@ -187,10 +231,21 @@ export class ResponsesService {
         throw new HttpException('Réponse non trouvée', HttpStatus.NOT_FOUND);
       }
 
+      const investigationId =
+        updateResponseDto.investigation?.toString() ||
+        existing.investigation.toString();
       const questionId =
         updateResponseDto.question?.toString() || existing.question.toString();
-      const question = await this.getQuestionOrThrow(questionId);
 
+      if (
+        updateResponseDto.investigation ||
+        updateResponseDto.question ||
+        updateResponseDto.responseValue !== undefined
+      ) {
+        await this.validateInvestigationContext(investigationId, questionId);
+      }
+
+      const question = await this.getQuestionOrThrow(questionId);
       if (updateResponseDto.responseValue !== undefined) {
         validateResponseValue(
           question.responseValueType,
@@ -204,8 +259,7 @@ export class ResponsesService {
           { ...updateResponseDto, updated_at: new Date() },
           { new: true },
         )
-        .populate('lab', 'name')
-        .populate('question', 'category label responseValueType isRequired')
+        .populate(this.responsePopulate)
         .exec();
 
       logger.info(`---RESPONSES.SERVICE.UPDATE SUCCESS---`);
@@ -214,7 +268,7 @@ export class ResponsesService {
       logger.error(`---RESPONSES.SERVICE.UPDATE ERROR ${error}---`);
       if (error?.code === 11000) {
         throw new HttpException(
-          'Une réponse existe déjà pour ce laboratoire et cette question',
+          'Une réponse existe déjà pour ce laboratoire, cette enquête et cette question',
           HttpStatus.CONFLICT,
         );
       }

@@ -7,6 +7,10 @@ export class CreateResponseDto {
 
   @IsNotEmpty()
   @IsMongoId()
+  investigation: string;
+
+  @IsNotEmpty()
+  @IsMongoId()
   question: string;
 
   @IsNotEmpty()

@@ -6,6 +6,11 @@ export const ResponseSchema = new mongoose.Schema({
     ref: 'Lab',
     required: true,
   },
+  investigation: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Investigation',
+    required: true,
+  },
   question: {
     type: mongoose.Schema.ObjectId,
     ref: 'Question',
@@ -29,7 +34,10 @@ export const ResponseSchema = new mongoose.Schema({
   },
 });
 
-ResponseSchema.index({ lab: 1, question: 1 }, { unique: true });
+ResponseSchema.index(
+  { lab: 1, investigation: 1, question: 1 },
+  { unique: true },
+);
 
 ResponseSchema.pre('save', function (next) {
   this.updated_at = new Date();
