@@ -1,5 +1,6 @@
 import * as mongoose from 'mongoose';
 import { InvestigationStatusEnum } from 'src/utils/enums/investigation-status.enum';
+import { InvestigationType } from 'src/utils/enums/investigation-type.enum';
 
 export const InvestigationSchema = new mongoose.Schema({
   title: {
@@ -13,6 +14,11 @@ export const InvestigationSchema = new mongoose.Schema({
   active: {
     type: Boolean,
     default: true,
+  },
+  type: {
+    type: String,
+    enum: Object.values(InvestigationType),
+    default: InvestigationType.GENERAL,
   },
   status: {
     type: String,

@@ -6,6 +6,7 @@ import { Investigation } from '../investigations/interfaces/investigation.interf
 import { InvestigationQuestion } from '../investigation-questions/interfaces/investigation-question.interface';
 import { Question } from '../questions/interfaces/question.interface';
 import { CreateResponseDto } from './dto/create-response.dto';
+import { CreateBulkResponseDto } from './dto/create-bulk-response.dto';
 import { UpdateResponseDto } from './dto/update-response.dto';
 import { FindResponseDto } from './dto/find-response.dto';
 import { validateResponseValue } from '../questions/utils/validate-response-value';
@@ -33,16 +34,23 @@ export class ResponsesService {
     return question;
   }
 
-  private async validateInvestigationContext(
+  private async getInvestigationOrThrow(
     investigationId: string,
-    questionId: string,
-  ): Promise<void> {
+  ): Promise<Investigation> {
     const investigation = await this.investigationModel
       .findById(investigationId)
       .exec();
     if (!investigation) {
       throw new HttpException('Enquête non trouvée', HttpStatus.NOT_FOUND);
     }
+    return investigation;
+  }
+
+  private async validateInvestigationContext(
+    investigationId: string,
+    questionId: string,
+  ): Promise<void> {
+    const investigation = await this.getInvestigationOrThrow(investigationId);
 
     const link = await this.investigationQuestionModel
       .findOne({ investigation: investigationId, question: questionId })
@@ -61,7 +69,7 @@ export class ResponsesService {
     { path: 'lab', select: 'name' },
     {
       path: 'investigation',
-      select: 'title active status startDate endDate',
+      select: 'title active type status startDate endDate',
     },
     { path: 'question', select: 'category label responseValueType isRequired' },
   ];
@@ -116,18 +124,15 @@ export class ResponsesService {
     );
   }
 
-  private resolveLabForCreate(
-    createResponseDto: CreateResponseDto,
-    user: User,
-  ): string {
+  private resolveLab(user: User, lab?: string): string {
     if (user.role === Role.SuperAdmin) {
-      if (!createResponseDto.lab) {
+      if (!lab) {
         throw new HttpException(
           'Le champ lab est obligatoire pour un super administrateur',
           HttpStatus.BAD_REQUEST,
         );
       }
-      return createResponseDto.lab;
+      return lab;
     }
 
     if (user.role === Role.LabAdmin) {
@@ -143,7 +148,7 @@ export class ResponsesService {
   async create(createResponseDto: CreateResponseDto, user: User) {
     try {
       logger.info(`---RESPONSES.SERVICE.CREATE INIT---`);
-      const lab = this.resolveLabForCreate(createResponseDto, user);
+      const lab = this.resolveLab(user, createResponseDto.lab);
       const response = await this.persistResponse({
         lab,
         investigation: createResponseDto.investigation,
@@ -153,6 +158,90 @@ export class ResponsesService {
       });
       logger.info(`---RESPONSES.SERVICE.CREATE SUCCESS---`);
       return response;
+    } catch (error) {
+      this.handleCreateError(error);
+    }
+  }
+
+  async createBulk(createBulkDto: CreateBulkResponseDto, user: User) {
+    try {
+      logger.info(`---RESPONSES.SERVICE.CREATE_BULK INIT---`);
+      const { investigation, responses } = createBulkDto;
+      const lab = this.resolveLab(user, createBulkDto.lab);
+
+      const investigationDoc = await this.getInvestigationOrThrow(investigation);
+      assertInvestigationAcceptsResponses(investigationDoc);
+
+      const questionIds = responses.map((item) => item.question);
+      if (new Set(questionIds).size !== questionIds.length) {
+        throw new HttpException(
+          'La liste des réponses contient des questions en double',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const linksCount = await this.investigationQuestionModel
+        .countDocuments({
+          investigation,
+          question: { $in: questionIds },
+        })
+        .exec();
+      if (linksCount !== questionIds.length) {
+        throw new HttpException(
+          'Une ou plusieurs questions ne font pas partie de cette enquête',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const existingCount = await this.responseModel
+        .countDocuments({
+          lab,
+          investigation,
+          question: { $in: questionIds },
+        })
+        .exec();
+      if (existingCount > 0) {
+        throw new HttpException(
+          'Une ou plusieurs réponses existent déjà pour ce laboratoire et cette enquête',
+          HttpStatus.CONFLICT,
+        );
+      }
+
+      const questions = await this.questionModel
+        .find({ _id: { $in: questionIds } })
+        .exec();
+      if (questions.length !== questionIds.length) {
+        throw new HttpException(
+          'Une ou plusieurs questions sont introuvables',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const questionsById = new Map(
+        questions.map((q) => [q._id.toString(), q]),
+      );
+
+      const payloads = responses.map((item) => {
+        const question = questionsById.get(item.question);
+        validateResponseValue(question.responseValueType, item.responseValue);
+        return {
+          lab,
+          investigation,
+          question: item.question,
+          responseValue: item.responseValue,
+          responseValuePrecision: item.responseValuePrecision,
+        };
+      });
+
+      const created = await this.responseModel.insertMany(payloads);
+      const populated = await this.responseModel
+        .find({ _id: { $in: created.map((r) => r._id) } })
+        .populate(this.responsePopulate)
+        .sort({ created_at: 1 })
+        .exec();
+
+      logger.info(`---RESPONSES.SERVICE.CREATE_BULK SUCCESS---`);
+      return populated;
     } catch (error) {
       this.handleCreateError(error);
     }
@@ -173,7 +262,7 @@ export class ResponsesService {
         this.responseModel
           .find(filters)
           .populate('lab', 'name')
-          .populate('investigation', 'title active status startDate endDate')
+          .populate('investigation', 'title active type status startDate endDate')
           .populate('question', 'category label responseValueType isRequired')
           .sort({ created_at: -1 })
           .skip(skip)

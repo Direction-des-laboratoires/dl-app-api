@@ -100,11 +100,12 @@ export class InvestigationsService {
   async findAll(query: FindInvestigationDto) {
     try {
       logger.info(`---INVESTIGATIONS.SERVICE.FIND_ALL INIT---`);
-      const { page = 1, limit = 10, active, status, search } = query;
+      const { page = 1, limit = 10, active, type, status, search } = query;
       const skip = (page - 1) * limit;
 
       const filters: Record<string, unknown> = {};
       if (active !== undefined) filters.active = active;
+      if (type) filters.type = type;
       if (status) filters.status = status;
       if (search) {
         filters.$or = [
@@ -173,6 +174,7 @@ export class InvestigationsService {
           _id: investigation._id,
           title: investigation.title,
           active: investigation.active,
+          type: investigation.type,
           status: investigation.status,
           startDate: investigation.startDate,
           endDate: investigation.endDate,

@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ResponsesService } from './responses.service';
 import { CreateResponseDto } from './dto/create-response.dto';
+import { CreateBulkResponseDto } from './dto/create-bulk-response.dto';
 import { UpdateResponseDto } from './dto/update-response.dto';
 import { FindResponseDto } from './dto/find-response.dto';
 import { Roles } from 'src/utils/decorators/role.decorator';
@@ -22,6 +23,32 @@ import logger from 'src/utils/logger';
 @Controller('responses')
 export class ResponsesController {
   constructor(private readonly responsesService: ResponsesService) {}
+
+  @Roles(Role.SuperAdmin, Role.LabAdmin)
+  @Post('bulk')
+  async createBulk(
+    @Body() createBulkDto: CreateBulkResponseDto,
+    @Req() req,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---RESPONSES.CONTROLLER.CREATE_BULK INIT---`);
+      const data = await this.responsesService.createBulk(
+        createBulkDto,
+        req.user,
+      );
+      logger.info(`---RESPONSES.CONTROLLER.CREATE_BULK SUCCESS---`);
+      return res.status(HttpStatus.CREATED).json({
+        message: `${data.length} réponse(s) créée(s) avec succès`,
+        data,
+      });
+    } catch (error) {
+      logger.error(`---RESPONSES.CONTROLLER.CREATE_BULK ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
 
   @Roles(Role.SuperAdmin, Role.LabAdmin)
   @Post()

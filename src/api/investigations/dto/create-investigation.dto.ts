@@ -11,6 +11,7 @@ import {
 import { Type } from 'class-transformer';
 import { InvestigationQuestionItemDto } from './investigation-question-item.dto';
 import { InvestigationStatusEnum } from 'src/utils/enums/investigation-status.enum';
+import { InvestigationType } from 'src/utils/enums/investigation-type.enum';
 
 export class CreateInvestigationDto {
   @IsNotEmpty()
@@ -24,6 +25,10 @@ export class CreateInvestigationDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @IsOptional()
+  @IsEnum(InvestigationType)
+  type?: InvestigationType;
 
   @IsOptional()
   @IsEnum(InvestigationStatusEnum)
