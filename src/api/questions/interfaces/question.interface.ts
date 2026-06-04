@@ -7,6 +7,7 @@ export interface Question extends Document {
   label: string;
   responseValueType: ResponseValueTypeEnum;
   isRequired: boolean;
+  responsePrecisionCondition?: string | number | null;
   created_at: Date;
   updated_at: Date;
 }

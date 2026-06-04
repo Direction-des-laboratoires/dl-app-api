@@ -159,7 +159,7 @@ export class InvestigationsService {
       const [data, total] = await Promise.all([
         this.investigationQuestionModel
           .find(filters)
-          .populate('question', 'category label responseValueType isRequired')
+          .populate('question', 'category label responseValueType isRequired responsePrecisionCondition')
           .sort({ order: 1, created_at: 1 })
           .skip(skip)
           .limit(limit)
@@ -206,7 +206,7 @@ export class InvestigationsService {
 
       const questions = await this.investigationQuestionModel
         .find({ investigation: id })
-        .populate('question', 'category label responseValueType isRequired')
+        .populate('question', 'category label responseValueType isRequired responsePrecisionCondition')
         .sort({ order: 1, created_at: 1 })
         .lean()
         .exec();

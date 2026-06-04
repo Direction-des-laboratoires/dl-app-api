@@ -21,6 +21,10 @@ export const QuestionSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  responsePrecisionCondition: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
   created_at: {
     type: Date,
     default: Date.now,

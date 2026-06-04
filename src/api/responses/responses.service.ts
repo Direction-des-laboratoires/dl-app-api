@@ -71,7 +71,7 @@ export class ResponsesService {
       path: 'investigation',
       select: 'title active type status startDate endDate',
     },
-    { path: 'question', select: 'category label responseValueType isRequired' },
+    { path: 'question', select: 'category label responseValueType isRequired responsePrecisionCondition' },
   ];
 
   private resolveUserLabId(user: User): string {
@@ -263,7 +263,7 @@ export class ResponsesService {
           .find(filters)
           .populate('lab', 'name')
           .populate('investigation', 'title active type status startDate endDate')
-          .populate('question', 'category label responseValueType isRequired')
+          .populate('question', 'category label responseValueType isRequired responsePrecisionCondition')
           .sort({ created_at: -1 })
           .skip(skip)
           .limit(limit)

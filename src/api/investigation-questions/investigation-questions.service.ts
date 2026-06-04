@@ -64,7 +64,7 @@ export class InvestigationQuestionsService {
         { path: 'investigation', select: 'title active' },
         {
           path: 'question',
-          select: 'category label responseValueType isRequired',
+          select: 'category label responseValueType isRequired responsePrecisionCondition',
         },
       ]);
 
@@ -89,7 +89,7 @@ export class InvestigationQuestionsService {
         this.investigationQuestionModel
           .find(filters)
           .populate('investigation', 'title active')
-          .populate('question', 'category label responseValueType isRequired')
+          .populate('question', 'category label responseValueType isRequired responsePrecisionCondition')
           .sort({ order: 1, created_at: 1 })
           .skip(skip)
           .limit(limit)
@@ -119,7 +119,7 @@ export class InvestigationQuestionsService {
       const item = await this.investigationQuestionModel
         .findById(id)
         .populate('investigation', 'title active description')
-        .populate('question', 'category label responseValueType isRequired')
+        .populate('question', 'category label responseValueType isRequired responsePrecisionCondition')
         .exec();
       if (!item) {
         throw new HttpException(
@@ -162,7 +162,7 @@ export class InvestigationQuestionsService {
           { new: true },
         )
         .populate('investigation', 'title active')
-        .populate('question', 'category label responseValueType isRequired')
+        .populate('question', 'category label responseValueType isRequired responsePrecisionCondition')
         .exec();
 
       logger.info(`---INVESTIGATION_QUESTIONS.SERVICE.UPDATE SUCCESS---`);

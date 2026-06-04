@@ -18,4 +18,8 @@ export class CreateQuestionDto {
   @IsOptional()
   @IsBoolean()
   isRequired?: boolean;
+
+  /** Valeur de responseValue pour laquelle responseValuePrecision est requise (ex. "YES"). */
+  @IsOptional()
+  responsePrecisionCondition?: string | number;
 }
