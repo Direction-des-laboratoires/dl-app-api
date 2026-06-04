@@ -233,28 +233,76 @@ export class InvestigationsService {
         throw new HttpException('Enquête non trouvée', HttpStatus.NOT_FOUND);
       }
 
+      const { questions, ...investigationData } = updateInvestigationDto;
+
       const startDate =
-        updateInvestigationDto.startDate ?? existing.startDate;
-      const endDate = updateInvestigationDto.endDate ?? existing.endDate;
+        investigationData.startDate ?? existing.startDate;
+      const endDate = investigationData.endDate ?? existing.endDate;
       validateInvestigationDates(startDate, endDate);
 
-      const updated = await this.investigationModel
-        .findByIdAndUpdate(
-          id,
-          { ...updateInvestigationDto, updated_at: new Date() },
-          { new: true },
-        )
-        .exec();
-      if (!updated) {
-        throw new HttpException('Enquête non trouvée', HttpStatus.NOT_FOUND);
+      if (Object.keys(investigationData).length > 0) {
+        await this.investigationModel
+          .findByIdAndUpdate(
+            id,
+            { ...investigationData, updated_at: new Date() },
+            { new: true },
+          )
+          .exec();
       }
+
+      if (questions !== undefined) {
+        const questionIds = questions.map((item) => item.question);
+        if (new Set(questionIds).size !== questionIds.length) {
+          throw new HttpException(
+            'La liste des questions contient des doublons',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+
+        if (questions.length > 0) {
+          const existingCount = await this.questionModel
+            .countDocuments({ _id: { $in: questionIds } })
+            .exec();
+          if (existingCount !== questionIds.length) {
+            throw new HttpException(
+              'Une ou plusieurs questions sont introuvables',
+              HttpStatus.NOT_FOUND,
+            );
+          }
+        }
+
+        await this.investigationQuestionModel
+          .deleteMany({ investigation: id })
+          .exec();
+
+        if (questions.length > 0) {
+          await this.investigationQuestionModel.insertMany(
+            questions.map((item, index) => ({
+              investigation: id,
+              question: item.question,
+              order: item.order ?? index + 1,
+            })),
+          );
+        }
+      }
+
       logger.info(`---INVESTIGATIONS.SERVICE.UPDATE SUCCESS---`);
-      return updated;
+      return this.findOne(id);
     } catch (error) {
       logger.error(`---INVESTIGATIONS.SERVICE.UPDATE ERROR ${error}---`);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      const err = error as { code?: number; message?: string };
+      if (err?.code === 11000) {
+        throw new HttpException(
+          'Une ou plusieurs questions sont déjà associées à cette enquête',
+          HttpStatus.CONFLICT,
+        );
+      }
       throw new HttpException(
-        error.message || 'Erreur serveur',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        err.message || 'Erreur serveur',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
