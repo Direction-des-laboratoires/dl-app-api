@@ -25,6 +25,10 @@ export const QuestionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: null,
   },
+  options: {
+    type: [String],
+    default: [],
+  },
   created_at: {
     type: Date,
     default: Date.now,

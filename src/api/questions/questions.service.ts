@@ -5,6 +5,7 @@ import { Question } from './interfaces/question.interface';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { FindQuestionDto } from './dto/find-question.dto';
+import { validateQuestionConfig } from './utils/validate-question-config';
 import logger from 'src/utils/logger';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class QuestionsService {
   async create(createQuestionDto: CreateQuestionDto) {
     try {
       logger.info(`---QUESTIONS.SERVICE.CREATE INIT---`);
+      validateQuestionConfig(createQuestionDto);
       const question = await this.questionModel.create(createQuestionDto);
       logger.info(`---QUESTIONS.SERVICE.CREATE SUCCESS---`);
       return question;
@@ -93,6 +95,20 @@ export class QuestionsService {
   async update(id: string, updateQuestionDto: UpdateQuestionDto) {
     try {
       logger.info(`---QUESTIONS.SERVICE.UPDATE INIT---`);
+      const existing = await this.questionModel.findById(id).exec();
+      if (!existing) {
+        throw new HttpException('Question non trouvée', HttpStatus.NOT_FOUND);
+      }
+
+      validateQuestionConfig({
+        responseValueType:
+          updateQuestionDto.responseValueType ?? existing.responseValueType,
+        options: updateQuestionDto.options ?? existing.options,
+        responsePrecisionCondition:
+          updateQuestionDto.responsePrecisionCondition ??
+          existing.responsePrecisionCondition,
+      });
+
       const updated = await this.questionModel
         .findByIdAndUpdate(
           id,

@@ -3,10 +3,13 @@ import { ResponseValueTypeEnum } from 'src/utils/enums/response-value-type.enum'
 import { YesNoResponseEnum } from 'src/utils/enums/yes-no-response.enum';
 
 export function validateResponseValue(
-  responseValueType: ResponseValueTypeEnum,
+  question: {
+    responseValueType: ResponseValueTypeEnum;
+    options?: string[];
+  },
   responseValue: unknown,
 ): void {
-  switch (responseValueType) {
+  switch (question.responseValueType) {
     case ResponseValueTypeEnum.YES_NO:
       if (
         typeof responseValue !== 'string' ||
@@ -34,6 +37,19 @@ export function validateResponseValue(
         );
       }
       break;
+    case ResponseValueTypeEnum.SINGLE_CHOICE: {
+      const options = question.options ?? [];
+      if (
+        typeof responseValue !== 'string' ||
+        !options.includes(responseValue)
+      ) {
+        throw new HttpException(
+          `responseValue doit être l'une des options suivantes : ${options.join(', ')}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      break;
+    }
     default:
       throw new HttpException(
         'Type de réponse de la question non supporté',

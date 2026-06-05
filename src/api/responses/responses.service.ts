@@ -71,7 +71,7 @@ export class ResponsesService {
       path: 'investigation',
       select: 'title active type status startDate endDate',
     },
-    { path: 'question', select: 'category label responseValueType isRequired responsePrecisionCondition' },
+    { path: 'question', select: 'category label responseValueType isRequired responsePrecisionCondition options' },
   ];
 
   private resolveUserLabId(user: User): string {
@@ -99,7 +99,7 @@ export class ResponsesService {
       payload.question,
     );
     const question = await this.getQuestionOrThrow(payload.question);
-    validateResponseValue(question.responseValueType, payload.responseValue);
+    validateResponseValue(question, payload.responseValue);
 
     const response = await this.responseModel.create(payload);
     await response.populate(this.responsePopulate);
@@ -223,7 +223,7 @@ export class ResponsesService {
 
       const payloads = responses.map((item) => {
         const question = questionsById.get(item.question);
-        validateResponseValue(question.responseValueType, item.responseValue);
+        validateResponseValue(question, item.responseValue);
         return {
           lab,
           investigation,
@@ -263,7 +263,7 @@ export class ResponsesService {
           .find(filters)
           .populate('lab', 'name')
           .populate('investigation', 'title active type status startDate endDate')
-          .populate('question', 'category label responseValueType isRequired responsePrecisionCondition')
+          .populate('question', 'category label responseValueType isRequired responsePrecisionCondition options')
           .sort({ created_at: -1 })
           .skip(skip)
           .limit(limit)
@@ -336,10 +336,7 @@ export class ResponsesService {
 
       const question = await this.getQuestionOrThrow(questionId);
       if (updateResponseDto.responseValue !== undefined) {
-        validateResponseValue(
-          question.responseValueType,
-          updateResponseDto.responseValue,
-        );
+        validateResponseValue(question, updateResponseDto.responseValue);
       }
 
       const updated = await this.responseModel
