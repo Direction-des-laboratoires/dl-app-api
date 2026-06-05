@@ -8,6 +8,9 @@ export interface Question extends Document {
   responseValueType: ResponseValueTypeEnum;
   isRequired: boolean;
   responsePrecisionCondition?: string | number | null;
+  precisionLabel?: string | null;
+  precisionValueType?: ResponseValueTypeEnum | null;
+  precisionOptions: string[];
   options: string[];
   created_at: Date;
   updated_at: Date;

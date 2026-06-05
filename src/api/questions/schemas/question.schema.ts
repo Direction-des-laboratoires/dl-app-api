@@ -25,6 +25,19 @@ export const QuestionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: null,
   },
+  precisionLabel: {
+    type: String,
+    default: null,
+  },
+  precisionValueType: {
+    type: String,
+    enum: Object.values(ResponseValueTypeEnum),
+    default: null,
+  },
+  precisionOptions: {
+    type: [String],
+    default: [],
+  },
   options: {
     type: [String],
     default: [],

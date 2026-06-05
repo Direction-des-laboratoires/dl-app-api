@@ -107,6 +107,10 @@ export class QuestionsService {
         responsePrecisionCondition:
           updateQuestionDto.responsePrecisionCondition ??
           existing.responsePrecisionCondition,
+        precisionValueType:
+          updateQuestionDto.precisionValueType ?? existing.precisionValueType,
+        precisionOptions:
+          updateQuestionDto.precisionOptions ?? existing.precisionOptions,
       });
 
       const updated = await this.questionModel

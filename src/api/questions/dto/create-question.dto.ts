@@ -24,6 +24,19 @@ export class CreateQuestionDto {
   responsePrecisionCondition?: string | number;
 
   @IsOptional()
+  @IsString()
+  precisionLabel?: string;
+
+  @IsOptional()
+  @IsEnum(ResponseValueTypeEnum)
+  precisionValueType?: ResponseValueTypeEnum;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  precisionOptions?: string[];
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   options?: string[];
