@@ -59,6 +59,31 @@ export class InvestigationsController {
     }
   }
 
+  @Get(':id/questions/grouped-by-section')
+  async findQuestionsGroupedBySection(@Param('id') id: string, @Res() res) {
+    try {
+      logger.info(
+        `---INVESTIGATIONS.CONTROLLER.FIND_QUESTIONS_GROUPED_BY_SECTION INIT---`,
+      );
+      const result =
+        await this.investigationsService.findQuestionsGroupedBySection(id);
+      logger.info(
+        `---INVESTIGATIONS.CONTROLLER.FIND_QUESTIONS_GROUPED_BY_SECTION SUCCESS---`,
+      );
+      return res.status(HttpStatus.OK).json({
+        message: `Questions de l'enquête ${id} regroupées par section`,
+        ...result,
+      });
+    } catch (error) {
+      logger.error(
+        `---INVESTIGATIONS.CONTROLLER.FIND_QUESTIONS_GROUPED_BY_SECTION ERROR ${error}---`,
+      );
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
   @Get(':id/questions')
   async findQuestions(
     @Param('id') id: string,

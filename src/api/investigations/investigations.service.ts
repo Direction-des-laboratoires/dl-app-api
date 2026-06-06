@@ -163,7 +163,7 @@ export class InvestigationsService {
             path: 'question',
             select:
               'section category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options',
-            populate: { path: 'section', select: 'name category' },
+            populate: { path: 'section', select: 'name category order' },
           })
           .sort({ order: 1, created_at: 1 })
           .skip(skip)
@@ -201,6 +201,105 @@ export class InvestigationsService {
     }
   }
 
+  async findQuestionsGroupedBySection(id: string) {
+    try {
+      logger.info(`---INVESTIGATIONS.SERVICE.FIND_QUESTIONS_GROUPED_BY_SECTION INIT---`);
+      const investigation = await this.investigationModel.findById(id).lean().exec();
+      if (!investigation) {
+        throw new HttpException('Enquête non trouvée', HttpStatus.NOT_FOUND);
+      }
+
+      const questionSelect =
+        'section category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options';
+
+      const investigationQuestions = await this.investigationQuestionModel
+        .find({ investigation: id })
+        .populate({
+          path: 'question',
+          select: questionSelect,
+          populate: { path: 'section', select: 'name category order' },
+        })
+        .sort({ order: 1, created_at: 1 })
+        .lean()
+        .exec();
+
+      const sectionMap = new Map<
+        string,
+        {
+          _id: unknown;
+          name: string;
+          category: string;
+          order?: number;
+          questions: Array<Record<string, unknown>>;
+        }
+      >();
+
+      for (const item of investigationQuestions) {
+        const question = item.question as Question & {
+          section?: { _id: unknown; name: string; category: string; order?: number };
+        };
+        if (!question?.section) continue;
+
+        const section =
+          typeof question.section === 'object' ? question.section : null;
+        if (!section) continue;
+
+        const sectionId = String(section._id);
+        if (!sectionMap.has(sectionId)) {
+          sectionMap.set(sectionId, {
+            _id: section._id,
+            name: section.name,
+            category: section.category,
+            order: section.order,
+            questions: [],
+          });
+        }
+
+        sectionMap.get(sectionId).questions.push({
+          _id: item._id,
+          order: item.order,
+          question,
+        });
+      }
+
+      const data = Array.from(sectionMap.values()).sort((a, b) => {
+        const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
+        const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.name.localeCompare(b.name);
+      });
+
+      logger.info(
+        `---INVESTIGATIONS.SERVICE.FIND_QUESTIONS_GROUPED_BY_SECTION SUCCESS---`,
+      );
+      return {
+        investigation: {
+          _id: investigation._id,
+          title: investigation.title,
+          active: investigation.active,
+          type: investigation.type,
+          status: investigation.status,
+          startDate: investigation.startDate,
+          endDate: investigation.endDate,
+        },
+        data,
+        totalSections: data.length,
+        totalQuestions: investigationQuestions.length,
+      };
+    } catch (error) {
+      logger.error(
+        `---INVESTIGATIONS.SERVICE.FIND_QUESTIONS_GROUPED_BY_SECTION ERROR ${error}---`,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Erreur serveur',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findOne(id: string) {
     try {
       logger.info(`---INVESTIGATIONS.SERVICE.FIND_ONE INIT---`);
@@ -215,7 +314,7 @@ export class InvestigationsService {
           path: 'question',
           select:
             'section category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options',
-          populate: { path: 'section', select: 'name category' },
+          populate: { path: 'section', select: 'name category order' },
         })
         .sort({ order: 1, created_at: 1 })
         .lean()
