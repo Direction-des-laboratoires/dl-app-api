@@ -11,6 +11,10 @@ export const QuestionSectionSchema = new mongoose.Schema({
     enum: Object.values(QuestionCategoryEnum),
     required: true,
   },
+  order: {
+    type: Number,
+    default: null,
+  },
   created_at: {
     type: Date,
     default: Date.now,

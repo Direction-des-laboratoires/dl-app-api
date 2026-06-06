@@ -1,4 +1,5 @@
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 import { QuestionCategoryEnum } from 'src/utils/enums/question-category.enum';
 
 export class CreateQuestionSectionDto {
@@ -9,4 +10,9 @@ export class CreateQuestionSectionDto {
   @IsNotEmpty()
   @IsEnum(QuestionCategoryEnum)
   category: QuestionCategoryEnum;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  order?: number;
 }

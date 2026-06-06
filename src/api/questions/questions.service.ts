@@ -6,6 +6,7 @@ import { QuestionSection } from '../question-sections/interfaces/question-sectio
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { FindQuestionDto } from './dto/find-question.dto';
+import { FindGroupedQuestionsDto } from './dto/find-grouped-questions.dto';
 import { validateQuestionConfig } from './utils/validate-question-config';
 import logger from 'src/utils/logger';
 
@@ -18,7 +19,7 @@ export class QuestionsService {
   ) {}
 
   private readonly questionPopulate = [
-    { path: 'section', select: 'name category' },
+    { path: 'section', select: 'name category order' },
   ];
 
   private async validateSection(
@@ -82,7 +83,7 @@ export class QuestionsService {
       const [data, total] = await Promise.all([
         this.questionModel
           .find(filters)
-          .populate('section', 'name category')
+          .populate('section', 'name category order')
           .sort({ created_at: -1 })
           .skip(skip)
           .limit(limit)
@@ -103,6 +104,65 @@ export class QuestionsService {
       };
     } catch (error) {
       logger.error(`---QUESTIONS.SERVICE.FIND_ALL ERROR ${error}---`);
+      throw new HttpException(
+        error.message || 'Erreur serveur',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async findGroupedBySection(query: FindGroupedQuestionsDto) {
+    try {
+      logger.info(`---QUESTIONS.SERVICE.FIND_GROUPED_BY_SECTION INIT---`);
+      const { category } = query;
+
+      const sectionFilters: Record<string, unknown> = {};
+      if (category) sectionFilters.category = category;
+
+      const sections = await this.questionSectionModel
+        .aggregate([
+          { $match: sectionFilters },
+          {
+            $addFields: {
+              orderNullOrder: {
+                $cond: [{ $eq: [{ $ifNull: ['$order', null] }, null] }, 1, 0],
+              },
+            },
+          },
+          { $sort: { orderNullOrder: 1, order: 1, name: 1 } },
+          {
+            $lookup: {
+              from: this.questionModel.collection.name,
+              let: { sectionId: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: { $eq: ['$section', '$$sectionId'] },
+                    ...(category ? { category } : {}),
+                  },
+                },
+                { $sort: { created_at: 1 } },
+              ],
+              as: 'questions',
+            },
+          },
+          { $project: { orderNullOrder: 0 } },
+        ])
+        .exec();
+
+      logger.info(`---QUESTIONS.SERVICE.FIND_GROUPED_BY_SECTION SUCCESS---`);
+      return {
+        data: sections,
+        totalSections: sections.length,
+        totalQuestions: sections.reduce(
+          (sum, section) => sum + section.questions.length,
+          0,
+        ),
+      };
+    } catch (error) {
+      logger.error(
+        `---QUESTIONS.SERVICE.FIND_GROUPED_BY_SECTION ERROR ${error}---`,
+      );
       throw new HttpException(
         error.message || 'Erreur serveur',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,

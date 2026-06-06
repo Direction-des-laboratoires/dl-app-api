@@ -47,11 +47,20 @@ export class QuestionSectionsService {
 
       const [data, total] = await Promise.all([
         this.questionSectionModel
-          .find(filters)
-          .sort({ category: 1, name: 1 })
-          .skip(skip)
-          .limit(limit)
-          .lean()
+          .aggregate([
+            { $match: filters },
+            {
+              $addFields: {
+                orderNullOrder: {
+                  $cond: [{ $eq: [{ $ifNull: ['$order', null] }, null] }, 1, 0],
+                },
+              },
+            },
+            { $sort: { orderNullOrder: 1, order: 1, name: 1 } },
+            { $skip: skip },
+            { $limit: limit },
+            { $project: { orderNullOrder: 0 } },
+          ])
           .exec(),
         this.questionSectionModel.countDocuments(filters).exec(),
       ]);

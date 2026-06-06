@@ -14,6 +14,7 @@ import { QuestionsService } from './questions.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { FindQuestionDto } from './dto/find-question.dto';
+import { FindGroupedQuestionsDto } from './dto/find-grouped-questions.dto';
 import logger from 'src/utils/logger';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
@@ -53,6 +54,29 @@ export class QuestionsController {
       });
     } catch (error) {
       logger.error(`---QUESTIONS.CONTROLLER.FIND_ALL ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  @Get('grouped-by-section')
+  async findGroupedBySection(
+    @Query() query: FindGroupedQuestionsDto,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---QUESTIONS.CONTROLLER.FIND_GROUPED_BY_SECTION INIT---`);
+      const result = await this.questionsService.findGroupedBySection(query);
+      logger.info(`---QUESTIONS.CONTROLLER.FIND_GROUPED_BY_SECTION SUCCESS---`);
+      return res.status(HttpStatus.OK).json({
+        message: 'Questions regroupées par section',
+        ...result,
+      });
+    } catch (error) {
+      logger.error(
+        `---QUESTIONS.CONTROLLER.FIND_GROUPED_BY_SECTION ERROR ${error}---`,
+      );
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: error.message });
