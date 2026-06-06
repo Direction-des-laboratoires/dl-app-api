@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Question } from './interfaces/question.interface';
+import { QuestionSection } from '../question-sections/interfaces/question-section.interface';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { FindQuestionDto } from './dto/find-question.dto';
@@ -10,17 +11,49 @@ import logger from 'src/utils/logger';
 
 @Injectable()
 export class QuestionsService {
-  constructor(@InjectModel('Question') private questionModel: Model<Question>) {}
+  constructor(
+    @InjectModel('Question') private questionModel: Model<Question>,
+    @InjectModel('QuestionSection')
+    private questionSectionModel: Model<QuestionSection>,
+  ) {}
+
+  private readonly questionPopulate = [
+    { path: 'section', select: 'name category' },
+  ];
+
+  private async validateSection(
+    sectionId: string,
+    category: string,
+  ): Promise<void> {
+    const section = await this.questionSectionModel.findById(sectionId).exec();
+    if (!section) {
+      throw new HttpException('Section non trouvée', HttpStatus.NOT_FOUND);
+    }
+    if (section.category !== category) {
+      throw new HttpException(
+        'La catégorie de la question doit correspondre à celle de la section',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
 
   async create(createQuestionDto: CreateQuestionDto) {
     try {
       logger.info(`---QUESTIONS.SERVICE.CREATE INIT---`);
       validateQuestionConfig(createQuestionDto);
+      await this.validateSection(
+        createQuestionDto.section,
+        createQuestionDto.category,
+      );
       const question = await this.questionModel.create(createQuestionDto);
+      await question.populate(this.questionPopulate);
       logger.info(`---QUESTIONS.SERVICE.CREATE SUCCESS---`);
       return question;
     } catch (error) {
       logger.error(`---QUESTIONS.SERVICE.CREATE ERROR ${error}---`);
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         error.message,
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
@@ -31,10 +64,12 @@ export class QuestionsService {
   async findAll(query: FindQuestionDto) {
     try {
       logger.info(`---QUESTIONS.SERVICE.FIND_ALL INIT---`);
-      const { page = 1, limit = 10, category, responseValueType, search } = query;
+      const { page = 1, limit = 10, section, category, responseValueType, search } =
+        query;
       const skip = (page - 1) * limit;
 
       const filters: Record<string, unknown> = {};
+      if (section) filters.section = section;
       if (category) filters.category = category;
       if (responseValueType) filters.responseValueType = responseValueType;
       if (search) {
@@ -47,6 +82,7 @@ export class QuestionsService {
       const [data, total] = await Promise.all([
         this.questionModel
           .find(filters)
+          .populate('section', 'name category')
           .sort({ created_at: -1 })
           .skip(skip)
           .limit(limit)
@@ -77,7 +113,10 @@ export class QuestionsService {
   async findOne(id: string) {
     try {
       logger.info(`---QUESTIONS.SERVICE.FIND_ONE INIT---`);
-      const question = await this.questionModel.findById(id).exec();
+      const question = await this.questionModel
+        .findById(id)
+        .populate(this.questionPopulate)
+        .exec();
       if (!question) {
         throw new HttpException('Question non trouvée', HttpStatus.NOT_FOUND);
       }
@@ -113,12 +152,19 @@ export class QuestionsService {
           updateQuestionDto.precisionOptions ?? existing.precisionOptions,
       });
 
+      const sectionId =
+        updateQuestionDto.section?.toString() || existing.section.toString();
+      const category =
+        updateQuestionDto.category ?? existing.category;
+      await this.validateSection(sectionId, category);
+
       const updated = await this.questionModel
         .findByIdAndUpdate(
           id,
           { ...updateQuestionDto, updated_at: new Date() },
           { new: true },
         )
+        .populate(this.questionPopulate)
         .exec();
       if (!updated) {
         throw new HttpException('Question non trouvée', HttpStatus.NOT_FOUND);
@@ -127,6 +173,9 @@ export class QuestionsService {
       return updated;
     } catch (error) {
       logger.error(`---QUESTIONS.SERVICE.UPDATE ERROR ${error}---`);
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         error.message || 'Erreur serveur',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,

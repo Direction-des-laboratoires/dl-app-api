@@ -64,7 +64,9 @@ export class InvestigationQuestionsService {
         { path: 'investigation', select: 'title active' },
         {
           path: 'question',
-          select: 'category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options',
+          select:
+            'section category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options',
+          populate: { path: 'section', select: 'name category' },
         },
       ]);
 
@@ -89,7 +91,12 @@ export class InvestigationQuestionsService {
         this.investigationQuestionModel
           .find(filters)
           .populate('investigation', 'title active')
-          .populate('question', 'category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options')
+          .populate({
+            path: 'question',
+            select:
+              'section category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options',
+            populate: { path: 'section', select: 'name category' },
+          })
           .sort({ order: 1, created_at: 1 })
           .skip(skip)
           .limit(limit)
@@ -119,7 +126,12 @@ export class InvestigationQuestionsService {
       const item = await this.investigationQuestionModel
         .findById(id)
         .populate('investigation', 'title active description')
-        .populate('question', 'category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options')
+        .populate({
+          path: 'question',
+          select:
+            'section category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options',
+          populate: { path: 'section', select: 'name category' },
+        })
         .exec();
       if (!item) {
         throw new HttpException(
@@ -162,7 +174,12 @@ export class InvestigationQuestionsService {
           { new: true },
         )
         .populate('investigation', 'title active')
-        .populate('question', 'category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options')
+        .populate({
+          path: 'question',
+          select:
+            'section category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options',
+          populate: { path: 'section', select: 'name category' },
+        })
         .exec();
 
       logger.info(`---INVESTIGATION_QUESTIONS.SERVICE.UPDATE SUCCESS---`);

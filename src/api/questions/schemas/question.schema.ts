@@ -3,6 +3,11 @@ import { QuestionCategoryEnum } from 'src/utils/enums/question-category.enum';
 import { ResponseValueTypeEnum } from 'src/utils/enums/response-value-type.enum';
 
 export const QuestionSchema = new mongoose.Schema({
+  section: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'QuestionSection',
+    default: null,
+  },
   category: {
     type: String,
     enum: Object.values(QuestionCategoryEnum),

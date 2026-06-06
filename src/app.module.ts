@@ -53,6 +53,7 @@ import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module'
 import { StructureLevelEquipmentTypeModule } from './api/structure-level-equipment-type/structure-level-equipment-type.module';
 import { EquipmentLifeEventsModule } from './api/equipment-life-events/equipment-life-events.module';
 import { QuestionsModule } from './api/questions/questions.module';
+import { QuestionSectionsModule } from './api/question-sections/question-sections.module';
 import { ResponsesModule } from './api/responses/responses.module';
 import { InvestigationsModule } from './api/investigations/investigations.module';
 import { InvestigationQuestionsModule } from './api/investigation-questions/investigation-questions.module';
@@ -128,6 +129,7 @@ import { InvestigationQuestionsModule } from './api/investigation-questions/inve
     LabTypePositionModule,
     SubSpecialityModule,
     QuestionsModule,
+    QuestionSectionsModule,
     ResponsesModule,
     InvestigationsModule,
     InvestigationQuestionsModule,

@@ -71,7 +71,12 @@ export class ResponsesService {
       path: 'investigation',
       select: 'title active type status startDate endDate',
     },
-    { path: 'question', select: 'category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options' },
+    {
+      path: 'question',
+      select:
+        'section category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options',
+      populate: { path: 'section', select: 'name category' },
+    },
   ];
 
   private resolveUserLabId(user: User): string {
@@ -263,7 +268,12 @@ export class ResponsesService {
           .find(filters)
           .populate('lab', 'name')
           .populate('investigation', 'title active type status startDate endDate')
-          .populate('question', 'category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options')
+          .populate({
+            path: 'question',
+            select:
+              'section category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options',
+            populate: { path: 'section', select: 'name category' },
+          })
           .sort({ created_at: -1 })
           .skip(skip)
           .limit(limit)
