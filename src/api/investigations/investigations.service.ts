@@ -1,14 +1,18 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { Investigation } from './interfaces/investigation.interface';
 import { InvestigationQuestion } from '../investigation-questions/interfaces/investigation-question.interface';
 import { Question } from '../questions/interfaces/question.interface';
+import { Lab } from '../labs/interfaces/labs.interface';
+import { Response } from '../responses/interfaces/response.interface';
 import { CreateInvestigationDto } from './dto/create-investigation.dto';
 import { UpdateInvestigationDto } from './dto/update-investigation.dto';
 import { FindInvestigationDto } from './dto/find-investigation.dto';
 import { FindInvestigationQuestionsDto } from './dto/find-investigation-questions.dto';
+import { FindInvestigationResponsesByLabDto } from './dto/find-investigation-responses-by-lab.dto';
 import { validateInvestigationDates } from './utils/validate-investigation-dates';
+import { LabResponseStatusEnum } from 'src/utils/enums/lab-response-status.enum';
 import logger from 'src/utils/logger';
 
 @Injectable()
@@ -19,7 +23,143 @@ export class InvestigationsService {
     @InjectModel('InvestigationQuestion')
     private investigationQuestionModel: Model<InvestigationQuestion>,
     @InjectModel('Question') private questionModel: Model<Question>,
+    @InjectModel('Lab') private labModel: Model<Lab>,
+    @InjectModel('Response') private responseModel: Model<Response>,
+    @InjectModel('Structure') private structureModel: Model<Record<string, unknown>>,
   ) {}
+
+  private readonly labPopulate = [
+    {
+      path: 'type',
+      select: 'name code description active',
+    },
+    {
+      path: 'structure',
+      populate: [{ path: 'region department district', select: 'name code' }],
+    },
+    {
+      path: 'specialities',
+      select: 'name description',
+    },
+    {
+      path: 'director',
+      select: 'email firstname lastname phoneNumber',
+    },
+    {
+      path: 'responsible',
+      select: 'email firstname lastname phoneNumber',
+    },
+  ];
+
+  private readonly responseQuestionPopulate = {
+    path: 'question',
+    select:
+      'section category label responseValueType isRequired responsePrecisionCondition precisionLabel precisionValueType precisionOptions options',
+    populate: { path: 'section', select: 'name category order' },
+  };
+
+  private async buildLabFilters(
+    query: FindInvestigationResponsesByLabDto,
+  ): Promise<Record<string, unknown> | null> {
+    const {
+      lab,
+      structure,
+      type,
+      region,
+      department,
+      district,
+      name,
+      search,
+      specialities,
+    } = query;
+
+    const labFilters: Record<string, unknown> = {};
+
+    if (lab) labFilters._id = lab;
+    if (structure) labFilters.structure = structure;
+    if (type) labFilters.type = type;
+    if (name) labFilters.name = { $regex: name, $options: 'i' };
+
+    if (search) {
+      const structureIdsFromSearch = await this.structureModel
+        .find({ name: { $regex: search, $options: 'i' } })
+        .select('_id')
+        .exec();
+
+      labFilters.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { phoneNumber: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        {
+          structure: { $in: structureIdsFromSearch.map((s) => s._id) },
+        },
+      ];
+    }
+
+    if (specialities && specialities.length > 0) {
+      const specialityIds = specialities.map((id) => {
+        if (typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)) {
+          return new mongoose.Types.ObjectId(id);
+        }
+        return id;
+      });
+      labFilters.specialities = { $in: specialityIds };
+    }
+
+    if (region || department || district) {
+      const structureFilters: Record<string, unknown> = {};
+      if (region) structureFilters.region = region;
+      if (department) structureFilters.department = department;
+      if (district) structureFilters.district = district;
+
+      const matchingStructures = await this.structureModel
+        .find(structureFilters)
+        .select('_id')
+        .exec();
+
+      const structureIds = matchingStructures.map((s) => s._id);
+
+      if (structureIds.length === 0) {
+        return null;
+      }
+
+      if (labFilters.structure) {
+        const structureIdStr = String(labFilters.structure);
+        const matchingStructureIds = structureIds.map((id) => String(id));
+        if (!matchingStructureIds.includes(structureIdStr)) {
+          return null;
+        }
+      } else {
+        labFilters.structure = { $in: structureIds };
+      }
+    }
+
+    return labFilters;
+  }
+
+  private getLabResponseStatus(
+    answeredCount: number,
+    totalQuestions: number,
+  ): LabResponseStatusEnum {
+    if (answeredCount === 0) {
+      return LabResponseStatusEnum.NOT_RESPONDED;
+    }
+    if (totalQuestions > 0 && answeredCount >= totalQuestions) {
+      return LabResponseStatusEnum.COMPLETE;
+    }
+    return LabResponseStatusEnum.PARTIAL;
+  }
+
+  private matchesResponseStatusFilter(
+    status: LabResponseStatusEnum,
+    filter?: LabResponseStatusEnum,
+  ): boolean {
+    if (!filter) return true;
+    if (filter === LabResponseStatusEnum.RESPONDED) {
+      return status !== LabResponseStatusEnum.NOT_RESPONDED;
+    }
+    return status === filter;
+  }
 
   private async rollbackInvestigationCreation(investigationId: string) {
     await this.investigationQuestionModel
@@ -289,6 +429,192 @@ export class InvestigationsService {
     } catch (error) {
       logger.error(
         `---INVESTIGATIONS.SERVICE.FIND_QUESTIONS_GROUPED_BY_SECTION ERROR ${error}---`,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Erreur serveur',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async findResponsesByLab(
+    id: string,
+    query: FindInvestigationResponsesByLabDto = {},
+  ) {
+    try {
+      logger.info(`---INVESTIGATIONS.SERVICE.FIND_RESPONSES_BY_LAB INIT---`);
+
+      const investigation = await this.investigationModel.findById(id).lean().exec();
+      if (!investigation) {
+        throw new HttpException('Enquête non trouvée', HttpStatus.NOT_FOUND);
+      }
+
+      const {
+        page = 1,
+        limit = 10,
+        paginate = true,
+        responseStatus,
+      } = query;
+      const shouldPaginate = paginate !== false;
+
+      const labFilters = await this.buildLabFilters(query);
+      if (labFilters === null) {
+        return {
+          investigation: {
+            _id: investigation._id,
+            title: investigation.title,
+            active: investigation.active,
+            type: investigation.type,
+            status: investigation.status,
+            startDate: investigation.startDate,
+            endDate: investigation.endDate,
+          },
+          stats: {
+            totalLabs: 0,
+            respondedLabs: 0,
+            notRespondedLabs: 0,
+            partialLabs: 0,
+            completedLabs: 0,
+            totalQuestions: 0,
+            totalResponses: 0,
+            responseRate: 0,
+          },
+          data: [],
+          ...(shouldPaginate
+            ? {
+                pagination: {
+                  total: 0,
+                  page,
+                  limit,
+                  totalPages: 0,
+                },
+              }
+            : {}),
+        };
+      }
+
+      const totalQuestions = await this.investigationQuestionModel
+        .countDocuments({ investigation: id })
+        .exec();
+
+      const [labs, responses] = await Promise.all([
+        this.labModel
+          .find(labFilters)
+          .populate(this.labPopulate)
+          .sort({ name: 1 })
+          .lean()
+          .exec(),
+        this.responseModel
+          .find({ investigation: id })
+          .populate(this.responseQuestionPopulate)
+          .sort({ created_at: 1 })
+          .lean()
+          .exec(),
+      ]);
+
+      const labIds = new Set(labs.map((lab) => String(lab._id)));
+      const responsesByLab = new Map<string, Array<Record<string, unknown>>>();
+
+      for (const response of responses) {
+        const labId = String(response.lab);
+        if (!labIds.has(labId)) continue;
+        if (!responsesByLab.has(labId)) {
+          responsesByLab.set(labId, []);
+        }
+        responsesByLab.get(labId).push(response as Record<string, unknown>);
+      }
+
+      let allItems = labs.map((lab) => {
+        const labId = String(lab._id);
+        const labResponses = responsesByLab.get(labId) ?? [];
+        const answeredCount = labResponses.length;
+        const status = this.getLabResponseStatus(answeredCount, totalQuestions);
+        const completionRate =
+          totalQuestions > 0
+            ? Math.round((answeredCount / totalQuestions) * 100)
+            : 0;
+
+        return {
+          lab,
+          hasResponded: answeredCount > 0,
+          isComplete:
+            totalQuestions > 0 && answeredCount >= totalQuestions,
+          responseStatus: status,
+          answeredCount,
+          totalQuestions,
+          completionRate,
+          responses: labResponses,
+        };
+      });
+
+      if (responseStatus) {
+        allItems = allItems.filter((item) =>
+          this.matchesResponseStatusFilter(item.responseStatus, responseStatus),
+        );
+      }
+
+      const respondedLabs = allItems.filter((item) => item.hasResponded).length;
+      const notRespondedLabs = allItems.filter(
+        (item) => !item.hasResponded,
+      ).length;
+      const partialLabs = allItems.filter(
+        (item) => item.responseStatus === LabResponseStatusEnum.PARTIAL,
+      ).length;
+      const completedLabs = allItems.filter((item) => item.isComplete).length;
+      const totalResponses = allItems.reduce(
+        (sum, item) => sum + item.answeredCount,
+        0,
+      );
+      const totalLabs = allItems.length;
+      const responseRate =
+        totalLabs > 0 ? Math.round((respondedLabs / totalLabs) * 100) : 0;
+
+      const stats = {
+        totalLabs,
+        respondedLabs,
+        notRespondedLabs,
+        partialLabs,
+        completedLabs,
+        totalQuestions,
+        totalResponses,
+        responseRate,
+      };
+
+      let data = allItems;
+      let pagination: Record<string, number> | undefined;
+
+      if (shouldPaginate) {
+        const skip = (page - 1) * limit;
+        data = allItems.slice(skip, skip + limit);
+        pagination = {
+          total: totalLabs,
+          page,
+          limit,
+          totalPages: Math.ceil(totalLabs / limit),
+        };
+      }
+
+      logger.info(`---INVESTIGATIONS.SERVICE.FIND_RESPONSES_BY_LAB SUCCESS---`);
+      return {
+        investigation: {
+          _id: investigation._id,
+          title: investigation.title,
+          active: investigation.active,
+          type: investigation.type,
+          status: investigation.status,
+          startDate: investigation.startDate,
+          endDate: investigation.endDate,
+        },
+        stats,
+        data,
+        ...(pagination ? { pagination } : {}),
+      };
+    } catch (error) {
+      logger.error(
+        `---INVESTIGATIONS.SERVICE.FIND_RESPONSES_BY_LAB ERROR ${error}---`,
       );
       if (error instanceof HttpException) {
         throw error;

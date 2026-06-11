@@ -15,6 +15,7 @@ import { CreateInvestigationDto } from './dto/create-investigation.dto';
 import { UpdateInvestigationDto } from './dto/update-investigation.dto';
 import { FindInvestigationDto } from './dto/find-investigation.dto';
 import { FindInvestigationQuestionsDto } from './dto/find-investigation-questions.dto';
+import { FindInvestigationResponsesByLabDto } from './dto/find-investigation-responses-by-lab.dto';
 import logger from 'src/utils/logger';
 
 @Controller('investigations')
@@ -53,6 +54,35 @@ export class InvestigationsController {
       });
     } catch (error) {
       logger.error(`---INVESTIGATIONS.CONTROLLER.FIND_ALL ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  @Get(':id/responses-by-lab')
+  async findResponsesByLab(
+    @Param('id') id: string,
+    @Query() query: FindInvestigationResponsesByLabDto,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---INVESTIGATIONS.CONTROLLER.FIND_RESPONSES_BY_LAB INIT---`);
+      const result = await this.investigationsService.findResponsesByLab(
+        id,
+        query,
+      );
+      logger.info(
+        `---INVESTIGATIONS.CONTROLLER.FIND_RESPONSES_BY_LAB SUCCESS---`,
+      );
+      return res.status(HttpStatus.OK).json({
+        message: `Réponses de l'enquête ${id} regroupées par laboratoire`,
+        ...result,
+      });
+    } catch (error) {
+      logger.error(
+        `---INVESTIGATIONS.CONTROLLER.FIND_RESPONSES_BY_LAB ERROR ${error}---`,
+      );
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: error.message });

@@ -5,6 +5,9 @@ import { InvestigationsController } from './investigations.controller';
 import { InvestigationSchema } from './schemas/investigation.schema';
 import { InvestigationQuestionSchema } from '../investigation-questions/schemas/investigation-question.schema';
 import { QuestionSchema } from '../questions/schemas/question.schema';
+import { LabSchema } from '../labs/schemas/lab.schema';
+import { StructureSchema } from '../structure/schemas/structure.schema';
+import { ResponseSchema } from '../responses/schemas/response.schema';
 
 @Module({
   imports: [
@@ -12,6 +15,9 @@ import { QuestionSchema } from '../questions/schemas/question.schema';
       { name: 'Investigation', schema: InvestigationSchema },
       { name: 'InvestigationQuestion', schema: InvestigationQuestionSchema },
       { name: 'Question', schema: QuestionSchema },
+      { name: 'Lab', schema: LabSchema },
+      { name: 'Structure', schema: StructureSchema },
+      { name: 'Response', schema: ResponseSchema },
     ]),
   ],
   controllers: [InvestigationsController],
