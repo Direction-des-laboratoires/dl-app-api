@@ -74,6 +74,24 @@ export class FindInvestigationResponsesByLabDto {
   specialities?: string[];
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
+  @IsBoolean()
+  hasResponded?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
+  @IsBoolean()
+  isComplete?: boolean;
+
+  @IsOptional()
   @IsEnum(LabResponseStatusEnum)
   responseStatus?: LabResponseStatusEnum;
 }

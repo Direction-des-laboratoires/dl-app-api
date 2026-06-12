@@ -456,6 +456,8 @@ export class InvestigationsService {
         page = 1,
         limit = 10,
         paginate = true,
+        hasResponded,
+        isComplete,
         responseStatus,
       } = query;
       const shouldPaginate = paginate !== false;
@@ -549,6 +551,16 @@ export class InvestigationsService {
           responses: labResponses,
         };
       });
+
+      if (hasResponded !== undefined) {
+        allItems = allItems.filter(
+          (item) => item.hasResponded === hasResponded,
+        );
+      }
+
+      if (isComplete !== undefined) {
+        allItems = allItems.filter((item) => item.isComplete === isComplete);
+      }
 
       if (responseStatus) {
         allItems = allItems.filter((item) =>
