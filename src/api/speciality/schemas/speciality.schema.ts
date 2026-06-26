@@ -11,6 +11,11 @@ export const SpecialitySchema = new mongoose.Schema({
     type: String,
   },
 
+  rank: {
+    type: Number,
+    default: null,
+  },
+
   created_at: {
     type: Date,
     default: Date.now(),

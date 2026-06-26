@@ -26,11 +26,16 @@ export class MaintenancesController {
 
   @Roles(Role.SuperAdmin, Role.LabAdmin)
   @Post()
-  async create(@Body() createMaintenanceDto: CreateMaintenanceDto, @Res() res) {
+  async create(
+    @Body() createMaintenanceDto: CreateMaintenanceDto,
+    @Req() req,
+    @Res() res,
+  ) {
     try {
       logger.info(`---MAINTENANCES.CONTROLLER.CREATE INIT---`);
       const maintenance = await this.maintenancesService.create(
         createMaintenanceDto,
+        req.user?._id?.toString(),
       );
       logger.info(`---MAINTENANCES.CONTROLLER.CREATE SUCCESS---`);
       return res.status(HttpStatus.CREATED).json({
@@ -109,6 +114,7 @@ export class MaintenancesController {
   async update(
     @Param('id') id: string,
     @Body() updateMaintenanceDto: UpdateMaintenanceDto,
+    @Req() req,
     @Res() res,
   ) {
     try {
@@ -116,6 +122,7 @@ export class MaintenancesController {
       const updated = await this.maintenancesService.update(
         id,
         updateMaintenanceDto,
+        req.user?._id?.toString(),
       );
       logger.info(`---MAINTENANCES.CONTROLLER.UPDATE SUCCESS---`);
       return res.status(HttpStatus.OK).json({

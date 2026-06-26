@@ -9,7 +9,6 @@ import {
   IsBoolean,
 } from 'class-validator';
 import {
-  MaintenanceType,
   MaintenanceStatus,
   ScheduleFrequency,
 } from '../schemas/maintenance.schema';
@@ -19,17 +18,17 @@ export class CreateMaintenanceDto {
   @IsMongoId()
   equipment: string;
 
-  @IsNotEmpty()
-  @IsEnum(MaintenanceType)
-  maintenanceType: MaintenanceType;
-
   @IsOptional()
   @IsMongoId()
   technician?: string;
 
   @IsOptional()
   @IsDateString()
-  date?: Date;
+  startDate?: Date;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: Date;
 
   @IsOptional()
   @IsEnum(ScheduleFrequency)

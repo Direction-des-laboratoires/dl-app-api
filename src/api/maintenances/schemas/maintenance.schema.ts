@@ -1,12 +1,5 @@
 import * as mongoose from 'mongoose';
 
-export enum MaintenanceType {
-  PREVENTIVE = 'preventive',
-  CORRECTIVE = 'corrective',
-  // PREDICTIVE = 'predictive',
-  CALIBRATION = 'calibration',
-}
-
 export enum MaintenanceStatus {
   SCHEDULED = 'scheduled',
   COMPLETED = 'completed',
@@ -30,19 +23,18 @@ export const MaintenanceSchema = new mongoose.Schema({
     ref: 'Equipment',
     required: true,
   },
-  maintenanceType: {
-    type: String,
-    enum: Object.values(MaintenanceType),
-    required: true,
-  },
   technician: {
     type: mongoose.Schema.ObjectId,
     ref: 'User',
     default: null,
   },
-  date: {
+  startDate: {
     type: Date,
-    default: Date.now,
+    default: null,
+  },
+  endDate: {
+    type: Date,
+    default: null,
   },
   frequency: {
     type: String,

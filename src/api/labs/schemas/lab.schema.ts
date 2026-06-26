@@ -1,5 +1,5 @@
 import * as mongoose from 'mongoose';
-const autopopulate = require('mongoose-autopopulate');
+import autopopulate from 'mongoose-autopopulate';
 
 export const LabSchema = new mongoose.Schema({
   name: {
@@ -16,6 +16,12 @@ export const LabSchema = new mongoose.Schema({
     type: [mongoose.Schema.Types.ObjectId],
     ref: 'Speciality',
     default: [],
+    autopopulate: true,
+  },
+  type: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'LabType',
+    default: null,
     autopopulate: true,
   },
   lat: {
@@ -66,7 +72,6 @@ LabSchema.pre(
       const labId = query._id;
 
       if (labId) {
-        const mongoose = require('mongoose');
 
         // Delete related Equipments
         await mongoose.model('Equipment').deleteMany({ lab: labId });

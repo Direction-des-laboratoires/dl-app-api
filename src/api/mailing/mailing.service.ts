@@ -11,7 +11,6 @@ import {
   SendToRoleDto,
   SendMailDto,
   SendMailWithRecipientsDto,
-  RecipientsDto,
 } from './dto/send-mail.dto';
 import logger from 'src/utils/logger';
 

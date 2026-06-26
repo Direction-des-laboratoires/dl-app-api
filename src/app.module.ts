@@ -10,7 +10,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './api/auth/auth.module';
 import { AuthMiddleware } from './middlewares/auth.middleware';
 import { ScheduleModule } from '@nestjs/schedule';
-import { LoanJobsService } from './jobs/loan-job/loan-job.service';
 import { LabsModule } from './api/labs/labs.module';
 import { DistrictModule } from './api/district/district.module';
 import { StructureModule } from './api/structure/structure.module';
@@ -47,41 +46,43 @@ import { EnvironmentModule } from './api/environment/environment.module';
 import { EnvironmentPositionModule } from './api/environment-position/environment-position.module';
 import { ContractTypeModule } from './api/contract-type/contract-type.module';
 import { PositionModule } from './api/position/position.module';
+import { RegionPoleModule } from './api/region-pole/region-pole.module';
+import { LabTypeModule } from './api/lab-type/lab-type.module';
+import { LabTypePositionModule } from './api/lab-type-position/lab-type-position.module';
+import { SubSpecialityModule } from './api/sub-speciality/sub-speciality.module';
+import { StructureLevelEquipmentTypeModule } from './api/structure-level-equipment-type/structure-level-equipment-type.module';
+import { EquipmentLifeEventsModule } from './api/equipment-life-events/equipment-life-events.module';
+import { QuestionsModule } from './api/questions/questions.module';
+import { QuestionSectionsModule } from './api/question-sections/question-sections.module';
+import { ResponsesModule } from './api/responses/responses.module';
+import { InvestigationsModule } from './api/investigations/investigations.module';
+import { InvestigationQuestionsModule } from './api/investigation-questions/investigation-questions.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
+    }),
+    JwtModule.registerAsync({
+      global: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        privateKey: configService.get<string>('privateKey').replace(/\\n/g, '\n'),
+        publicKey: configService.get<string>('publicKey').replace(/\\n/g, '\n'),
+        signOptions: {
+          algorithm: 'RS256',
+          expiresIn: '1d',
+        },
+      }),
+    }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('dbUrl'),
       }),
-    }),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        secret: Buffer.from(
-          configService.get<string>('privateKey').replace(/\\n/g, '\n'), // Remplace \n par une vraie nouvelle ligne
-          'utf-8',
-        ),
-        privateKey: Buffer.from(
-          configService.get<string>('privateKey').replace(/\\n/g, '\n'), // Remplace \n par une vraie nouvelle ligne
-          'utf-8',
-        ),
-        publicKey: Buffer.from(
-          configService.get<string>('publicKey').replace(/\\n/g, '\n'), // Remplace \n par une vraie nouvelle ligne
-          'utf-8',
-        ),
-        signOptions: {
-          algorithm: 'RS256', // Utilisation de l'algorithme RS256 pour la signature avec clé privée
-          expiresIn: '1d', // Expiration : 1 jour
-        },
-      }),
-    }),
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [configuration],
     }),
     AuthModule,
     UserModule,
@@ -91,6 +92,7 @@ import { PositionModule } from './api/position/position.module';
     RegionModule,
     DepartmentModule,
     StructureLevelModule,
+    StructureLevelEquipmentTypeModule,
     PostModule,
     RequestsModule,
     MailModule,
@@ -109,6 +111,7 @@ import { PositionModule } from './api/position/position.module';
     EquipmentCategoriesModule,
     EquipmentTypesModule,
     EquipmentsModule,
+    EquipmentLifeEventsModule,
     EquipmentStocksModule,
     EquipmentOrdersModule,
     IntrantCategoriesModule,
@@ -121,6 +124,15 @@ import { PositionModule } from './api/position/position.module';
     EnvironmentPositionModule,
     ContractTypeModule,
     PositionModule,
+    RegionPoleModule,
+    LabTypeModule,
+    LabTypePositionModule,
+    SubSpecialityModule,
+    QuestionsModule,
+    QuestionSectionsModule,
+    ResponsesModule,
+    InvestigationsModule,
+    InvestigationQuestionsModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
@@ -132,12 +144,38 @@ export class AppModule {
       .apply(AuthMiddleware)
       .exclude(
         { path: 'auth/login', method: RequestMethod.POST }, // Exclure les routes de connexion
-        { path: 'auth/register', method: RequestMethod.POST }, // Exclure les routes d'inscription
+        //{ path: 'auth/register', method: RequestMethod.POST }, // Exclure les routes d'inscription
+        { path: 'users/register-lab-admin', method: RequestMethod.POST }, // Exclure l'inscription LabAdmin publique
         { path: 'posts', method: RequestMethod.GET },
         { path: 'posts/:id', method: RequestMethod.GET },
         { path: 'amm-imports', method: RequestMethod.POST }, // Exclure la création de demande AMM (accessible sans authentification)
         { path: 'lab-openings', method: RequestMethod.POST }, // Exclure la création de demande Lab Opening (accessible sans authentification)
         { path: 'sdr-accreditations', method: RequestMethod.POST }, // Exclure la création de demande SDR (accessible sans authentification)
+        { path: 'regions', method: RequestMethod.GET },
+        { path: 'districts', method: RequestMethod.GET },
+        /** Liste des labos : accès public. Ne pas exclure `labs/:id` : cela capturait aussi `labs/stats`, `labs/stats-by-region`, etc. */
+        { path: 'labs', method: RequestMethod.GET },
+        { path: 'departments', method: RequestMethod.GET },
+        { path: 'structure-levels', method: RequestMethod.GET },
+        { path: 'structure-level-equipment-types', method: RequestMethod.GET },
+        { path: 'structure-level-equipment-types/:id', method: RequestMethod.GET },
+        { path: 'structures', method: RequestMethod.GET },
+        { path: 'region-poles', method: RequestMethod.GET },
+        { path: 'lab-types', method: RequestMethod.GET },
+        { path: 'lab-types/:id', method: RequestMethod.GET },
+        { path: 'lab-type-positions', method: RequestMethod.GET },
+        { path: 'contract-types', method: RequestMethod.GET },
+        { path: 'positions', method: RequestMethod.GET },
+        { path: 'specialities', method: RequestMethod.GET },
+        { path: 'sub-specialities', method: RequestMethod.GET },
+        { path: 'staff-levels', method: RequestMethod.GET },
+        { path: 'equipment-categories', method: RequestMethod.GET },
+        { path: 'equipment-types', method: RequestMethod.GET },
+        { path: 'equipment-orders', method: RequestMethod.GET },
+        { path: 'intrants', method: RequestMethod.GET },
+        { path: 'intrant-categories', method: RequestMethod.GET },
+        { path: 'intrant-types', method: RequestMethod.GET },
+        { path: 'structure-levels-equipment-types', method: RequestMethod.GET },
       )
       .forRoutes('*'); // Appliquer à toutes les routes sauf exclusions
   }

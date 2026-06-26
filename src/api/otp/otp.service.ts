@@ -16,7 +16,7 @@ import {
   isCodeExpired,
 } from 'src/utils/functions/expiration_date';
 import logger from 'src/utils/logger';
-import * as bcrypt from 'bcrypt';
+
 import { forwardRef, Inject } from '@nestjs/common';
 
 @Injectable()
@@ -71,7 +71,7 @@ export class OtpService {
       );
 
       // Créer le nouveau code OTP
-      const otp = await this.otpModel.create({
+      await this.otpModel.create({
         user: user._id,
         code,
         type: requestOtpDto.type,

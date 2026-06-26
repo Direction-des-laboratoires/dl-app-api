@@ -13,6 +13,14 @@ export class EnvironmentPositionController {
     return this.environmentPositionService.create(createEnvironmentPositionDto);
   }
 
+  @Post('bulk')
+  createBulk(
+    @Body('environment') environment: string,
+    @Body('positions') positions: string[],
+  ) {
+    return this.environmentPositionService.createBulk(environment, positions);
+  }
+
   @Get()
   findAll(@Query() query: FindEnvironmentPositionDto) {
     return this.environmentPositionService.findAll(query);

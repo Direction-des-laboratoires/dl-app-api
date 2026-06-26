@@ -7,9 +7,11 @@ import { EquipmentSchema } from '../equipments/schemas/equipment.schema';
 import { UserSchema } from '../user/schemas/user.schema';
 import { LabSchema } from '../labs/schemas/lab.schema';
 import { StructureSchema } from '../structure/schemas/structure.schema';
+import { EquipmentLifeEventsModule } from '../equipment-life-events/equipment-life-events.module';
 
 @Module({
   imports: [
+    EquipmentLifeEventsModule,
     MongooseModule.forFeature([
       { name: 'Maintenance', schema: MaintenanceSchema },
       { name: 'Equipment', schema: EquipmentSchema },

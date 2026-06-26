@@ -7,15 +7,12 @@ import { UserService } from '../user/user.service';
 import logger from 'src/utils/logger';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { ConfigService } from '@nestjs/config';
-import { sanitizeUser } from 'src/utils/functions/sanitizer';
-import { MessageSentFor } from 'src/utils/enums/message_sent_for.enum';
-import { MessageTypes } from 'src/utils/enums/message_types.enum';
-import { PhoneVerificationDto } from './dto/phone-verification.dto';
 import { expirationDate } from 'src/utils/functions/expiration_date';
 import { generateDigits } from 'src/utils/functions/code_generation';
 import { SendCodeVerificationDto } from './dto/send-code-verification.dto';
 import * as bcrypt from 'bcrypt';
 import { PromobileSmsService } from 'src/providers/sms-service/promobile.service';
+import { CreateLabAdminAccountDto } from './dto/create-lab-admin-account.dto';
 
 @Injectable()
 export class AuthService {
@@ -29,10 +26,7 @@ export class AuthService {
   async generateToken(user: any) {
     try {
       const payload = { email: user.email, role: user.role, userId: user._id };
-      return this.jwtService.sign(payload, {
-        secret: this.configService.get<string>('privateKey'),
-        expiresIn: '1d',
-      });
+      return this.jwtService.sign(payload);
     } catch (error) {
       logger.error(`---GENERATE TOKEN ERROR ${error}`);
       throw new HttpException(error.message, error.status);
@@ -41,9 +35,7 @@ export class AuthService {
 
   async verifyToken(token: string) {
     try {
-      return this.jwtService.verify(token, {
-        secret: this.configService.get<string>('privateKey'),
-      });
+      return this.jwtService.verify(token);
     } catch (error) {
       throw new HttpException(error.message, error.status);
     }
@@ -170,6 +162,23 @@ export class AuthService {
     }
   }
 
+  async registerLabAdmin(createLabAdminDto: CreateLabAdminAccountDto): Promise<any> {
+    try {
+      logger.info(`---AUTH.SERVICE.REGISTER_LAB_ADMIN INIT---`);
+      await this.userService.createLabAdminAccount(
+        createLabAdminDto as any,
+      );
+      // const token = await this.generateToken(user);
+      logger.info(`---AUTH.SERVICE.REGISTER_LAB_ADMIN SUCCESS---`);
+      return {
+        message: 'Compte LabAdmin créé avec succés!',
+        // data: { ...user, token },
+      };
+    } catch (error) {
+      throw new HttpException(error.message, error.status);
+    }
+  }
+
   async findByPhoneNumber(phoneNumber: string) {
     try {
       const user = await this.userService.findByPhoneNumber(phoneNumber);
@@ -190,7 +199,7 @@ export class AuthService {
 
   async loginByPhoneNumber(phoneNumber: string) {
     try {
-      const user = await this.findByPhoneNumber(phoneNumber);
+      await this.findByPhoneNumber(phoneNumber);
       // const phoneMessageDto = new CreatePhoneMessageDto(
       //   MessageTypes.sms,
       //   MessageSentFor.phoneNumberVerification,
@@ -215,9 +224,8 @@ export class AuthService {
 
   async sendCodeVerificationToUnknownNumber(phoneNumber: string) {
     try {
-      const user = await this.userService.checkPhoneNumber(phoneNumber);
+      await this.userService.checkPhoneNumber(phoneNumber);
       const code = generateDigits(6);
-      const expiration = expirationDate(5);
       let phoneMessageDto = new SendCodeVerificationDto();
       phoneMessageDto.phoneNumber = phoneNumber;
       this.promobileSmsService.sendSms({

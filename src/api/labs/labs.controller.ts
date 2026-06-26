@@ -15,6 +15,7 @@ import { CreateLabDto } from './dto/create-lab.dto';
 import { CreateMultipleLabsDto } from './dto/create-multiple-labs.dto';
 import { UpdateLabDto } from './dto/update-lab.dto';
 import { FindLabsDto } from './dto/find-lab.dto';
+import { LabsStatsDto } from './dto/labs-stats.dto';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
@@ -77,20 +78,44 @@ export class LabsController {
     }
   }
 
+  @Roles(Role.SuperAdmin)
+  @Post('bulk-with-managers')
+  async createBulkWithManagers(@Body() payload: any[], @Res() res) {
+    try {
+      logger.info(
+        `---LABS.CONTROLLER.CREATE_BULK_WITH_MANAGERS INIT--- count=${payload?.length || 0}`,
+      );
+      const result = await this.labsService.createBulkWithManagers(payload || []);
+      logger.info(`---LABS.CONTROLLER.CREATE_BULK_WITH_MANAGERS SUCCESS---`);
+      return res.status(HttpStatus.CREATED).json(result);
+    } catch (error: any) {
+      logger.error(`---LABS.CONTROLLER.CREATE_BULK_WITH_MANAGERS ERROR ${error}---`);
+      return res.status(error.status || HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message:
+          error.message ||
+          'Erreur lors de la création bulk des laboratoires et responsables',
+      });
+    }
+  }
+
   @Get()
   async findAll(@Query() query: FindLabsDto, @Res() res) {
     try {
       const result = await this.labsService.findAll(query);
-
-      return res.status(HttpStatus.OK).json({
+      const response: any = {
         message: 'Liste des laboratoires',
         data: result.data,
-        pagination: {
+      };
+      if (query.paginate !== false) {
+        response.pagination = {
           total: result.total,
           page: result.page,
+          limit: result.limit,
           totalPages: result.totalPages,
-        },
-      });
+        };
+      }
+
+      return res.status(HttpStatus.OK).json(response);
     } catch (error: any) {
       return res.status(error.status || 500).json({
         message: error.message || 'Erreur serveur',
@@ -114,6 +139,25 @@ export class LabsController {
     }
   }
 
+  @Roles(Role.SuperAdmin, Role.RegionAdmin, Role.LabAdmin)
+  @Get('stats')
+  async getStats(@Query() query: LabsStatsDto, @Res() res) {
+    try {
+      logger.info(`---LABS.CONTROLLER.GET_STATS INIT---`);
+      const stats = await this.labsService.getStats(query);
+      logger.info(`---LABS.CONTROLLER.GET_STATS SUCCESS---`);
+      return res.status(HttpStatus.OK).json({
+        message: 'Statistiques des laboratoires récupérées',
+        data: stats,
+      });
+    } catch (error: any) {
+      logger.error(`---LABS.CONTROLLER.GET_STATS ERROR ${error}---`);
+      return res.status(error.status || 500).json({
+        message: error.message || 'Erreur serveur',
+      });
+    }
+  }
+
   @Roles(Role.SuperAdmin)
   @Get('region/:regionId')
   async getLabsByRegion(
@@ -126,10 +170,19 @@ export class LabsController {
         regionId,
         query,
       );
-      return res.status(HttpStatus.OK).json({
+      const response: any = {
         message: 'Nombre de Laboratoires par région',
-        data: groupByRegion,
-      });
+        data: groupByRegion.data,
+      };
+      if (query.paginate !== false) {
+        response.pagination = {
+          total: groupByRegion.total,
+          page: groupByRegion.page,
+          limit: groupByRegion.limit,
+          totalPages: groupByRegion.totalPages,
+        };
+      }
+      return res.status(HttpStatus.OK).json(response);
     } catch (error: any) {
       return res.status(error.status || 500).json({
         message: error.message || 'Erreur serveur',

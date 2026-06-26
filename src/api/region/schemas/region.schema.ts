@@ -11,6 +11,12 @@ export const RegionSchema = new mongoose.Schema({
     unique: true,
     required: true,
   },
+  pole: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'RegionPole',
+    required: true,
+    default: null,
+  },
   created_at: {
     type: Date,
     default: Date.now(),

@@ -5,8 +5,19 @@ import {
   IsOptional,
   IsEnum,
   IsDateString,
+  IsBoolean,
 } from 'class-validator';
-import { EquipmentStatus, InventoryStatus } from '../schemas/equipment.schema';
+import {
+  EquipmentStatus,
+  InventoryStatus,
+  ReceptionStatus,
+  AcquisitionModality,
+  DonSource,
+  DonSourceMshp,
+  IntrantDispo,
+  ContratMaintenance,
+  ContratMaintenanceType,
+} from '../schemas/equipment.schema';
 
 export class CreateEquipmentDto {
   @IsOptional()
@@ -38,6 +49,10 @@ export class CreateEquipmentDto {
   inventoryStatus?: InventoryStatus;
 
   @IsOptional()
+  @IsEnum(ReceptionStatus)
+  receptionStatus?: ReceptionStatus;
+
+  @IsOptional()
   @IsMongoId()
   affectedTo?: string;
 
@@ -64,6 +79,70 @@ export class CreateEquipmentDto {
   @IsOptional()
   @IsDateString()
   nextMaintenanceDate?: Date;
+
+  @IsOptional()
+  @IsDateString()
+  lastCalibrationDate?: Date;
+
+  @IsOptional()
+  @IsDateString()
+  nextCalibrationDate?: Date;
+
+  @IsOptional()
+  @IsBoolean()
+  isCritical?: boolean;
+
+  @IsOptional()
+  @IsEnum(AcquisitionModality)
+  acquisitionModality?: AcquisitionModality;
+
+  @IsOptional()
+  @IsEnum(DonSource)
+  donationSource?: DonSource;
+
+  @IsOptional()
+  @IsEnum(DonSourceMshp)
+  donationSourceMshp?: DonSourceMshp;
+
+  @IsOptional()
+  @IsString()
+  donationSourcePrecision?: string;
+
+  @IsOptional()
+  @IsString()
+  partnerDonationSourcePrecision?: string;
+
+  @IsOptional()
+  @IsString()
+  mshpDonationSourcePrecision?: string;
+
+  @IsOptional()
+  @IsString()
+  onLoanSupplier?: string;
+
+  @IsOptional()
+  @IsEnum(IntrantDispo)
+  intrantDispo?: IntrantDispo;
+
+  @IsOptional()
+  @IsString()
+  intrantNonRaison?: string;
+
+  @IsOptional()
+  @IsEnum(ContratMaintenance)
+  contratMaintenance?: ContratMaintenance;
+
+  @IsOptional()
+  @IsEnum(ContratMaintenanceType)
+  contratMaintenanceType?: ContratMaintenanceType;
+
+  @IsOptional()
+  @IsBoolean()
+  maintenanceRequired?: boolean;
+
+  @IsOptional()
+  @IsDateString()
+  firstUsedDate?: Date;
 
   @IsOptional()
   @IsString()

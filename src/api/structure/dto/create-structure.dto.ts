@@ -13,7 +13,7 @@ export class CreateStructureDto {
   @IsNotEmpty()
   region: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   department: string;
 
   @IsNotEmpty()

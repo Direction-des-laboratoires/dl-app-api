@@ -60,7 +60,7 @@ export class ContractTypeService {
       const [data, total] = await Promise.all([
         this.contractTypeModel
           .find(filters)
-          .sort({ name: 1 })
+          .sort({ rank: 1, name: 1 })
           .skip(skip)
           .limit(limit)
           .exec(),

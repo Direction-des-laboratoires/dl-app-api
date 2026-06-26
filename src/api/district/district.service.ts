@@ -25,6 +25,39 @@ export class DistrictService {
     }
   }
 
+  async createBulk(districtsDto: CreateDistrictDto[]) {
+    try {
+      logger.info(`---DISTRICT.SERVICE.CREATE_BULK INIT--- count=${districtsDto.length}`);
+      const results = [];
+      const errors = [];
+
+      for (const districtDto of districtsDto) {
+        try {
+          const result = await this.create(districtDto);
+          results.push(result);
+        } catch (error) {
+          errors.push({
+            name: districtDto.name,
+            error: error.message,
+          });
+        }
+      }
+
+      logger.info(`---DISTRICT.SERVICE.CREATE_BULK SUCCESS--- created=${results.length}, failed=${errors.length}`);
+      return {
+        message: `${results.length} districts créés avec succès`,
+        data: results,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    } catch (error) {
+      logger.error(`---DISTRICT.SERVICE.CREATE_BULK ERROR ${error}---`);
+      throw new HttpException(
+        error.message || 'Erreur lors de la création multiple des districts',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async createMany() {
     try {
       logger.info(`---DISTRICT.SERVICE.CREATE_MANY INIT---`);

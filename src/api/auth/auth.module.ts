@@ -9,7 +9,7 @@ import { OtpModule } from '../otp/otp.module';
 import { forwardRef } from '@nestjs/common';
 
 @Module({
-  imports: [UserModule, JwtModule, ConfigModule, forwardRef(() => OtpModule)],
+  imports: [UserModule, ConfigModule, forwardRef(() => OtpModule)],
   controllers: [AuthController],
   providers: [AuthService, PromobileSmsService],
   exports: [AuthService],

@@ -36,6 +36,21 @@ export class DistrictController {
     }
   }
 
+  @Post('bulk')
+  async createBulk(@Body() districtsDto: CreateDistrictDto[], @Res() res) {
+    try {
+      logger.info(`---DISTRICT.CONTROLLER.CREATE_BULK INIT---`);
+      const result = await this.districtService.createBulk(districtsDto);
+      logger.info(`---DISTRICT.CONTROLLER.CREATE_BULK SUCCESS---`);
+      return res.status(HttpStatus.CREATED).json(result);
+    } catch (error) {
+      logger.error(`---DISTRICT.CONTROLLER.CREATE_BULK ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
   @Post('seeds')
   async createMany(@Res() res) {
     try {

@@ -16,7 +16,7 @@ import {
 import { PostService } from './post.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { UploadHelper } from 'src/utils/functions/upload-image.helper';
 import { FindPostDto } from './dto/find-post.dto';
@@ -27,7 +27,7 @@ export class PostController {
   constructor(private readonly postService: PostService) {}
 
   @UseInterceptors(
-    FilesInterceptor('files', 10, {
+    AnyFilesInterceptor({
       storage: diskStorage({
         destination: UploadHelper.uploadDirectory,
       }),
@@ -35,19 +35,29 @@ export class PostController {
   )
   @Post()
   async create(
-    @UploadedFiles() files: [Express.Multer.File],
+    @UploadedFiles() files: Express.Multer.File[],
     @Body() createPostDto: CreatePostDto,
     @Req() req,
     @Res() res,
   ) {
     try {
       const userId = req.user._id;
-      const post = await this.postService.create(createPostDto, userId, files);
+      const fileList = Array.isArray(files) ? files : [];
+      const post = await this.postService.create(
+        createPostDto,
+        userId,
+        fileList,
+      );
       return res
         .status(HttpStatus.CREATED)
         .json({ message: 'Post créé', data: post });
     } catch (error) {
-      return res.status(error.status).json({ message: error.message });
+      const status = error.status || HttpStatus.BAD_REQUEST;
+      const message =
+        error.response?.message || error.message || 'Erreur lors de la création';
+      return res.status(status).json({
+        message: Array.isArray(message) ? message.join(', ') : message,
+      });
     }
   }
 

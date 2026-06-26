@@ -32,22 +32,69 @@ export class EquipmentTypesService {
     }
   }
 
+  async createBulk(equipmentTypesDto: CreateEquipmentTypeDto[]) {
+    try {
+      logger.info(`---EQUIPMENT_TYPES.SERVICE.CREATE_BULK INIT--- count=${equipmentTypesDto.length}`);
+      const results = [];
+      const errors = [];
+
+      for (const equipmentTypeDto of equipmentTypesDto) {
+        try {
+          const result = await this.create(equipmentTypeDto);
+          results.push(result);
+        } catch (error) {
+          errors.push({
+            name: equipmentTypeDto.name,
+            error: error.message,
+          });
+        }
+      }
+
+      logger.info(`---EQUIPMENT_TYPES.SERVICE.CREATE_BULK SUCCESS--- created=${results.length}, failed=${errors.length}`);
+      return {
+        message: `${results.length} types d'équipements créés avec succès`,
+        data: results,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    } catch (error) {
+      logger.error(`---EQUIPMENT_TYPES.SERVICE.CREATE_BULK ERROR ${error}---`);
+      throw new HttpException(
+        error.message || "Erreur lors de la création multiple des types d'équipements",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findAll(query: {
     page?: number;
     limit?: number;
+    paginate?: boolean;
+    category?: string;
     equipmentCategory?: string;
     search?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
   }): Promise<any> {
     try {
       logger.info(`---EQUIPMENT_TYPES.SERVICE.FIND_ALL INIT---`);
 
-      const { page = 1, limit = 10, equipmentCategory, search } = query;
+      const {
+        page = 1,
+        limit = 10,
+        paginate = true,
+        category,
+        equipmentCategory,
+        search,
+        sortBy = 'name',
+        sortOrder = 'asc',
+      } = query;
+
       const skip = (page - 1) * limit;
+      const categoryId = category || equipmentCategory;
 
       const filters: any = {};
-      if (equipmentCategory) filters.equipmentCategory = equipmentCategory;
+      if (categoryId) filters.equipmentCategory = categoryId;
 
-      // Recherche globale
       if (search && search.trim() !== '') {
         const searchRegex = new RegExp(search.trim(), 'i');
         filters.$or = [
@@ -57,17 +104,27 @@ export class EquipmentTypesService {
         ];
       }
 
+      const sortField = sortBy || 'name';
+      const sortDir = sortOrder === 'desc' ? -1 : 1;
+      const sortObj: Record<string, 1 | -1> = { [sortField]: sortDir as 1 | -1 };
+
+      const queryBuilder = this.equipmentTypeModel
+        .find(filters)
+        .populate('equipmentCategory', 'name')
+        .sort(sortObj);
+
+      if (paginate) {
+        queryBuilder.skip(skip).limit(limit);
+      }
+
       const [data, total] = await Promise.all([
-        this.equipmentTypeModel
-          .find(filters)
-          .populate('equipmentCategory', 'name')
-          .sort({ name: 1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        this.equipmentTypeModel.countDocuments(filters),
+        queryBuilder.lean(),
+        paginate ? this.equipmentTypeModel.countDocuments(filters) : Promise.resolve(0),
       ]);
 
+      if (!paginate) {
+        return { data };
+      }
       return {
         data,
         pagination: {

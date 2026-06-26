@@ -8,6 +8,8 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { Gender } from 'src/utils/enums/gender.enum';
+import { MaritalStatus } from 'src/utils/enums/marital-status.enum';
+import { ExperienceRange } from 'src/utils/enums/experience-range.enum';
 
 export class FindUsersDto {
   @IsOptional()
@@ -39,6 +41,27 @@ export class FindUsersDto {
   gender?: Gender;
 
   @IsOptional()
+  @IsEnum(MaritalStatus)
+  maritalStatus?: MaritalStatus;
+
+  @IsOptional()
+  @IsEnum(ExperienceRange)
+  experienceDuration?: ExperienceRange;
+
+  // @IsOptional()
+  // @IsEnum(ExperienceRange)
+  // dureeLabo?: ExperienceRange;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
+  })
+  @IsBoolean()
+  disabled?: boolean;
+
+  @IsOptional()
   @IsString()
   search?: string;
 
@@ -65,6 +88,18 @@ export class FindUsersDto {
   @IsOptional()
   @IsMongoId()
   region?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  pole?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  district?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  structure?: string;
 
   @IsOptional()
   @IsString()
@@ -94,4 +129,18 @@ export class FindUsersDto {
   @IsArray()
   @IsMongoId({ each: true })
   specialities?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      return value.split(',').map((id) => id.trim());
+    }
+    return value;
+  })
+  @IsArray()
+  @IsMongoId({ each: true })
+  subSpecialities?: string[];
 }

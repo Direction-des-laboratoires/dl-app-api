@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable prettier/prettier */
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateLabStaffDto, CreateUserDto } from './dto/create-user.dto';
@@ -16,6 +15,11 @@ import { MailService } from 'src/providers/mail-service/mail.service';
 import { uploadFile } from 'src/utils/functions/file.upload';
 import { ProfessionalExperience } from '../professional-experience/interfaces/professional-experience.interface';
 import { Training } from '../training/interfaces/training.interface';
+import { Lab } from '../labs/interfaces/labs.interface';
+import { SubSpeciality } from '../sub-speciality/interfaces/sub-speciality.interface';
+import { Structure } from '../structure/interfaces/structure.interface';
+import { Position } from '../position/interfaces/position.interface';
+import { LabTypePosition } from '../lab-type-position/interfaces/lab-type-position.interface';
 
 @Injectable()
 export class UserService {
@@ -24,6 +28,13 @@ export class UserService {
     @InjectModel('ProfessionalExperience')
     private professionalExperienceModel: Model<ProfessionalExperience>,
     @InjectModel('Training') private trainingModel: Model<Training>,
+    @InjectModel('Lab') private labModel: Model<Lab>,
+    @InjectModel('SubSpeciality')
+    private subSpecialityModel: Model<SubSpeciality>,
+    @InjectModel('Structure') private structureModel: Model<Structure>,
+    @InjectModel('Position') private positionModel: Model<Position>,
+    @InjectModel('LabTypePosition')
+    private labTypePositionModel: Model<LabTypePosition>,
     private mailService: MailService,
   ) {}
   /**
@@ -53,9 +64,248 @@ export class UserService {
       .join('');
   }
 
+  private async resolveSubSpecialities(
+    subSpecialitiesInput: unknown,
+  ): Promise<mongoose.Types.ObjectId[] | undefined> {
+    if (subSpecialitiesInput === undefined || subSpecialitiesInput === null) {
+      return undefined;
+    }
+
+    let values: string[] = [];
+
+    if (Array.isArray(subSpecialitiesInput)) {
+      values = subSpecialitiesInput
+        .map((item) => String(item).trim())
+        .filter((item) => item.length > 0);
+    } else if (typeof subSpecialitiesInput === 'string') {
+      const raw = subSpecialitiesInput.trim();
+      values = raw.includes(',')
+        ? raw
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : raw
+        ? [raw]
+        : [];
+    } else {
+      values = [String(subSpecialitiesInput).trim()].filter(Boolean);
+    }
+
+    const resolvedIds: mongoose.Types.ObjectId[] = [];
+
+    for (const value of values) {
+      if (mongoose.Types.ObjectId.isValid(value)) {
+        resolvedIds.push(new mongoose.Types.ObjectId(value));
+        continue;
+      }
+
+      const existing = await this.subSpecialityModel.findOne({
+        name: {
+          $regex: `^${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+          $options: 'i',
+        },
+      });
+
+      if (existing) {
+        resolvedIds.push(existing._id as any);
+        continue;
+      }
+
+      const created = await this.subSpecialityModel.create({
+        name: value,
+        isFromOther: true,
+      });
+      resolvedIds.push(created._id as any);
+    }
+
+    // Dédupliquer les IDs
+    const uniqueIds = Array.from(
+      new Set(resolvedIds.map((id) => String(id))),
+    ).map((id) => new mongoose.Types.ObjectId(id));
+
+    return uniqueIds;
+  }
+
+  private async resolveLabIdsByGeoFilters(params: {
+    pole?: string;
+    region?: string;
+    district?: string;
+  }): Promise<mongoose.Types.ObjectId[]> {
+    const { pole, region, district } = params;
+
+    if (!pole && !region && !district) {
+      return [];
+    }
+
+    const structurePipeline: any[] = [];
+    const structureMatch: any = {};
+
+    if (region) {
+      structureMatch.region = new mongoose.Types.ObjectId(region);
+    }
+    if (district) {
+      structureMatch.district = new mongoose.Types.ObjectId(district);
+    }
+
+    if (Object.keys(structureMatch).length > 0) {
+      structurePipeline.push({ $match: structureMatch });
+    }
+
+    if (pole) {
+      structurePipeline.push(
+        {
+          $lookup: {
+            from: 'regions',
+            localField: 'region',
+            foreignField: '_id',
+            as: 'regionInfo',
+          },
+        },
+        { $unwind: '$regionInfo' },
+        {
+          $match: {
+            'regionInfo.pole': new mongoose.Types.ObjectId(pole),
+          },
+        },
+      );
+    }
+
+    structurePipeline.push({ $project: { _id: 1 } });
+
+    const matchingStructures = await this.structureModel.aggregate(
+      structurePipeline,
+    );
+    const structureIds = matchingStructures.map((s) => s._id);
+
+    if (structureIds.length === 0) {
+      return [];
+    }
+
+    const labs = await this.labModel
+      .find({ structure: { $in: structureIds } })
+      .select('_id')
+      .lean();
+
+    return labs.map((lab) => lab._id as any);
+  }
+
+  private async resolveRegionFromLab(
+    labId: string,
+  ): Promise<mongoose.Types.ObjectId | undefined> {
+    if (!labId || !mongoose.Types.ObjectId.isValid(labId)) {
+      return undefined;
+    }
+
+    const lab = await this.labModel
+      .findById(labId)
+      .select('structure')
+      .lean();
+
+    if (!lab || !lab['structure']) {
+      return undefined;
+    }
+
+    const structureId =
+      typeof lab['structure'] === 'object' && lab['structure'] !== null
+        ? lab['structure']['_id'] || lab['structure']
+        : lab['structure'];
+
+    if (!structureId || !mongoose.Types.ObjectId.isValid(String(structureId))) {
+      return undefined;
+    }
+
+    const structure = await this.structureModel
+      .findById(structureId)
+      .select('region')
+      .lean();
+
+    const regionValue = structure?.['region'];
+    if (!regionValue) {
+      return undefined;
+    }
+
+    return new mongoose.Types.ObjectId(String(regionValue));
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private async resolvePosition(
+    positionInput: unknown,
+    labId?: string,
+  ): Promise<mongoose.Types.ObjectId | undefined> {
+    if (positionInput === undefined || positionInput === null) {
+      return undefined;
+    }
+
+    const raw = String(positionInput).trim();
+    if (!raw) {
+      return undefined;
+    }
+
+    // Si c'est déjà un ObjectId valide, on le renvoie tel quel
+    if (mongoose.Types.ObjectId.isValid(raw)) {
+      return new mongoose.Types.ObjectId(raw);
+    }
+
+    // Sinon, on traite comme un libellé de poste
+    const title = raw;
+
+    // Rechercher une position existante (insensible à la casse)
+    let position = await this.positionModel.findOne({
+      title: {
+        $regex: `^${this.escapeRegex(title)}$`,
+        $options: 'i',
+      },
+    });
+
+    // Si elle n'existe pas, on la crée
+    if (!position) {
+      position = await this.positionModel.create({ title });
+    }
+
+    // Si un labo est fourni, tenter de créer l'association LabTypePosition
+    if (labId && mongoose.Types.ObjectId.isValid(labId)) {
+      const lab = await this.labModel
+        .findById(labId)
+        .select('type')
+        .lean();
+
+      const labTypeValue: any = lab?.type;
+      const labTypeId =
+        typeof labTypeValue === 'object' && labTypeValue !== null
+          ? labTypeValue._id
+          : labTypeValue;
+
+      if (labTypeId && mongoose.Types.ObjectId.isValid(String(labTypeId))) {
+        const labTypeObjectId = new mongoose.Types.ObjectId(
+          String(labTypeId),
+        );
+
+        const existingLink = await this.labTypePositionModel.findOne({
+          labType: labTypeObjectId,
+          position: position._id,
+        });
+
+        if (!existingLink) {
+          await this.labTypePositionModel.create({
+            labType: labTypeObjectId,
+            position: position._id,
+          });
+        }
+      }
+    }
+
+    return position._id as any;
+  }
+
   async create(
     createUserDto: CreateUserDto | CreateLabStaffDto,
     files?: Express.Multer.File[],
+    options?: {
+      isLabAdmin?: boolean;
+    },
   ) {
     try {
       logger.info(`---USER.SERVICE.CREATE INIT---`);
@@ -63,9 +313,16 @@ export class UserService {
 
       // Traiter l'upload de la photo de profil si présente
       let profilePhotoUrl: string | undefined;
+      let cvUrl: string | undefined;
+      let presentationVideoUrl: string | undefined;
       const profilePhotoFile = files?.find(
         (file) =>
           file.fieldname === 'profilePhoto' || file.fieldname === 'photo',
+      );
+      const cvFile = files?.find((file) => file.fieldname === 'cv');
+      const presentationVideoFile = files?.find(
+        (file) =>
+          file.fieldname === 'presentationVideo' || file.fieldname === 'video',
       );
       if (profilePhotoFile) {
         try {
@@ -83,6 +340,65 @@ export class UserService {
           );
         }
       }
+      if (cvFile) {
+        try {
+          cvUrl = await uploadFile(cvFile);
+          logger.info(`---USER.SERVICE.UPLOAD_CV SUCCESS--- url=${cvUrl}`);
+        } catch (uploadError) {
+          logger.error(
+            `---USER.SERVICE.UPLOAD_CV ERROR--- ${uploadError.message}`,
+          );
+          throw new HttpException(
+            `Erreur lors de l'upload du CV: ${uploadError.message}`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      }
+      if (presentationVideoFile) {
+        try {
+          presentationVideoUrl = await uploadFile(presentationVideoFile);
+          logger.info(
+            `---USER.SERVICE.UPLOAD_PRESENTATION_VIDEO SUCCESS--- url=${presentationVideoUrl}`,
+          );
+        } catch (uploadError) {
+          logger.error(
+            `---USER.SERVICE.UPLOAD_PRESENTATION_VIDEO ERROR--- ${uploadError.message}`,
+          );
+          throw new HttpException(
+            `Erreur lors de l'upload de la video de presentation: ${uploadError.message}`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      }
+
+      const resolvedSubSpecialities = await this.resolveSubSpecialities(
+        (createUserDto as any).subSpecialities,
+      );
+      if (resolvedSubSpecialities !== undefined) {
+        (createUserDto as any).subSpecialities = resolvedSubSpecialities;
+      }
+
+      const resolvedPosition = await this.resolvePosition(
+        (createUserDto as any).position,
+        (createUserDto as any).lab,
+      );
+      if (resolvedPosition !== undefined) {
+        (createUserDto as any).position = resolvedPosition;
+      }
+
+      // Résoudre automatiquement la région à partir du labo si non fournie
+      if (
+        !(createUserDto as any).region &&
+        (createUserDto as any).lab &&
+        typeof (createUserDto as any).lab === 'string'
+      ) {
+        const resolvedRegion = await this.resolveRegionFromLab(
+          (createUserDto as any).lab,
+        );
+        if (resolvedRegion) {
+          (createUserDto as any).region = resolvedRegion;
+        }
+      }
 
       const user = new this.userModel(createUserDto);
       const password = this.generateRandomPassword(8);
@@ -90,11 +406,17 @@ export class UserService {
       if (profilePhotoUrl) {
         user.profilePhoto = profilePhotoUrl;
       }
+      if (cvUrl) {
+        user.cv = cvUrl;
+      }
+      if (presentationVideoUrl) {
+        user.presentationVideo = presentationVideoUrl;
+      }
       await user.save();
       logger.info(`---USER.SERVICE.CREATE SUCCESS---`);
 
-      // Envoyer les accès par email si l'utilisateur a un email
-      if (user.email) {
+      // Envoyer les accès par email si l'utilisateur a un email et si c'est pas un LabAdmin
+      if (user.email && options?.isLabAdmin !== true) {
         try {
           const fullName =
             `${user.firstname || ''} ${user.lastname || ''}`.trim() ||
@@ -125,9 +447,38 @@ export class UserService {
     }
   }
 
+  async createLabAdminAccount(
+    createLabAdminDto: CreateUserDto | CreateLabStaffDto,
+    files: Express.Multer.File[] = [],
+  ) {
+    try {
+      logger.info(`---USER.SERVICE.CREATE_LAB_ADMIN_ACCOUNT INIT---`);
+      const payload = {
+        ...createLabAdminDto,
+        role: Role.LabAdmin,
+        active: false,
+      };
+      const user = await this.create(payload as any, files || [], {
+        isLabAdmin: true,
+      });
+      logger.info(`---USER.SERVICE.CREATE_LAB_ADMIN_ACCOUNT SUCCESS---`);
+      return user;
+    } catch (error) {
+      logger.error(
+        `---USER.SERVICE.CREATE_LAB_ADMIN_ACCOUNT ERROR--- ${error.message}`,
+      );
+      throw new HttpException(
+        error.message || 'Erreur lors de la creation du compte LabAdmin',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async createMultiple(usersDto: CreateUserDto[]) {
     try {
-      logger.info(`---USER.SERVICE.CREATE_MULTIPLE INIT--- count=${usersDto.length}`);
+      logger.info(
+        `---USER.SERVICE.CREATE_MULTIPLE INIT--- count=${usersDto.length}`,
+      );
       const results = [];
       const errors = [];
 
@@ -144,7 +495,9 @@ export class UserService {
         }
       }
 
-      logger.info(`---USER.SERVICE.CREATE_MULTIPLE SUCCESS--- created=${results.length}, failed=${errors.length}`);
+      logger.info(
+        `---USER.SERVICE.CREATE_MULTIPLE SUCCESS--- created=${results.length}, failed=${errors.length}`,
+      );
       return {
         message: `${results.length} utilisateurs créés avec succès`,
         data: results,
@@ -153,6 +506,109 @@ export class UserService {
     } catch (error) {
       throw new HttpException(
         error.message || 'Erreur lors de la création multiple',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getStats(query: {
+    pole?: string;
+    region?: string;
+    district?: string;
+    lab?: string;
+  }): Promise<any> {
+    try {
+      logger.info(`---USER.SERVICE.GET_STATS INIT---`);
+      const { pole, region, district, lab } = query;
+
+      const filters: any = { active: true };
+
+      // Si un lab est spécifié, on l'utilise directement
+      if (lab) {
+        filters.lab = new mongoose.Types.ObjectId(lab);
+      } else if (pole || region || district) {
+        // Résoudre les labs à partir des structures / régions / pôles
+        const labIds = await this.resolveLabIdsByGeoFilters({
+          pole,
+          region,
+          district,
+        });
+
+        if (!labIds.length) {
+          return {
+            total: 0,
+            byGender: [],
+            byRole: [],
+            byEnvironment: [],
+            byContractType: [],
+          };
+        }
+
+        if (region && !pole) {
+          // Pour les stats par région uniquement, inclure aussi les RegionAdmin de cette région
+          filters.$or = [
+            { lab: { $in: labIds } },
+            { region: new mongoose.Types.ObjectId(region) },
+          ];
+        } else {
+          filters.lab = { $in: labIds };
+        }
+      }
+
+      const stats = await this.userModel.aggregate([
+        { $match: filters },
+        {
+          $facet: {
+            total: [{ $count: 'count' }],
+            byGender: [{ $group: { _id: '$gender', count: { $sum: 1 } } }],
+            byRole: [{ $group: { _id: '$role', count: { $sum: 1 } } }],
+            byEnvironment: [
+              {
+                $lookup: {
+                  from: 'environments',
+                  localField: 'environment',
+                  foreignField: '_id',
+                  as: 'envInfo',
+                },
+              },
+              {
+                $unwind: { path: '$envInfo', preserveNullAndEmptyArrays: true },
+              },
+              { $group: { _id: '$envInfo.name', count: { $sum: 1 } } },
+            ],
+            byContractType: [
+              {
+                $lookup: {
+                  from: 'contracttypes',
+                  localField: 'contractType',
+                  foreignField: '_id',
+                  as: 'contractInfo',
+                },
+              },
+              {
+                $unwind: {
+                  path: '$contractInfo',
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              { $group: { _id: '$contractInfo.name', count: { $sum: 1 } } },
+            ],
+          },
+        },
+      ]);
+
+      const result = stats[0];
+      return {
+        total: result.total[0]?.count || 0,
+        byGender: result.byGender,
+        byRole: result.byRole,
+        byEnvironment: result.byEnvironment,
+        byContractType: result.byContractType,
+      };
+    } catch (error) {
+      logger.error(`---USER.SERVICE.GET_STATS ERROR ${error}---`);
+      throw new HttpException(
+        error.message || 'Erreur lors de la récupération des statistiques',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -170,12 +626,20 @@ export class UserService {
     environmentPosition?: string;
     level?: string;
     region?: string;
+    pole?: string;
+    district?: string;
+    structure?: string;
     role?: string;
     active?: boolean;
     specialities?: string[];
+    subSpecialities?: string[];
     search?: string;
     contractType?: string;
     gender?: string;
+    maritalStatus?: string;
+    experienceDuration?: string;
+    dureeLabo?: string;
+    disabled?: boolean;
   }): Promise<any> {
     try {
       const {
@@ -193,9 +657,17 @@ export class UserService {
         role,
         active,
         specialities,
+        subSpecialities,
         search,
         contractType,
         gender,
+        maritalStatus,
+        experienceDuration,
+        dureeLabo,
+        disabled,
+        pole,
+        district,
+        structure,
       } = query;
 
       const filters: any = {};
@@ -219,11 +691,115 @@ export class UserService {
         filters.bloodGroup = { $regex: `^${bloodGroup}$`, $options: 'i' };
       if (lab) filters.lab = lab;
       if (environment) filters.environment = environment;
-      if (environmentPosition) filters.environmentPosition = environmentPosition;
+      if (environmentPosition)
+        filters.environmentPosition = environmentPosition;
       if (level) filters.level = level;
-      if (region) filters.region = region;
       if (contractType) filters.contractType = contractType;
       if (gender) filters.gender = gender;
+      if (maritalStatus) filters.maritalStatus = maritalStatus;
+      if (experienceDuration) filters.experienceDuration = experienceDuration;
+      // if (dureeLabo) filters.dureeLabo = dureeLabo;
+      if (disabled !== undefined) filters.disabled = disabled;
+
+      // Filtres géographiques: structure prioritaire, sinon pole/region/district
+      if (structure) {
+        const labsForStructure = await this.labModel
+          .find({ structure })
+          .select('_id')
+          .lean();
+        const labIds = labsForStructure.map((l) => l._id as any);
+
+        if (!labIds.length) {
+          return {
+            data: [],
+            limit,
+            total: 0,
+            page,
+            totalPages: 0,
+          };
+        }
+
+        if (lab) {
+          const labMatchesStructure = labIds.some(
+            (id) => String(id) === String(lab),
+          );
+          if (!labMatchesStructure) {
+            return {
+              data: [],
+              limit,
+              total: 0,
+              page,
+              totalPages: 0,
+            };
+          }
+          // lab déjà dans les filtres, rien à changer
+        } else {
+          filters.lab = { $in: labIds };
+        }
+      } else if (pole) {
+        const labIds = await this.resolveLabIdsByGeoFilters({ pole });
+
+        if (!labIds.length) {
+          return {
+            data: [],
+            limit,
+            total: 0,
+            page,
+            totalPages: 0,
+          };
+        }
+
+        if (lab) {
+          const labMatchesPole = labIds.some(
+            (id) => String(id) === String(lab),
+          );
+          if (!labMatchesPole) {
+            return {
+              data: [],
+              limit,
+              total: 0,
+              page,
+              totalPages: 0,
+            };
+          }
+          // lab déjà dans les filtres, rien à changer
+        } else {
+          filters.lab = { $in: labIds };
+        }
+      } else if (region || district) {
+        const labIds = await this.resolveLabIdsByGeoFilters({
+          region,
+          district,
+        });
+
+        if (!labIds.length) {
+          return {
+            data: [],
+            limit,
+            total: 0,
+            page,
+            totalPages: 0,
+          };
+        }
+
+        if (lab) {
+          const labMatchesRegion = labIds.some(
+            (id) => String(id) === String(lab),
+          );
+          if (!labMatchesRegion) {
+            return {
+              data: [],
+              limit,
+              total: 0,
+              page,
+              totalPages: 0,
+            };
+          }
+          // lab déjà dans les filtres, rien à changer
+        } else {
+          filters.lab = { $in: labIds };
+        }
+      }
 
       if (role && role !== Role.SdrAdmin) {
         filters.role = role;
@@ -242,6 +818,15 @@ export class UserService {
           return id;
         });
         filters.specialities = { $in: specialityIds };
+      }
+      if (subSpecialities && subSpecialities.length > 0) {
+        const subSpecialityIds = subSpecialities.map((id) => {
+          if (typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)) {
+            return new mongoose.Types.ObjectId(id);
+          }
+          return id;
+        });
+        filters.subSpecialities = { $in: subSpecialityIds };
       }
 
       const skip = (page - 1) * limit;
@@ -263,6 +848,7 @@ export class UserService {
             path: 'environmentPosition',
             populate: { path: 'position' },
           })
+          .populate('position', 'title')
           .populate('contractType')
           .populate({
             path: 'level',
@@ -270,6 +856,10 @@ export class UserService {
           })
           .populate({
             path: 'specialities',
+            select: 'name description',
+          })
+          .populate({
+            path: 'subSpecialities',
             select: 'name description',
           })
           .lean(),
@@ -351,7 +941,7 @@ export class UserService {
         .select('-password')
         .populate({
           path: 'lab',
-          select: 'structure',
+          select: 'structure name',
           populate: [{ path: 'structure', select: 'name' }],
         })
         .populate('environment')
@@ -359,6 +949,7 @@ export class UserService {
           path: 'environmentPosition',
           populate: { path: 'position' },
         })
+        .populate('position', 'title')
         .populate('contractType')
         .populate({
           path: 'level',
@@ -366,6 +957,10 @@ export class UserService {
         })
         .populate({
           path: 'specialities',
+          select: 'name description',
+        })
+        .populate({
+          path: 'subSpecialities',
           select: 'name description',
         })
         .lean();
@@ -399,12 +994,14 @@ export class UserService {
   async findByEmail(email: string): Promise<any> {
     try {
       const user = await this.userModel
-        .findOne({ email, active: true }).populate('lab')
+        .findOne({ email, active: true })
+        .populate('lab')
         .populate('environment')
         .populate({
           path: 'environmentPosition',
           populate: { path: 'position' },
         })
+        .populate('position', 'title')
         .populate('contractType')
         .populate({
           path: 'level',
@@ -412,6 +1009,10 @@ export class UserService {
         })
         .populate({
           path: 'specialities',
+          select: 'name description',
+        })
+        .populate({
+          path: 'subSpecialities',
           select: 'name description',
         })
         .lean();
@@ -440,7 +1041,7 @@ export class UserService {
   async findLogin(createAuthDto: CreateAuthDto) {
     try {
       const user = await this.findByEmail(createAuthDto.email);
-      
+
       const passwordMatched = await bcrypt.compare(
         createAuthDto.password,
         user.password,
@@ -448,7 +1049,7 @@ export class UserService {
 
       if (!passwordMatched) {
         throw new HttpException(
-          'Phone number or password incorrect',
+          'Email or password incorrect',
           HttpStatus.NOT_FOUND,
         );
       }
@@ -504,11 +1105,41 @@ export class UserService {
     try {
       logger.info(`---USER.SERVICE.UPDATE INIT---`);
 
+      const existingUser = await this.userModel
+        .findById(id)
+        .select('lab region')
+        .lean();
+      if (!existingUser) {
+        throw new HttpException('Utilisateur non trouvé', HttpStatus.NOT_FOUND);
+      }
+
+      // Résoudre automatiquement la région si absente dans le DTO
+      let resolvedRegionForUpdate:
+        | mongoose.Types.ObjectId
+        | undefined = undefined;
+      if ((updateUserDto as any).region) {
+        // région explicitement fournie : on ne touche pas
+      } else {
+        const labIdForRegion =
+          (updateUserDto as any).lab || existingUser['lab'];
+        if (labIdForRegion) {
+          resolvedRegionForUpdate = await this.resolveRegionFromLab(
+            String(labIdForRegion),
+          );
+        }
+      }
+
       // Traiter l'upload de la photo de profil si présente
       let profilePhotoUrl: string | undefined;
+      let cvUrl: string | undefined;
+      let presentationVideoUrl: string | undefined;
       const profilePhotoFile = files?.find(
         (file) =>
           file.fieldname === 'profilePhoto' || file.fieldname === 'photo',
+      );
+      const cvFile = files?.find((file) => file.fieldname === 'cv');
+      const presentationVideoFile = files?.find(
+        (file) => file.fieldname === 'presentationVideo',
       );
       if (profilePhotoFile) {
         try {
@@ -526,10 +1157,49 @@ export class UserService {
           );
         }
       }
+      if (cvFile) {
+        try {
+          cvUrl = await uploadFile(cvFile);
+          logger.info(`---USER.SERVICE.UPLOAD_CV SUCCESS--- url=${cvUrl}`);
+        } catch (uploadError) {
+          logger.error(
+            `---USER.SERVICE.UPLOAD_CV ERROR--- ${uploadError.message}`,
+          );
+          throw new HttpException(
+            `Erreur lors de l'upload du CV: ${uploadError.message}`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      }
+      if (presentationVideoFile) {
+        try {
+          presentationVideoUrl = await uploadFile(presentationVideoFile);
+          logger.info(
+            `---USER.SERVICE.UPLOAD_PRESENTATION_VIDEO SUCCESS--- url=${presentationVideoUrl}`,
+          );
+        } catch (uploadError) {
+          logger.error(
+            `---USER.SERVICE.UPLOAD_PRESENTATION_VIDEO ERROR--- ${uploadError.message}`,
+          );
+          throw new HttpException(
+            `Erreur lors de l'upload de la video de presentation: ${uploadError.message}`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      }
 
       const updateData: any = { ...updateUserDto, updated_at: new Date() };
+      if (resolvedRegionForUpdate) {
+        updateData.region = resolvedRegionForUpdate;
+      }
       if (profilePhotoUrl) {
         updateData.profilePhoto = profilePhotoUrl;
+      }
+      if (cvUrl) {
+        updateData.cv = cvUrl;
+      }
+      if (presentationVideoUrl) {
+        updateData.presentationVideo = presentationVideoUrl;
       }
 
       const updated = await this.userModel
@@ -537,7 +1207,7 @@ export class UserService {
         .select('-password')
         .populate({
           path: 'lab',
-          select: 'structure',
+          select: 'structure name type',
           populate: [{ path: 'structure', select: 'name' }],
         })
         .populate('environment')
@@ -545,6 +1215,7 @@ export class UserService {
           path: 'environmentPosition',
           populate: { path: 'position' },
         })
+        .populate('position', 'title')
         .populate('contractType')
         .populate({
           path: 'level',
@@ -552,6 +1223,10 @@ export class UserService {
         })
         .populate({
           path: 'specialities',
+          select: 'name description',
+        })
+        .populate({
+          path: 'subSpecialities',
           select: 'name description',
         })
         .lean();
@@ -592,6 +1267,78 @@ export class UserService {
       logger.error(`---USER.SERVICE.REMOVE ERROR ${error}---`);
       throw new HttpException(
         error.message || 'Erreur serveur',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async validateUserAndSendAccess(userId: string): Promise<any> {
+    try {
+      logger.info(
+        `---USER.SERVICE.VALIDATE_USER_AND_SEND_ACCESS INIT--- userId=${userId}`,
+      );
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new HttpException('Utilisateur non trouvé', HttpStatus.NOT_FOUND);
+      }
+      if (!user.email) {
+        throw new HttpException(
+          "Impossible d'envoyer les accès: email manquant",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (user.active === true) {
+        throw new HttpException(
+          'Cet utilisateur est déjà actif',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const previousState = {
+        active: user.active,
+        password: user.password,
+        isFirstLogin: user.isFirstLogin,
+      };
+
+      const temporaryPassword = this.generateRandomPassword(8);
+      user.password = temporaryPassword;
+      user.active = true;
+      user.isFirstLogin = true;
+      user.updated_at = new Date();
+      await user.save();
+
+      try {
+        const fullName =
+          `${user.firstname || ''} ${user.lastname || ''}`.trim() ||
+          'Utilisateur';
+        await this.mailService.sendWelcomeEmail(
+          user.email,
+          fullName,
+          temporaryPassword,
+        );
+      } catch (mailError) {
+        await this.userModel.findByIdAndUpdate(userId, {
+          active: previousState.active,
+          password: previousState.password,
+          isFirstLogin: previousState.isFirstLogin,
+          updated_at: new Date(),
+        });
+        throw new HttpException(
+          `Compte non validé: échec d'envoi des accès par email (${mailError.message})`,
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      logger.info(
+        `---USER.SERVICE.VALIDATE_USER_AND_SEND_ACCESS SUCCESS--- userId=${userId}`,
+      );
+      return sanitizeUser(user);
+    } catch (error) {
+      logger.error(
+        `---USER.SERVICE.VALIDATE_USER_AND_SEND_ACCESS ERROR--- ${error.message}`,
+      );
+      throw new HttpException(
+        error.message || "Erreur lors de la validation de l'utilisateur",
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -756,8 +1503,10 @@ export class UserService {
           select: 'title',
           populate: [{ path: 'environment', select: 'name' }],
         })
+        .populate('position', 'title')
         .populate('level', 'name description')
         .populate('specialities', 'name description')
+        .populate('subSpecialities', 'name description')
         .populate('region', 'name code')
         .lean();
 

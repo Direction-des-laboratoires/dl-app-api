@@ -26,6 +26,7 @@ import { Role } from 'src/utils/enums/roles.enum';
 import { FindUsersDto } from './dto/find-user.dto';
 import { UploadHelper } from 'src/utils/functions/upload-image.helper';
 import { EnvironmentService } from '../environment/environment.service';
+import { CreateLabAdminAccountDto } from '../auth/dto/create-lab-admin-account.dto';
 
 @Controller('users')
 export class UserController {
@@ -33,6 +34,36 @@ export class UserController {
     private readonly userService: UserService,
     private readonly environmentService: EnvironmentService,
   ) {}
+
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      storage: diskStorage({ destination: UploadHelper.uploadDirectory }),
+    }),
+  )
+  @Post('register-lab-admin')
+  async registerLabAdmin(
+    @Body() createLabAdminDto: CreateLabAdminAccountDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---USER.CONTROLLER.REGISTER_LAB_ADMIN INIT---`);
+      const user = await this.userService.createLabAdminAccount(
+        createLabAdminDto as any,
+        files || [],
+      );
+      logger.info(`---USER.CONTROLLER.REGISTER_LAB_ADMIN SUCCESS---`);
+      return res.status(HttpStatus.CREATED).json({
+        message: 'Compte LabAdmin créé avec succés!',
+        data: user,
+      });
+    } catch (error) {
+      logger.error(`---USER.CONTROLLER.REGISTER_LAB_ADMIN ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
 
   @Roles(Role.LabAdmin, Role.SuperAdmin)
   @UseInterceptors(
@@ -49,12 +80,15 @@ export class UserController {
   ) {
     try {
       logger.info(`---USER.CONTROLLER.CREATE INIT---`);
-      
-      // Si c'est un LabAdmin, on force son labo, le rôle LabStaff et l'environnement RNL
+
+      // Si c'est un LabAdmin, on force son labo et le rôle LabStaff
       if (req.user.role === Role.LabAdmin) {
         const labId = req.user.lab?._id?.toString() || req.user.lab?.toString();
         if (!labId) {
-          throw new HttpException("Vous n'avez pas de laboratoire associé", HttpStatus.FORBIDDEN);
+          throw new HttpException(
+            "Vous n'avez pas de laboratoire associé",
+            HttpStatus.FORBIDDEN,
+          );
         }
         createUserDto.lab = labId;
         createUserDto.role = Role.LabStaff;
@@ -92,7 +126,7 @@ export class UserController {
   ) {
     try {
       // Forcer le labo du LabAdmin
-      if(req.user.role === Role.LabAdmin){
+      if (req.user.role === Role.LabAdmin) {
         createUserDto.lab = req.user.lab?._id.toString();
       }
       logger.info(`---USER.CONTROLLER.CREATE_LAB_STAFF INIT---`);
@@ -116,27 +150,28 @@ export class UserController {
   ) {
     try {
       logger.info(`---USER.CONTROLLER.CREATE_MULTIPLE INIT---`);
-      
+
       // Si c'est un LabAdmin, on force son labo pour tous les utilisateurs et le rôle LabStaff
       if (req.user.role === Role.LabAdmin) {
         const labId = req.user.lab?._id?.toString() || req.user.lab?.toString();
         if (!labId) {
-          throw new HttpException("Vous n'avez pas de laboratoire associé", HttpStatus.FORBIDDEN);
+          throw new HttpException(
+            "Vous n'avez pas de laboratoire associé",
+            HttpStatus.FORBIDDEN,
+          );
         }
-
-        // Récupérer l'environnement RNL
-        const rnlEnv = await this.environmentService.findByCode('RNL');
-        const rnlEnvId = rnlEnv?.data?._id.toString();
-
-        createMultipleUsersDto.users = createMultipleUsersDto.users.map(user => ({
-          ...user,
-          lab: labId,
-          role: Role.LabStaff,
-          environment: rnlEnvId || user.environment
-        }));
+        createMultipleUsersDto.users = createMultipleUsersDto.users.map(
+          (user) => ({
+            ...user,
+            lab: labId,
+            role: Role.LabStaff,
+          }),
+        );
       }
 
-      const result = await this.userService.createMultiple(createMultipleUsersDto.users);
+      const result = await this.userService.createMultiple(
+        createMultipleUsersDto.users,
+      );
       return res.status(HttpStatus.CREATED).json(result);
     } catch (error) {
       logger.error(`---USER.CONTROLLER.CREATE_MULTIPLE ERROR ${error}---`);
@@ -146,7 +181,51 @@ export class UserController {
     }
   }
 
-  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff,Role.RegionAdmin)
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.RegionAdmin)
+  @Get('stats')
+  async getStats(
+    @Query('pole') pole: string,
+    @Query('region') region: string,
+    @Query('district') district: string,
+    @Query('lab') lab: string,
+    @Req() req,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---USER.CONTROLLER.GET_STATS INIT---`);
+      const requester = req.user;
+
+      // Appliquer les restrictions selon le rôle
+      let finalRegion = region;
+      let finalLab = lab;
+
+      if (requester.role === Role.RegionAdmin) {
+        finalRegion =
+          requester.region?._id?.toString() || requester.region?.toString();
+      } else if (requester.role === Role.LabAdmin) {
+        finalLab = requester.lab?._id?.toString() || requester.lab?.toString();
+      }
+
+      const stats = await this.userService.getStats({
+        pole,
+        region: finalRegion,
+        district,
+        lab: finalLab,
+      });
+
+      return res.status(HttpStatus.OK).json({
+        message: 'Statistiques du personnel récupérées',
+        data: stats,
+      });
+    } catch (error) {
+      logger.error(`---USER.CONTROLLER.GET_STATS ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  @Roles(Role.SuperAdmin, Role.LabAdmin, Role.LabStaff, Role.RegionAdmin)
   @Get()
   async findAll(@Query() query: FindUsersDto, @Req() req, @Res() res) {
     try {
@@ -406,6 +485,26 @@ export class UserController {
       });
     } catch (error) {
       logger.error(`---USER.CONTROLLER.REMOVE ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  @Roles(Role.SuperAdmin)
+  @Patch(':id/validate')
+  async validateUser(@Param('id') id: string, @Res() res) {
+    try {
+      logger.info(`---USER.CONTROLLER.VALIDATE_USER INIT--- userId=${id}`);
+      const data = await this.userService.validateUserAndSendAccess(id);
+      logger.info(`---USER.CONTROLLER.VALIDATE_USER SUCCESS--- userId=${id}`);
+      return res.status(HttpStatus.OK).json({
+        message:
+          "Utilisateur validé avec succès. Les accès ont été envoyés par email.",
+        data,
+      });
+    } catch (error) {
+      logger.error(`---USER.CONTROLLER.VALIDATE_USER ERROR ${error}---`);
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: error.message });

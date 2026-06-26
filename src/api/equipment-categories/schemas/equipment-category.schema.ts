@@ -9,6 +9,10 @@ export const EquipmentCategorySchema = new mongoose.Schema({
   description: {
     type: String,
   },
+  rank: {
+    type: Number,
+    default: null,
+  },
   created_at: {
     type: Date,
     default: Date.now(),

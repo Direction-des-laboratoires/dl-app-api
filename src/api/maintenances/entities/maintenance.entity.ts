@@ -1,15 +1,14 @@
 import { Document } from 'mongoose';
 import {
-  MaintenanceType,
   MaintenanceStatus,
   ScheduleFrequency,
 } from '../schemas/maintenance.schema';
 
 export interface Maintenance extends Document {
   equipment: any;
-  maintenanceType: MaintenanceType;
   technician: any;
-  date: Date;
+  startDate?: Date;
+  endDate?: Date;
   frequency: ScheduleFrequency;
   lastMaintenanceDate?: Date;
   nextMaintenanceDate?: Date;

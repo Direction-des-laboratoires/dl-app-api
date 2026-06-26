@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateLabDto {
   @IsNotEmpty()
@@ -8,18 +8,23 @@ export class CreateLabDto {
   structure?: string;
 
   @IsOptional()
+  @IsMongoId()
+  type?: string;
+
+  @IsOptional()
   @IsString()
   latLng?: string; // Format: "lat,lng"
 
-  @IsNotEmpty()
-  director: string;
+  @IsOptional()
+  director?: string;
 
-  @IsNotEmpty()
-  responsible: string;
+  @IsOptional()
+  responsible?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   phoneNumber: string;
 
+  @IsOptional()
   @IsEmail()
   email: string;
 

@@ -3,6 +3,8 @@ import * as mongoose from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { Role } from 'src/utils/enums/roles.enum';
 import { Gender } from 'src/utils/enums/gender.enum';
+import { MaritalStatus } from 'src/utils/enums/marital-status.enum';
+import { ExperienceRange } from 'src/utils/enums/experience-range.enum';
 export const UserSchema = new mongoose.Schema({
   firstname: {
     type: String,
@@ -14,8 +16,15 @@ export const UserSchema = new mongoose.Schema({
   },
   phoneNumber: {
     type: String,
-    unique: true,
-    sparse: true,
+    default: null,
+  },
+  phoneNumber2: {
+    type: String,
+    default: null,
+  },
+  whatsappNumber: {
+    type: String,
+    default: null,
   },
   email: {
     type: String,
@@ -24,6 +33,7 @@ export const UserSchema = new mongoose.Schema({
   },
   birthday: {
     type: Date,
+    default: null,
   },
   gender: {
     type: String,
@@ -32,12 +42,63 @@ export const UserSchema = new mongoose.Schema({
   },
   nationality: {
     type: String,
+    default: null,
+  },
+  regionOrigine: {
+    type: String,
+    default: null,
   },
   identificationType: {
     type: String,
+    default: null,
+  },
+  identificationNumber: {
+    type: String,
+    default: null,
+  },
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
+  disabilityDetails: {
+    type: String,
+  },
+  maritalStatus: {
+    type: String,
+    enum: MaritalStatus,
+    default: MaritalStatus.SINGLE,
+  },
+  numberOfChildren: {
+    type: Number,
+    default: 0,
+  },
+  numberOfWives: {
+    type: Number,
+    default: 0,
   },
   bloodGroup: {
     type: String,
+  },
+  experienceDuration: {
+    type: String,
+    enum: ExperienceRange,
+    default: null,
+  },
+  // laborDuration: {
+  //   type: String,
+  //   enum: ExperienceRange,
+  //   default: null,
+  // },
+  contractProjet: {
+    type: String,
+    default: null,
+  },
+  matricule: {
+    type: String,
+    default: null,
+  },
+  isLucrative: {
+    type: Boolean,
   },
   entryDate: {
     type: Date,
@@ -59,9 +120,9 @@ export const UserSchema = new mongoose.Schema({
   level: {
     type: mongoose.Schema.ObjectId,
     ref: 'StaffLevel',
-    required: function () {
-      return ![Role.SdrAdmin, Role.SuperAdmin].includes(this.role);
-    },
+    // required: function () {
+    //   return ![Role.SdrAdmin, Role.SuperAdmin].includes(this.role);
+    // },
     default: null,
   },
   environment: {
@@ -74,6 +135,11 @@ export const UserSchema = new mongoose.Schema({
     ref: 'EnvironmentPosition',
     default: null,
   },
+  position: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Position',
+    default: null,
+  },
   contractType: {
     type: mongoose.Schema.ObjectId,
     ref: 'ContractType',
@@ -82,6 +148,12 @@ export const UserSchema = new mongoose.Schema({
   specialities: {
     type: [mongoose.Schema.Types.ObjectId],
     ref: 'Speciality',
+    default: [],
+    autopopulate: true,
+  },
+  subSpecialities: {
+    type: [mongoose.Schema.Types.ObjectId],
+    ref: 'SubSpeciality',
     default: [],
     autopopulate: true,
   },
@@ -101,6 +173,14 @@ export const UserSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  cv: {
+    type: String,
+    default: null,
+  },
+  presentationVideo: {
+    type: String,
+    default: null,
+  },
   created_at: {
     type: Date,
     default: Date.now(),
@@ -110,6 +190,17 @@ export const UserSchema = new mongoose.Schema({
     default: Date.now(),
   },
 });
+
+// Unicité uniquement si le numéro est renseigné (permet plusieurs null/vides)
+UserSchema.index(
+  { phoneNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      phoneNumber: { $type: 'string', $ne: '' },
+    },
+  },
+);
 
 UserSchema.pre('save', async function (next) {
   try {
@@ -144,11 +235,11 @@ UserSchema.pre('save', async function (next) {
           'Un personnel de laboratoire doit avoir un laboratoryId',
         );
       }
-      if (!this.entryDate) {
-        throw new Error(
-          "Un personnel de laboratoire doit avoir une date d'entrée",
-        );
-      }
+      // if (!this.entryDate) {
+      //   throw new Error(
+      //     "Un personnel de laboratoire doit avoir une date d'entrée",
+      //   );
+      // }
     }
 
     return next();

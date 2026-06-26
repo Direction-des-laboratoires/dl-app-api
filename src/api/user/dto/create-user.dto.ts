@@ -1,5 +1,16 @@
-import { IsEnum, IsMongoId, IsNotEmpty, IsOptional } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { Transform } from 'class-transformer';
 import { Gender } from 'src/utils/enums/gender.enum';
+import { MaritalStatus } from 'src/utils/enums/marital-status.enum';
+import { ExperienceRange } from 'src/utils/enums/experience-range.enum';
 
 /* eslint-disable prettier/prettier */
 export class CreateUserDto {
@@ -11,6 +22,14 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   phoneNumber: string;
+
+  @IsOptional()
+  @IsString()
+  phoneNumber2: string;
+
+  @IsOptional()
+  @IsString()
+  whatsappNumber: string;
 
   @IsNotEmpty()
   email: string;
@@ -25,6 +44,10 @@ export class CreateUserDto {
   @IsOptional()
   @IsMongoId()
   environmentPosition: string;
+
+  @IsOptional()
+  @IsString()
+  position: string;
 
   @IsOptional()
   @IsMongoId()
@@ -38,6 +61,9 @@ export class CreateUserDto {
   specialities: string[];
 
   @IsOptional()
+  subSpecialities: string[];
+
+  @IsOptional()
   region: string;
 
   @IsNotEmpty()
@@ -45,6 +71,40 @@ export class CreateUserDto {
 
   @IsOptional()
   identificationType: string;
+
+  @IsOptional()
+  @IsString()
+  identificationNumber: string;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return Boolean(value);
+  })
+  @IsBoolean()
+  disabled: boolean;
+
+  @IsOptional()
+  @IsString()
+  disabilityDetails: string;
+
+  @IsOptional()
+  @IsEnum(MaritalStatus)
+  maritalStatus: MaritalStatus;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    return Number(value);
+  })
+  @IsNumber()
+  numberOfChildren: number;
+
+  @IsOptional()
+  @IsNumber()
+  numberOfWives: number;
 
   @IsNotEmpty()
   birthday: string;
@@ -57,13 +117,43 @@ export class CreateUserDto {
   nationality: string;
 
   @IsOptional()
+  @IsString()
+  regionOrigine: string;
+
+  @IsOptional()
   profilePicture: string;
+
+  @IsOptional()
+  cv: string;
+
+  @IsOptional()
+  presentationVideo: string;
+
+  @IsOptional()
+  @IsString()
+  contractProjet: string;
+
+  @IsOptional()
+  @IsString()
+  matricule: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isLucrative: boolean;
 
   @IsOptional()
   entryDate: Date;
 
   @IsOptional()
   bloodGroup: string;
+
+  @IsOptional()
+  @IsEnum(ExperienceRange)
+  experienceDuration: ExperienceRange;
+
+  @IsOptional()
+  @IsEnum(ExperienceRange)
+  durationInLab: ExperienceRange;
 }
 
 export class CreateLabStaffDto {
@@ -75,6 +165,14 @@ export class CreateLabStaffDto {
 
   @IsNotEmpty()
   phoneNumber: string;
+
+  @IsOptional()
+  @IsString()
+  phoneNumber2: string;
+
+  @IsOptional()
+  @IsString()
+  whatsappNumber: string;
 
   @IsNotEmpty()
   email: string;
@@ -92,19 +190,50 @@ export class CreateLabStaffDto {
   environmentPosition: string;
 
   @IsOptional()
+  @IsString()
+  position: string;
+
+  @IsNotEmpty()
   @IsMongoId()
   contractType: string;
 
   @IsOptional()
-  region:string
+  region: string;
+
+  @IsOptional()
+  subSpecialities: string[];
 
   @IsOptional()
   identificationType: string;
 
+  @IsOptional()
+  @IsString()
+  identificationNumber: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isDisabled: boolean;
+
+  @IsOptional()
+  @IsString()
+  disabilityDescription: string;
+
+  @IsOptional()
+  @IsEnum(MaritalStatus)
+  maritalStatus: MaritalStatus;
+
+  @IsOptional()
+  @IsNumber()
+  numberOfChildren: number;
+
+  @IsOptional()
+  @IsNumber()
+  numberOfWives: number;
+
   @IsNotEmpty()
   birthday: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsEnum(Gender)
   gender: Gender;
 
@@ -112,11 +241,41 @@ export class CreateLabStaffDto {
   nationality: string;
 
   @IsOptional()
+  @IsString()
+  regionOrigine: string;
+
+  @IsOptional()
   profilePicture: string;
+
+  @IsOptional()
+  cv: string;
+
+  @IsOptional()
+  presentationVideo: string;
+
+  @IsOptional()
+  @IsString()
+  contractProjet: string;
+
+  @IsOptional()
+  @IsString()
+  matricule: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isLucrative: boolean;
 
   @IsNotEmpty()
   entryDate: Date;
 
   @IsOptional()
   bloodGroup: string;
+
+  @IsOptional()
+  @IsEnum(ExperienceRange)
+  experienceDuration: ExperienceRange;
+
+  @IsOptional()
+  @IsEnum(ExperienceRange)
+  durationInLab: ExperienceRange;
 }

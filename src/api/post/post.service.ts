@@ -4,10 +4,10 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Post } from './interfaces/post.interface';
-import { uploadFile } from 'src/utils/functions/file.upload';
+import { minioUploadFile } from 'src/utils/functions/file.upload';
 import logger from 'src/utils/logger';
 import { PostTypesEnum } from 'src/utils/enums/post.enum';
-import * as mongoose from 'mongoose';
+
 
 @Injectable()
 export class PostService {
@@ -15,13 +15,12 @@ export class PostService {
   async create(
     createPostDto: CreatePostDto,
     userId: string,
-    files: [Express.Multer.File],
+    files?: Express.Multer.File[],
   ) {
     try {
+      const fileList = files || [];
       const filesUrls = await Promise.all(
-        files.map((file) => {
-          return uploadFile(file);
-        }),
+        fileList.map((file) => minioUploadFile(file)),
       );
       const post = new this.postModel(createPostDto);
       post.author = userId;

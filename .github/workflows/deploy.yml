@@ -1,0 +1,72 @@
+name: Continuous Deployment
+
+on:
+  workflow_run:
+    workflows: ['Continuous Integration']
+    branches: [main]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Application (on GitHub RAM)
+        run: npm run build
+
+      - name: Create Deployment Package
+        run: tar -czf deploy.tar.gz dist Dockerfile package*.json docker-compose.yml .dockerignore
+
+      - name: Copy package via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: "deploy.tar.gz"
+          target: "/www/wwwroot/dl-app-api/"
+
+      - name: Execute Docker Deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            cd /www/wwwroot/dl-app-api
+            # Extraire l'archive (écrase les anciens fichiers proprement)
+            tar -xzf deploy.tar.gz
+            # S'assurer que dist existe
+            ls -d dist
+            # Relancer Docker
+            docker-compose down
+            docker-compose up -d --build
+            # Nettoyage
+            rm deploy.tar.gz
+            docker image prune -f
+            sleep 10
+            if [ "$(docker inspect -f '{{.State.Running}}' dl-app-api)" = "true" ]; then
+                echo "--- DÉPLOIEMENT RÉUSSI ---"
+            else
+                echo "--- ÉCHEC DU DÉMARRAGE ---"
+                docker logs dl-app-api --tail 50
+                exit 1
+            fi

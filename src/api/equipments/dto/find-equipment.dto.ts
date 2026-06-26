@@ -4,9 +4,19 @@ import {
   IsNumber,
   IsMongoId,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { EquipmentStatus, InventoryStatus } from '../schemas/equipment.schema';
+import { Type, Transform } from 'class-transformer';
+import {
+  EquipmentStatus,
+  InventoryStatus,
+  AcquisitionModality,
+  DonSource,
+  DonSourceMshp,
+  IntrantDispo,
+  ContratMaintenance,
+  ContratMaintenanceType,
+} from '../schemas/equipment.schema';
 
 export class FindEquipmentDto {
   @IsOptional()
@@ -38,6 +48,39 @@ export class FindEquipmentDto {
   @IsOptional()
   @IsEnum(InventoryStatus)
   inventoryStatus?: InventoryStatus;
+
+  @IsOptional()
+  @IsEnum(AcquisitionModality)
+  acquisitionModality?: AcquisitionModality;
+
+  @IsOptional()
+  @IsEnum(DonSource)
+  donationSource?: DonSource;
+
+  @IsOptional()
+  @IsEnum(DonSourceMshp)
+  donationSourceMshp?: DonSourceMshp;
+
+  @IsOptional()
+  @IsEnum(IntrantDispo)
+  intrantDispo?: IntrantDispo;
+
+  @IsOptional()
+  @IsEnum(ContratMaintenance)
+  contratMaintenance?: ContratMaintenance;
+
+  @IsOptional()
+  @IsEnum(ContratMaintenanceType)
+  contratMaintenanceType?: ContratMaintenanceType;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
+  })
+  @IsBoolean()
+  maintenanceRequired?: boolean;
 
   @IsOptional()
   @IsMongoId()

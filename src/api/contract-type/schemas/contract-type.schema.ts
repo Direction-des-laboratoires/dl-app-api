@@ -14,6 +14,10 @@ export const ContractTypeSchema = new mongoose.Schema({
   description: {
     type: String,
   },
+  rank: {
+    type: Number,
+    default: 0,
+  },
   active: {
     type: Boolean,
     default: true,

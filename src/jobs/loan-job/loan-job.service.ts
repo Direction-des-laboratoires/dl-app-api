@@ -4,7 +4,6 @@ import logger from 'src/utils/logger';
 
 @Injectable()
 export class LoanJobsService {
-  constructor() {}
   private readonly logger = new Logger(LoanJobsService.name);
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)

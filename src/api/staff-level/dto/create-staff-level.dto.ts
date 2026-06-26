@@ -8,4 +8,7 @@ export class CreateStaffLevelDto {
   @IsString()
   @IsOptional()
   description: string;
+
+  @IsOptional()
+  rank: number;
 }
