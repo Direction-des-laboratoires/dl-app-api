@@ -9,8 +9,9 @@ export class PromobileSmsService {
   promobileAxios = axios.create();
   promobileSmsUrl = this.configService.get('promobileSmsUrl');
   promobileSmsAccessKey = this.configService.get('promobileSmsAccessKey');
-  async sendSms(smsObject: { from: string; to: string; content: string }) {
+  async sendSms(smsObject: { from?: string; to: string; content: string }) {
     try {
+      const from = smsObject.from || this.configService.get('promobileSmsFrom');
       const config = {
         headers: {
           'Content-Type': 'application/json',
@@ -18,7 +19,7 @@ export class PromobileSmsService {
         },
       };
       const result = await this.promobileAxios.get(
-        `${this.promobileSmsUrl}?to=${smsObject.to}&from=${smsObject.from}&content=${smsObject.content}`,
+        `${this.promobileSmsUrl}?to=${smsObject.to}&from=${from}&content=${smsObject.content}`,
         config,
       );
       

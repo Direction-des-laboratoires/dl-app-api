@@ -23,6 +23,26 @@ export class MessageService {
     private promobileSmsService: PromobileSmsService,
   ) {}
 
+  private normalizeContact(value: string): string {
+    return value.trim().toLowerCase();
+  }
+
+  private excludeContacts(contacts: string[], exclusions: string[]): string[] {
+    if (!exclusions || exclusions.length === 0) {
+      return contacts;
+    }
+
+    const excludedContacts = new Set(
+      exclusions
+        .filter((contact) => contact && contact.trim() !== '')
+        .map((contact) => this.normalizeContact(contact)),
+    );
+
+    return contacts.filter(
+      (contact) => !excludedContacts.has(this.normalizeContact(contact)),
+    );
+  }
+
   async create(
     createMessageDto: CreateMessageDto,
     sentBy: string,
@@ -32,6 +52,10 @@ export class MessageService {
       logger.info(`---MESSAGE.SERVICE.CREATE INIT---`);
 
       const { recipients } = createMessageDto;
+      const exclusions = [
+        ...(createMessageDto.exclusions ?? []),
+        ...(recipients.exclusions ?? []),
+      ];
 
       // Collecter les emails et phoneNumbers depuis les groupes
       let allEmails: string[] = [];
@@ -132,10 +156,19 @@ export class MessageService {
       // Supprimer les doublons
       const uniqueEmails = [...new Set(allEmails)];
       const uniquePhoneNumbers = [...new Set(allPhoneNumbers)];
+      const finalEmails =
+        createMessageDto.canal === CanalEnum.EMAIL
+          ? this.excludeContacts(uniqueEmails, exclusions)
+          : uniqueEmails;
+      const finalPhoneNumbers =
+        createMessageDto.canal === CanalEnum.SMS ||
+        createMessageDto.canal === CanalEnum.WHATSAPP
+          ? this.excludeContacts(uniquePhoneNumbers, exclusions)
+          : uniquePhoneNumbers;
 
       // Validation selon le canal
       if (createMessageDto.canal === CanalEnum.EMAIL) {
-        if (uniqueEmails.length === 0) {
+        if (finalEmails.length === 0) {
           throw new HttpException(
             'Aucun destinataire email trouvé',
             HttpStatus.BAD_REQUEST,
@@ -145,7 +178,7 @@ export class MessageService {
         createMessageDto.canal === CanalEnum.SMS ||
         createMessageDto.canal === CanalEnum.WHATSAPP
       ) {
-        if (uniquePhoneNumbers.length === 0) {
+        if (finalPhoneNumbers.length === 0) {
           throw new HttpException(
             'Aucun numéro de téléphone trouvé',
             HttpStatus.BAD_REQUEST,
@@ -171,8 +204,9 @@ export class MessageService {
         subject: createMessageDto.subject,
         content: createMessageDto.content,
         canal: createMessageDto.canal,
-        emails: uniqueEmails,
-        phoneNumbers: uniquePhoneNumbers,
+        emails: finalEmails,
+        phoneNumbers: finalPhoneNumbers,
+        exclusions,
         sentBy,
         status: 'pending',
         attachments: attachmentsUrls,
@@ -399,7 +433,6 @@ export class MessageService {
       // Envoyer le SMS à chaque destinataire
       const sendPromises = message.phoneNumbers.map((phoneNumber) =>
         this.promobileSmsService.sendSms({
-          from: 'Fasili',
           to: phoneNumber,
           content: `${message.subject}\n\n${message.content}`,
         }),

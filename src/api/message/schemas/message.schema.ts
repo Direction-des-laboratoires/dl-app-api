@@ -23,6 +23,10 @@ export const MessageSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+  exclusions: {
+    type: [String],
+    default: [],
+  },
   sentBy: {
     type: mongoose.Schema.ObjectId,
     ref: 'User',

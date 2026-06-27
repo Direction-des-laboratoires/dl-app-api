@@ -6,6 +6,7 @@ export interface Message extends Document {
   canal: 'EMAIL' | 'SMS' | 'WHATSAPP';
   emails?: string[];
   phoneNumbers?: string[];
+  exclusions?: string[];
   sentBy: string;
   status: 'pending' | 'sent' | 'failed';
   sentAt?: Date;

@@ -12,6 +12,7 @@ export default () => ({
   publicKey: process.env.PUBLIC_KEY,
   promobileSmsUrl: process.env.PROMOBILE_SMS_URL,
   promobileSmsAccessKey: process.env.PROMOBILE_SMS_ACCESS_KEY,
+  promobileSmsFrom: process.env.PROMOBILE_SMS_FROM,
   // Configuration Mail
   MAIL_HOST: process.env.MAIL_HOST,
   MAIL_PORT: parseInt(process.env.MAIL_PORT || '587', 10),

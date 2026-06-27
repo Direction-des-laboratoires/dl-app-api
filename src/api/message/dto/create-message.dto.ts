@@ -25,6 +25,27 @@ export class MessageRecipientsDto {
   emails?: string[];
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+        if (typeof parsed === 'string') return [parsed];
+        return [value];
+      } catch (e) {
+        return value
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item !== '');
+      }
+    }
+    return value;
+  })
+  @IsArray()
+  @IsString({ each: true })
+  exclusions?: string[];
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   phoneNumbers?: string[];
@@ -80,6 +101,27 @@ export class CreateMessageDto {
   @IsNotEmpty()
   @IsEnum(CanalEnum)
   canal: CanalEnum;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+        if (typeof parsed === 'string') return [parsed];
+        return [value];
+      } catch (e) {
+        return value
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item !== '');
+      }
+    }
+    return value;
+  })
+  @IsArray()
+  @IsString({ each: true })
+  exclusions?: string[];
 
   @IsNotEmpty()
   @Transform(({ value }) => {
