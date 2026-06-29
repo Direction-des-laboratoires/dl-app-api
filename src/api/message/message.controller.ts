@@ -12,7 +12,10 @@ import {
   UploadedFiles,
 } from '@nestjs/common';
 import { MessageService } from './message.service';
-import { CreateMessageDto } from './dto/create-message.dto';
+import {
+  CreateMessageDto,
+  SendRegionAccessesDto,
+} from './dto/create-message.dto';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
@@ -23,6 +26,35 @@ import { UploadHelper } from 'src/utils/functions/upload-image.helper';
 @Controller('messages')
 export class MessageController {
   constructor(private readonly messageService: MessageService) {}
+
+  @Post('region-accesses')
+  @Roles(Role.SuperAdmin)
+  async sendRegionAccesses(
+    @Body() sendRegionAccessesDto: SendRegionAccessesDto,
+    @Req() req,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---MESSAGE.CONTROLLER.SEND_REGION_ACCESSES INIT---`);
+      const sentBy = req.user._id || req.user.userId || req.user.id;
+      const result = await this.messageService.sendRegionAccesses(
+        sendRegionAccessesDto,
+        sentBy,
+      );
+      logger.info(`---MESSAGE.CONTROLLER.SEND_REGION_ACCESSES SUCCESS---`);
+      return res.status(HttpStatus.CREATED).json({
+        message: 'Accès générés et envoyés aux utilisateurs de la région',
+        data: result,
+      });
+    } catch (error) {
+      logger.error(
+        `---MESSAGE.CONTROLLER.SEND_REGION_ACCESSES ERROR--- ${error.message}`,
+      );
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json(error.response || { message: error.message });
+    }
+  }
 
   /**
    * Créer et envoyer un message (mail ou SMS)

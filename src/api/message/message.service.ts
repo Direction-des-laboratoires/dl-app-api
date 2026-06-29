@@ -2,7 +2,11 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { Message } from './interfaces/message.interface';
-import { CanalEnum, CreateMessageDto } from './dto/create-message.dto';
+import {
+  CanalEnum,
+  CreateMessageDto,
+  SendRegionAccessesDto,
+} from './dto/create-message.dto';
 import { MailService } from 'src/providers/mail-service/mail.service';
 import { MailTemplates } from 'src/providers/mail-service/mail.templates';
 import { PromobileSmsService } from 'src/providers/sms-service/promobile.service';
@@ -33,6 +37,36 @@ export class MessageService {
     return value.trim().toLowerCase();
   }
 
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  private generateRandomPassword(length: number = 8): string {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const allChars = uppercase + lowercase + numbers;
+
+    let password = '';
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+
+    for (let i = password.length; i < length; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+
+    return password
+      .split('')
+      .sort(() => Math.random() - 0.5)
+      .join('');
+  }
+
   private excludeContacts(contacts: string[], exclusions: string[]): string[] {
     if (!exclusions || exclusions.length === 0) {
       return contacts;
@@ -47,6 +81,37 @@ export class MessageService {
     return contacts.filter(
       (contact) => !excludedContacts.has(this.normalizeContact(contact)),
     );
+  }
+
+  private async sendGeneratedAccessEmail(
+    user: User,
+    temporaryPassword: string,
+  ): Promise<void> {
+    const fullName =
+      `${user.firstname || ''} ${user.lastname || ''}`.trim() ||
+      'Utilisateur';
+    const safeName = this.escapeHtml(fullName);
+    const safeEmail = this.escapeHtml(user.email);
+    const safePassword = this.escapeHtml(temporaryPassword);
+    const html = MailTemplates.genericEmail(
+      'Vos accès à la plateforme',
+      `
+        <p>Bonjour <strong>${safeName}</strong>,</p>
+        <p>Vos accès à la plateforme de gestion du personnel des laboratoires ont été générés.</p>
+        <div style="background-color: #f9f9f9; border-left: 4px solid #1565C0; padding: 15px; margin: 20px 0; border-radius: 4px;">
+          <p><strong>Identifiants de connexion :</strong></p>
+          <p>Email : <strong>${safeEmail}</strong></p>
+          <p>Mot de passe temporaire : <strong>${safePassword}</strong></p>
+        </div>
+        <p>Veuillez vous connecter avec votre email et le mot de passe fourni, puis changer ce mot de passe lors de votre première connexion.</p>
+      `,
+    );
+
+    await this.mailService.sendMail({
+      to: user.email,
+      subject: 'Vos accès à la plateforme',
+      html,
+    });
   }
 
   private async buildRegionRecipientFilter(
@@ -143,6 +208,144 @@ export class MessageService {
         allowedPhoneNumbers.has(this.normalizeContact(phone)),
       ),
     };
+  }
+
+  async sendRegionAccesses(
+    sendRegionAccessesDto: SendRegionAccessesDto,
+    sentBy: string,
+  ) {
+    try {
+      logger.info(`---MESSAGE.SERVICE.SEND_REGION_ACCESSES INIT---`);
+
+      const { region, exclusions = [], userIds } = sendRegionAccessesDto;
+      const regionFilter = await this.buildRegionRecipientFilter(region);
+
+      if (!regionFilter || regionFilter.labIds.length === 0) {
+        throw new HttpException(
+          'Aucun laboratoire trouvé pour cette région',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const userFilters: any = {
+        lab: { $in: regionFilter.labIds },
+        email: { $exists: true, $ne: '' },
+      };
+
+      if (userIds && userIds.length > 0) {
+        userFilters._id = { $in: userIds };
+      }
+
+      const excludedEmails = new Set(
+        exclusions
+          .filter((item) => item && item.trim() !== '')
+          .map((item) => this.normalizeContact(item)),
+      );
+
+      const users = await this.userModel
+        .find(userFilters)
+        .select(
+          'firstname lastname email password active isFirstLogin lab role region',
+        )
+        .exec();
+
+      const targetUsers = users.filter(
+        (user) => !excludedEmails.has(this.normalizeContact(user.email)),
+      );
+      const skippedUsers = users
+        .filter((user) => excludedEmails.has(this.normalizeContact(user.email)))
+        .map((user) => ({
+          userId: user._id,
+          email: user.email,
+          reason: 'excluded',
+        }));
+
+      if (targetUsers.length === 0) {
+        throw new HttpException(
+          'Aucun utilisateur avec email trouvé pour les laboratoires de cette région',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const sent: Array<{ userId: unknown; email: string }> = [];
+      const failed: Array<{ userId: unknown; email: string; error: string }> = [];
+
+      for (const user of targetUsers) {
+        const previousState = {
+          password: user.password,
+          active: user.active,
+          isFirstLogin: user.isFirstLogin,
+          updated_at: user.updated_at,
+        };
+        const temporaryPassword = this.generateRandomPassword(8);
+
+        try {
+          user.password = temporaryPassword;
+          user.active = true;
+          user.isFirstLogin = true;
+          user.updated_at = new Date();
+          await user.save();
+
+          await this.sendGeneratedAccessEmail(user, temporaryPassword);
+          sent.push({
+            userId: user._id,
+            email: user.email,
+          });
+        } catch (error) {
+          await this.userModel.updateOne(
+            { _id: user._id },
+            { $set: previousState },
+          );
+          failed.push({
+            userId: user._id,
+            email: user.email,
+            error: error.message || "Erreur lors de l'envoi des accès",
+          });
+        }
+      }
+
+      const message = await this.messageModel.create({
+        subject: 'Envoi des accès utilisateurs',
+        content:
+          'Génération et envoi des accès aux utilisateurs des laboratoires de la région sélectionnée.',
+        canal: CanalEnum.EMAIL,
+        emails: sent.map((item) => item.email),
+        phoneNumbers: [],
+        exclusions,
+        region,
+        sentBy,
+        status: failed.length > 0 ? 'failed' : 'sent',
+        sentAt: sent.length > 0 ? new Date() : null,
+        errorMessage:
+          failed.length > 0
+            ? `${failed.length} envoi(s) échoué(s) sur ${targetUsers.length}`
+            : null,
+        attachments: [],
+      });
+
+      logger.info(`---MESSAGE.SERVICE.SEND_REGION_ACCESSES SUCCESS---`);
+      return {
+        message,
+        summary: {
+          totalFound: users.length,
+          totalTargeted: targetUsers.length,
+          sent: sent.length,
+          failed: failed.length,
+          skipped: skippedUsers.length,
+        },
+        sent,
+        failed,
+        skipped: skippedUsers,
+      };
+    } catch (error) {
+      logger.error(
+        `---MESSAGE.SERVICE.SEND_REGION_ACCESSES ERROR--- ${error.message}`,
+      );
+      throw new HttpException(
+        error.message || "Erreur lors de l'envoi des accès",
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   async create(

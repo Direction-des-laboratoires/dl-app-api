@@ -155,3 +155,45 @@ export class CreateMessageDto {
   @IsString()
   repeat?: string;
 }
+
+export class SendRegionAccessesDto {
+  @IsNotEmpty()
+  @IsMongoId()
+  region: string;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+        if (typeof parsed === 'string') return [parsed];
+        return [value];
+      } catch (e) {
+        return value
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item !== '');
+      }
+    }
+    return value;
+  })
+  @IsArray()
+  @IsString({ each: true })
+  exclusions?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item !== '');
+    }
+    return value;
+  })
+  @IsArray()
+  @IsMongoId({ each: true })
+  userIds?: string[];
+}
