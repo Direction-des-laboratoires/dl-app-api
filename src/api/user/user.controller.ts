@@ -25,11 +25,15 @@ import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import { FindUsersDto } from './dto/find-user.dto';
 import { UploadHelper } from 'src/utils/functions/upload-image.helper';
+import { EnvironmentService } from '../environment/environment.service';
 import { CreateLabAdminAccountDto } from '../auth/dto/create-lab-admin-account.dto';
 
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly environmentService: EnvironmentService,
+  ) {}
 
   @UseInterceptors(
     AnyFilesInterceptor({
@@ -88,6 +92,12 @@ export class UserController {
         }
         createUserDto.lab = labId;
         createUserDto.role = Role.LabStaff;
+
+        // Récupérer et forcer l'environnement RNL'(Réseau Nationale des Laboratoires)
+        const rnlEnv = await this.environmentService.findByCode('RNL');
+        if (rnlEnv && rnlEnv.data) {
+          createUserDto.environment = rnlEnv.data._id.toString();
+        }
       }
 
       const user = await this.userService.create(createUserDto, files || []);

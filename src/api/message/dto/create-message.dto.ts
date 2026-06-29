@@ -10,7 +10,7 @@ import {
   IsDate,
   IsDateString,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export enum CanalEnum {
   EMAIL = 'EMAIL',
@@ -23,6 +23,27 @@ export class MessageRecipientsDto {
   @IsArray()
   @IsEmail({}, { each: true })
   emails?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+        if (typeof parsed === 'string') return [parsed];
+        return [value];
+      } catch (e) {
+        return value
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item !== '');
+      }
+    }
+    return value;
+  })
+  @IsArray()
+  @IsString({ each: true })
+  exclusions?: string[];
 
   @IsOptional()
   @IsArray()
@@ -57,6 +78,15 @@ export class MessageRecipientsDto {
   @IsOptional()
   @IsBoolean()
   allStaffs?: boolean;
+
+  @IsOptional()
+  @IsString()
+  environmentId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  environmentPositionIds?: string[];
 }
 
 export class CreateMessageDto {
@@ -72,9 +102,40 @@ export class CreateMessageDto {
   @IsEnum(CanalEnum)
   canal: CanalEnum;
 
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+        if (typeof parsed === 'string') return [parsed];
+        return [value];
+      } catch (e) {
+        return value
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item !== '');
+      }
+    }
+    return value;
+  })
+  @IsArray()
+  @IsString({ each: true })
+  exclusions?: string[];
+
   @IsNotEmpty()
-  @ValidateNested()
-  @Type(() => MessageRecipientsDto)
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        // Si le parsing réussit, on retourne l'objet
+        return parsed;
+      } catch (e) {
+        return value;
+      }
+    }
+    return value;
+  })
   recipients: MessageRecipientsDto;
 
   @IsOptional()

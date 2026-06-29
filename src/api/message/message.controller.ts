@@ -8,12 +8,17 @@ import {
   Res,
   HttpStatus,
   Req,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { UploadHelper } from 'src/utils/functions/upload-image.helper';
 
 @Controller('messages')
 export class MessageController {
@@ -25,8 +30,14 @@ export class MessageController {
    */
   @Post()
   @Roles(Role.SuperAdmin)
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      storage: diskStorage({ destination: UploadHelper.uploadDirectory }),
+    }),
+  )
   async create(
     @Body() createMessageDto: CreateMessageDto,
+    @UploadedFiles() files: Express.Multer.File[],
     @Req() req,
     @Res() res,
   ) {
@@ -36,6 +47,7 @@ export class MessageController {
       const message = await this.messageService.create(
         createMessageDto,
         sentBy,
+        files || [],
       );
       logger.info(`---MESSAGE.CONTROLLER.CREATE SUCCESS---`);
       return res.status(HttpStatus.CREATED).json({

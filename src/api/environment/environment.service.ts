@@ -100,6 +100,27 @@ export class EnvironmentService {
     };
   }
 
+  async findByCode(code: string): Promise<any> {
+    try {
+      logger.info(`---ENVIRONMENT.SERVICE.FIND_BY_CODE INIT--- code=${code}`);
+      const environment = await this.environmentModel.findOne({ code, active: true }).exec();
+      if (!environment) {
+        throw new HttpException('Environnement non trouvé', HttpStatus.NOT_FOUND);
+      }
+      logger.info(`---ENVIRONMENT.SERVICE.FIND_BY_CODE SUCCESS---`);
+      return {
+        message: 'Environnement récupéré avec succès',
+        data: environment,
+      };
+    } catch (error) {
+      logger.error(`---ENVIRONMENT.SERVICE.FIND_BY_CODE ERROR ${error}---`);
+      throw new HttpException(
+        error.message || 'Erreur lors de la récupération de l\'environnement',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async update(id: string, updateEnvironmentDto: UpdateEnvironmentDto): Promise<any> {
     const updated = await this.environmentModel.findByIdAndUpdate(
       id,

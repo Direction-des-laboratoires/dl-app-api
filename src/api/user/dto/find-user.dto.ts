@@ -66,7 +66,7 @@ export class FindUsersDto {
   search?: string;
 
   @IsOptional()
-  @IsMongoId()
+  @IsString()
   lab?: string;
 
   @IsOptional()

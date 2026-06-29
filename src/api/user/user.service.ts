@@ -671,15 +671,65 @@ export class UserService {
       } = query;
 
       const filters: any = {};
+      const emptyResult = () => ({
+        data: [],
+        limit,
+        total: 0,
+        page,
+        totalPages: 0,
+      });
+      let resolvedLabIdsFromLabParam: mongoose.Types.ObjectId[] | undefined;
+
+      if (lab) {
+        if (mongoose.Types.ObjectId.isValid(lab)) {
+          resolvedLabIdsFromLabParam = [new mongoose.Types.ObjectId(lab)];
+        } else {
+          const labsByName = await this.labModel
+            .find({
+              name: {
+                $regex: this.escapeRegex(lab),
+                $options: 'i',
+              },
+            })
+            .select('_id')
+            .lean();
+          resolvedLabIdsFromLabParam = labsByName.map(
+            (labItem) => labItem._id as mongoose.Types.ObjectId,
+          );
+
+          if (!resolvedLabIdsFromLabParam.length) {
+            return emptyResult();
+          }
+        }
+
+        filters.lab = { $in: resolvedLabIdsFromLabParam };
+      }
 
       // Si search est fourni, rechercher dans firstname, lastname, email et phoneNumber
       if (search) {
+        const labsFromSearch = await this.labModel
+          .find({
+            name: {
+              $regex: this.escapeRegex(search),
+              $options: 'i',
+            },
+          })
+          .select('_id')
+          .lean();
+        const labIdsFromSearch = labsFromSearch.map(
+          (labItem) => labItem._id as mongoose.Types.ObjectId,
+        );
+
         filters.$or = [
           { firstname: { $regex: search, $options: 'i' } },
           { lastname: { $regex: search, $options: 'i' } },
           { email: { $regex: search, $options: 'i' } },
           { phoneNumber: { $regex: search, $options: 'i' } },
         ];
+
+        if (labIdsFromSearch.length > 0) {
+          filters.$or.push({ lab: { $in: labIdsFromSearch } });
+        }
       } else {
         // Sinon, utiliser les filtres individuels
         if (firstname) filters.firstname = { $regex: firstname, $options: 'i' };
@@ -689,7 +739,6 @@ export class UserService {
 
       if (bloodGroup)
         filters.bloodGroup = { $regex: `^${bloodGroup}$`, $options: 'i' };
-      if (lab) filters.lab = lab;
       if (environment) filters.environment = environment;
       if (environmentPosition)
         filters.environmentPosition = environmentPosition;
@@ -719,20 +768,14 @@ export class UserService {
           };
         }
 
-        if (lab) {
-          const labMatchesStructure = labIds.some(
-            (id) => String(id) === String(lab),
+        if (resolvedLabIdsFromLabParam?.length) {
+          const matchingLabIds = resolvedLabIdsFromLabParam.filter((id) =>
+            labIds.some((labId) => String(labId) === String(id)),
           );
-          if (!labMatchesStructure) {
-            return {
-              data: [],
-              limit,
-              total: 0,
-              page,
-              totalPages: 0,
-            };
+          if (!matchingLabIds.length) {
+            return emptyResult();
           }
-          // lab déjà dans les filtres, rien à changer
+          filters.lab = { $in: matchingLabIds };
         } else {
           filters.lab = { $in: labIds };
         }
@@ -749,20 +792,14 @@ export class UserService {
           };
         }
 
-        if (lab) {
-          const labMatchesPole = labIds.some(
-            (id) => String(id) === String(lab),
+        if (resolvedLabIdsFromLabParam?.length) {
+          const matchingLabIds = resolvedLabIdsFromLabParam.filter((id) =>
+            labIds.some((labId) => String(labId) === String(id)),
           );
-          if (!labMatchesPole) {
-            return {
-              data: [],
-              limit,
-              total: 0,
-              page,
-              totalPages: 0,
-            };
+          if (!matchingLabIds.length) {
+            return emptyResult();
           }
-          // lab déjà dans les filtres, rien à changer
+          filters.lab = { $in: matchingLabIds };
         } else {
           filters.lab = { $in: labIds };
         }
@@ -782,20 +819,14 @@ export class UserService {
           };
         }
 
-        if (lab) {
-          const labMatchesRegion = labIds.some(
-            (id) => String(id) === String(lab),
+        if (resolvedLabIdsFromLabParam?.length) {
+          const matchingLabIds = resolvedLabIdsFromLabParam.filter((id) =>
+            labIds.some((labId) => String(labId) === String(id)),
           );
-          if (!labMatchesRegion) {
-            return {
-              data: [],
-              limit,
-              total: 0,
-              page,
-              totalPages: 0,
-            };
+          if (!matchingLabIds.length) {
+            return emptyResult();
           }
-          // lab déjà dans les filtres, rien à changer
+          filters.lab = { $in: matchingLabIds };
         } else {
           filters.lab = { $in: labIds };
         }
