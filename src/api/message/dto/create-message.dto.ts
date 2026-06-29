@@ -6,6 +6,7 @@ import {
   IsEmail,
   IsOptional,
   IsBoolean,
+  IsMongoId,
   ValidateNested,
   IsDate,
   IsDateString,
@@ -84,6 +85,10 @@ export class MessageRecipientsDto {
   environmentId?: string;
 
   @IsOptional()
+  @IsMongoId()
+  region?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   environmentPositionIds?: string[];
@@ -122,6 +127,10 @@ export class CreateMessageDto {
   @IsArray()
   @IsString({ each: true })
   exclusions?: string[];
+
+  @IsOptional()
+  @IsMongoId()
+  region?: string;
 
   @IsNotEmpty()
   @Transform(({ value }) => {

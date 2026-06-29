@@ -7,6 +7,7 @@ export interface Message extends Document {
   emails?: string[];
   phoneNumbers?: string[];
   exclusions?: string[];
+  region?: string;
   sentBy: string;
   status: 'pending' | 'sent' | 'failed';
   sentAt?: Date;

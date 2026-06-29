@@ -27,6 +27,11 @@ export const MessageSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+  region: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Region',
+    default: null,
+  },
   sentBy: {
     type: mongoose.Schema.ObjectId,
     ref: 'User',

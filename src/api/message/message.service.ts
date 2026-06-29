@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { Message } from './interfaces/message.interface';
 import { CanalEnum, CreateMessageDto } from './dto/create-message.dto';
 import { MailService } from 'src/providers/mail-service/mail.service';
@@ -12,6 +12,12 @@ import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
 
 import { uploadFile } from 'src/utils/functions/file.upload';
+
+type RegionRecipientFilter = {
+  regionId: mongoose.Types.ObjectId;
+  labIds: mongoose.Types.ObjectId[];
+  userIds: mongoose.Types.ObjectId[];
+};
 
 @Injectable()
 export class MessageService {
@@ -43,6 +49,102 @@ export class MessageService {
     );
   }
 
+  private async buildRegionRecipientFilter(
+    region?: string,
+  ): Promise<RegionRecipientFilter | null> {
+    if (!region) {
+      return null;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(region)) {
+      throw new HttpException('Région invalide', HttpStatus.BAD_REQUEST);
+    }
+
+    const regionId = new mongoose.Types.ObjectId(region);
+    const labs = await this.labModel
+      .aggregate([
+        {
+          $lookup: {
+            from: 'structures',
+            localField: 'structure',
+            foreignField: '_id',
+            as: 'structureInfo',
+          },
+        },
+        { $unwind: '$structureInfo' },
+        { $match: { 'structureInfo.region': regionId } },
+        { $project: { _id: 1, director: 1, responsible: 1 } },
+      ])
+      .exec();
+
+    const labIds = labs.map((lab) => lab._id as mongoose.Types.ObjectId);
+    const userIds = Array.from(
+      new Set(
+        labs
+          .flatMap((lab) => [lab.director, lab.responsible])
+          .filter(Boolean)
+          .map((id) => String(id)),
+      ),
+    ).map((id) => new mongoose.Types.ObjectId(id));
+
+    return { regionId, labIds, userIds };
+  }
+
+  private buildRegionUserMatch(regionFilter: RegionRecipientFilter): any {
+    const conditions: any[] = [{ region: regionFilter.regionId }];
+
+    if (regionFilter.labIds.length > 0) {
+      conditions.push({ lab: { $in: regionFilter.labIds } });
+    }
+
+    if (regionFilter.userIds.length > 0) {
+      conditions.push({ _id: { $in: regionFilter.userIds } });
+    }
+
+    return { $or: conditions };
+  }
+
+  private async filterContactsByRegion(
+    emails: string[],
+    phoneNumbers: string[],
+    regionFilter: RegionRecipientFilter | null,
+  ): Promise<{ emails: string[]; phoneNumbers: string[] }> {
+    if (!regionFilter) {
+      return { emails, phoneNumbers };
+    }
+
+    const users = await this.userModel
+      .find({
+        active: true,
+        ...this.buildRegionUserMatch(regionFilter),
+      })
+      .select('email phoneNumber')
+      .lean()
+      .exec();
+
+    const allowedEmails = new Set(
+      users
+        .map((user) => user.email)
+        .filter((email) => email && email.trim() !== '')
+        .map((email) => this.normalizeContact(email)),
+    );
+    const allowedPhoneNumbers = new Set(
+      users
+        .map((user) => user.phoneNumber)
+        .filter((phone) => phone && phone.trim() !== '')
+        .map((phone) => this.normalizeContact(phone)),
+    );
+
+    return {
+      emails: emails.filter((email) =>
+        allowedEmails.has(this.normalizeContact(email)),
+      ),
+      phoneNumbers: phoneNumbers.filter((phone) =>
+        allowedPhoneNumbers.has(this.normalizeContact(phone)),
+      ),
+    };
+  }
+
   async create(
     createMessageDto: CreateMessageDto,
     sentBy: string,
@@ -56,6 +158,8 @@ export class MessageService {
         ...(createMessageDto.exclusions ?? []),
         ...(recipients.exclusions ?? []),
       ];
+      const region = createMessageDto.region ?? recipients.region;
+      const regionFilter = await this.buildRegionRecipientFilter(region);
 
       // Collecter les emails et phoneNumbers depuis les groupes
       let allEmails: string[] = [];
@@ -156,15 +260,20 @@ export class MessageService {
       // Supprimer les doublons
       const uniqueEmails = [...new Set(allEmails)];
       const uniquePhoneNumbers = [...new Set(allPhoneNumbers)];
+      const regionFilteredContacts = await this.filterContactsByRegion(
+        uniqueEmails,
+        uniquePhoneNumbers,
+        regionFilter,
+      );
       const finalEmails =
         createMessageDto.canal === CanalEnum.EMAIL
-          ? this.excludeContacts(uniqueEmails, exclusions)
-          : uniqueEmails;
+          ? this.excludeContacts(regionFilteredContacts.emails, exclusions)
+          : regionFilteredContacts.emails;
       const finalPhoneNumbers =
         createMessageDto.canal === CanalEnum.SMS ||
         createMessageDto.canal === CanalEnum.WHATSAPP
-          ? this.excludeContacts(uniquePhoneNumbers, exclusions)
-          : uniquePhoneNumbers;
+          ? this.excludeContacts(regionFilteredContacts.phoneNumbers, exclusions)
+          : regionFilteredContacts.phoneNumbers;
 
       // Validation selon le canal
       if (createMessageDto.canal === CanalEnum.EMAIL) {
@@ -207,6 +316,7 @@ export class MessageService {
         emails: finalEmails,
         phoneNumbers: finalPhoneNumbers,
         exclusions,
+        region,
         sentBy,
         status: 'pending',
         attachments: attachmentsUrls,
