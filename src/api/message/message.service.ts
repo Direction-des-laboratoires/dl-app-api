@@ -20,6 +20,17 @@ import {
   flattenPhoneNumbers,
   parsePhoneNumbers,
 } from 'src/utils/functions/format-senegal-phone';
+import {
+  buildMessageTemplateContext,
+  messageHasTemplateVariables,
+  renderMessageTemplate,
+} from 'src/utils/functions/render-message-template';
+
+type RecipientContacts = {
+  emails: string[];
+  phoneNumbers: string[];
+  userIds: string[];
+};
 
 type RegionRecipientFilter = {
   regionId: mongoose.Types.ObjectId;
@@ -37,8 +48,141 @@ export class MessageService {
     private promobileSmsService: PromobileSmsService,
   ) {}
 
+  private readonly userPopulateForTemplate = [
+    {
+      path: 'lab',
+      select: 'name structure',
+      populate: { path: 'structure', select: 'name' },
+    },
+    { path: 'region', select: 'name' },
+    { path: 'position', select: 'title' },
+    { path: 'environment', select: 'name' },
+  ];
+
+  private findUserByEmail(
+    users: Array<Record<string, any>>,
+    email: string,
+  ): Record<string, any> | null {
+    const normalizedEmail = this.normalizeContact(email);
+    return (
+      users.find(
+        (user) =>
+          user.email &&
+          this.normalizeContact(user.email) === normalizedEmail,
+      ) ?? null
+    );
+  }
+
+  private findUserByPhone(
+    users: Array<Record<string, any>>,
+    phone: string,
+  ): Record<string, any> | null {
+    const normalizedPhone = this.normalizePhoneForMatch(phone);
+    return (
+      users.find((user) =>
+        flattenPhoneNumbers([
+          user.phoneNumber,
+          user.phoneNumber2,
+          user.whatsappNumber,
+        ]).some(
+          (userPhone) =>
+            this.normalizePhoneForMatch(userPhone) === normalizedPhone,
+        ),
+      ) ?? null
+    );
+  }
+
+  private async loadUsersForPersonalization(
+    userIds: string[],
+    emails: string[],
+    phones: string[],
+  ): Promise<Array<Record<string, any>>> {
+    const uniqueUserIds = [
+      ...new Set(userIds.filter((id) => mongoose.Types.ObjectId.isValid(id))),
+    ];
+    const filters: Array<Record<string, unknown>> = [];
+
+    if (uniqueUserIds.length > 0) {
+      filters.push({ _id: { $in: uniqueUserIds } });
+    }
+    if (emails.length > 0) {
+      filters.push({ email: { $in: emails } });
+    }
+
+    let users: Array<Record<string, any>> = [];
+    if (filters.length > 0) {
+      users = await this.userModel
+        .find({ active: true, $or: filters })
+        .populate(this.userPopulateForTemplate)
+        .lean()
+        .exec();
+    }
+
+    const knownUserIds = new Set(users.map((user) => String(user._id)));
+    const unmatchedPhones = phones.filter(
+      (phone) => !this.findUserByPhone(users, phone),
+    );
+
+    for (const phone of unmatchedPhones) {
+      const digits = phone.replace(/\D/g, '');
+      const local = digits.startsWith('221')
+        ? digits.slice(3)
+        : digits.replace(/^0/, '');
+      if (!local) {
+        continue;
+      }
+
+      const user = await this.userModel
+        .findOne({
+          active: true,
+          $or: [
+            { phoneNumber: { $regex: local } },
+            { phoneNumber2: { $regex: local } },
+            { whatsappNumber: { $regex: local } },
+          ],
+        })
+        .populate(this.userPopulateForTemplate)
+        .lean()
+        .exec();
+
+      if (user && !knownUserIds.has(String(user._id))) {
+        users.push(user);
+        knownUserIds.add(String(user._id));
+      }
+    }
+
+    return users;
+  }
+
+  private personalizeMessageParts(
+    subject: string,
+    content: string,
+    user: Record<string, any> | null,
+    escapeHtml: boolean,
+  ): { subject: string; content: string } {
+    const context = buildMessageTemplateContext(user, { escapeHtml });
+    return {
+      subject: renderMessageTemplate(subject, context),
+      content: renderMessageTemplate(content, context),
+    };
+  }
+
   private normalizeContact(value: string): string {
     return value.trim().toLowerCase();
+  }
+
+  private normalizePhoneForMatch(phone: string): string {
+    const cleaned = phone.trim().replace(/\s+/g, '');
+    if (cleaned.startsWith('+221')) {
+      return cleaned.slice(4);
+    }
+    if (cleaned.startsWith('221')) {
+      return cleaned.slice(3);
+    }
+    if (cleaned.startsWith('0')) {
+      return cleaned.slice(1);
+    }
+    return cleaned;
   }
 
   private escapeHtml(value: string): string {
@@ -370,12 +514,18 @@ export class MessageService {
       // Collecter les emails et phoneNumbers depuis les groupes
       let allEmails: string[] = [];
       let allPhoneNumbers: string[] = [];
+      let allUserIds: string[] = [];
+
+      const mergeContacts = (contacts: RecipientContacts) => {
+        allEmails = [...allEmails, ...contacts.emails];
+        allPhoneNumbers = [...allPhoneNumbers, ...contacts.phoneNumbers];
+        allUserIds = [...allUserIds, ...contacts.userIds];
+      };
 
       // 1. Ajouter les emails directs
       if (recipients.emails && recipients.emails.length > 0) {
         allEmails = [...allEmails, ...recipients.emails];
       }
-
 
       // 2. Ajouter les phoneNumbers directs
       if (recipients.phoneNumbers && recipients.phoneNumbers.length > 0) {
@@ -389,78 +539,58 @@ export class MessageService {
             _id: { $in: recipients.userIds },
             active: true,
           })
-          .select('email phoneNumber')
+          .select('_id email phoneNumber')
           .exec();
 
-        const userEmails = users
-          .map((user) => user.email)
-          .filter((email) => email && email.trim() !== '');
-        allEmails = [...allEmails, ...userEmails];
-
-        const userPhoneNumbers = users
-          .map((user) => user.phoneNumber)
-          .filter((phone) => phone && phone.trim() !== '');
-        allPhoneNumbers = [...allPhoneNumbers, ...userPhoneNumbers];
+        mergeContacts({
+          emails: users
+            .map((user) => user.email)
+            .filter((email) => email && email.trim() !== ''),
+          phoneNumbers: users
+            .map((user) => user.phoneNumber)
+            .filter((phone) => phone && phone.trim() !== ''),
+          userIds: users.map((user) => String(user._id)),
+        });
       }
 
       // 4. Ajouter tous les directeurs si demandé
       if (recipients.allDirectors === true) {
-        const { emails, phoneNumbers } = await this.getDirectorsContacts();
-        allEmails = [...allEmails, ...emails];
-        allPhoneNumbers = [...allPhoneNumbers, ...phoneNumbers];
+        mergeContacts(await this.getDirectorsContacts());
       }
 
       // 5. Ajouter tous les responsables si demandé
       if (recipients.allResponsibles === true) {
-        const { emails, phoneNumbers } = await this.getResponsiblesContacts();
-        allEmails = [...allEmails, ...emails];
-        allPhoneNumbers = [...allPhoneNumbers, ...phoneNumbers];
+        mergeContacts(await this.getResponsiblesContacts());
       }
 
       // 6. Ajouter tous les Super Admins si demandé
       if (recipients.allSuperAdmins === true) {
-        const { emails, phoneNumbers } = await this.getRoleContacts(
-          Role.SuperAdmin,
-        );
-        allEmails = [...allEmails, ...emails];
-        allPhoneNumbers = [...allPhoneNumbers, ...phoneNumbers];
+        mergeContacts(await this.getRoleContacts(Role.SuperAdmin));
       }
 
       // 7. Ajouter tous les Lab Admins si demandé
       if (recipients.allLabAdmins === true) {
-        const { emails, phoneNumbers } = await this.getRoleContacts(
-          Role.LabAdmin,
-        );
-        allEmails = [...allEmails, ...emails];
-        allPhoneNumbers = [...allPhoneNumbers, ...phoneNumbers];
+        mergeContacts(await this.getRoleContacts(Role.LabAdmin));
       }
 
       // 8. Ajouter tous les Region Admins si demandé
       if (recipients.allRegionAdmins === true) {
-        const { emails, phoneNumbers } = await this.getRoleContacts(
-          Role.RegionAdmin,
-        );
-        allEmails = [...allEmails, ...emails];
-        allPhoneNumbers = [...allPhoneNumbers, ...phoneNumbers];
+        mergeContacts(await this.getRoleContacts(Role.RegionAdmin));
       }
 
       // 9. Ajouter tous les Lab Staff si demandé
       if (recipients.allStaffs === true) {
-        const { emails, phoneNumbers } = await this.getRoleContacts(
-          Role.LabStaff,
-        );
-        allEmails = [...allEmails, ...emails];
-        allPhoneNumbers = [...allPhoneNumbers, ...phoneNumbers];
+        mergeContacts(await this.getRoleContacts(Role.LabStaff));
       }
 
       // 10. Ajouter les utilisateurs par environmentId et ses postes sélectionnés
       if (recipients.environmentId) {
-        const { emails, phoneNumbers } = await this.getEnvironmentTargetedContacts(
-          recipients.environmentId,
-          recipients.environmentPositionIds,
+        mergeContacts(
+          await this.getEnvironmentTargetedContacts(
+            recipients.environmentId,
+            recipients.environmentPositionIds,
+          ),
         );
-        allEmails = [...allEmails, ...emails];
-        allPhoneNumbers = [...allPhoneNumbers, ...phoneNumbers];
       }
 
       // Supprimer les doublons
@@ -539,11 +669,11 @@ export class MessageService {
       // Envoyer le message selon le canal
       try {
         if (createMessageDto.canal === CanalEnum.EMAIL) {
-          await this.sendMail(message);
+          await this.sendMail(message, allUserIds);
         } else if (createMessageDto.canal === CanalEnum.SMS) {
-          await this.sendSms(message);
+          await this.sendSms(message, allUserIds);
         } else if (createMessageDto.canal === CanalEnum.WHATSAPP) {
-          await this.sendWhatsapp(message);
+          await this.sendWhatsapp(message, allUserIds);
         }
 
         // Mettre à jour le statut à 'sent'
@@ -576,10 +706,7 @@ export class MessageService {
     }
   }
 
-  private async getDirectorsContacts(): Promise<{
-    emails: string[];
-    phoneNumbers: string[];
-  }> {
+  private async getDirectorsContacts(): Promise<RecipientContacts> {
     const labs = await this.labModel
       .find({ director: { $exists: true, $ne: null } })
       .populate('director', 'email phoneNumber firstname lastname active')
@@ -588,10 +715,14 @@ export class MessageService {
 
     const emails: string[] = [];
     const phoneNumbers: string[] = [];
+    const userIds: string[] = [];
 
     labs.forEach((lab: any) => {
       const director = lab.director;
       if (director && director.active) {
+        if (director._id) {
+          userIds.push(String(director._id));
+        }
         if (director.email && director.email.trim() !== '') {
           emails.push(director.email);
         }
@@ -604,13 +735,11 @@ export class MessageService {
     return {
       emails: [...new Set(emails)],
       phoneNumbers: [...new Set(phoneNumbers)],
+      userIds: [...new Set(userIds)],
     };
   }
 
-  private async getResponsiblesContacts(): Promise<{
-    emails: string[];
-    phoneNumbers: string[];
-  }> {
+  private async getResponsiblesContacts(): Promise<RecipientContacts> {
     const labs = await this.labModel
       .find({ responsible: { $exists: true, $ne: null } })
       .populate('responsible', 'email phoneNumber firstname lastname active')
@@ -619,10 +748,14 @@ export class MessageService {
 
     const emails: string[] = [];
     const phoneNumbers: string[] = [];
+    const userIds: string[] = [];
 
     labs.forEach((lab: any) => {
       const responsible = lab.responsible;
       if (responsible && responsible.active) {
+        if (responsible._id) {
+          userIds.push(String(responsible._id));
+        }
         if (responsible.email && responsible.email.trim() !== '') {
           emails.push(responsible.email);
         }
@@ -635,19 +768,17 @@ export class MessageService {
     return {
       emails: [...new Set(emails)],
       phoneNumbers: [...new Set(phoneNumbers)],
+      userIds: [...new Set(userIds)],
     };
   }
 
-  private async getRoleContacts(role: Role): Promise<{
-    emails: string[];
-    phoneNumbers: string[];
-  }> {
+  private async getRoleContacts(role: Role): Promise<RecipientContacts> {
     const users = await this.userModel
       .find({
         role,
         active: true,
       })
-      .select('email phoneNumber')
+      .select('_id email phoneNumber')
       .exec();
 
     const emails = users
@@ -661,16 +792,14 @@ export class MessageService {
     return {
       emails: [...new Set(emails)],
       phoneNumbers: [...new Set(phoneNumbers)],
+      userIds: users.map((user) => String(user._id)),
     };
   }
 
   private async getEnvironmentTargetedContacts(
     environmentId: string,
     environmentPositionIds?: string[],
-  ): Promise<{
-    emails: string[];
-    phoneNumbers: string[];
-  }> {
+  ): Promise<RecipientContacts> {
     const filters: any = {
       environment: environmentId,
       active: true,
@@ -683,7 +812,7 @@ export class MessageService {
 
     const users = await this.userModel
       .find(filters)
-      .select('email phoneNumber')
+      .select('_id email phoneNumber')
       .exec();
 
     const emails = users
@@ -697,10 +826,11 @@ export class MessageService {
     return {
       emails: [...new Set(emails)],
       phoneNumbers: [...new Set(phoneNumbers)],
+      userIds: users.map((user) => String(user._id)),
     };
   }
 
-  private async sendMail(message: Message) {
+  private async sendMail(message: Message, recipientUserIds: string[] = []) {
     try {
       logger.info(`---MESSAGE.SERVICE.SEND_MAIL INIT---`);
 
@@ -711,25 +841,56 @@ export class MessageService {
         );
       }
 
-      // Préparer le contenu HTML
-      const html = MailTemplates.genericEmail(message.subject, message.content);
-
-      // Préparer les pièces jointes pour nodemailer
       const attachments = message.attachments?.map((url) => {
         const filename = url.split('/').pop() || 'attachment';
         return {
           filename,
-          path: url, // Nodemailer peut gérer les URLs si le serveur le permet, sinon il faudra le chemin local
+          path: url,
         };
       });
 
-      // Envoyer l'email à tous les destinataires
-      await this.mailService.sendMail({
-        to: message.emails,
-        subject: message.subject,
-        html,
-        attachments,
-      });
+      const hasTemplateVariables =
+        messageHasTemplateVariables(message.subject) ||
+        messageHasTemplateVariables(message.content);
+
+      if (!hasTemplateVariables) {
+        const html = MailTemplates.genericEmail(message.subject, message.content);
+        await this.mailService.sendMail({
+          to: message.emails,
+          subject: message.subject,
+          html,
+          attachments,
+        });
+      } else {
+        const users = await this.loadUsersForPersonalization(
+          recipientUserIds,
+          message.emails ?? [],
+          [],
+        );
+
+        await Promise.all(
+          (message.emails ?? []).map(async (email) => {
+            const user = this.findUserByEmail(users, email);
+            const personalized = this.personalizeMessageParts(
+              message.subject,
+              message.content,
+              user,
+              true,
+            );
+            const html = MailTemplates.genericEmail(
+              personalized.subject,
+              personalized.content,
+            );
+
+            await this.mailService.sendMail({
+              to: email,
+              subject: personalized.subject,
+              html,
+              attachments,
+            });
+          }),
+        );
+      }
 
       logger.info(
         `---MESSAGE.SERVICE.SEND_MAIL SUCCESS--- Sent to ${message.emails.length} recipients`,
@@ -740,7 +901,7 @@ export class MessageService {
     }
   }
 
-  private async sendSms(message: Message) {
+  private async sendSms(message: Message, recipientUserIds: string[] = []) {
     try {
       logger.info(`---MESSAGE.SERVICE.SEND_SMS INIT---`);
 
@@ -751,13 +912,32 @@ export class MessageService {
         );
       }
 
-      // Envoyer le SMS à chaque destinataire
-      const sendPromises = message.phoneNumbers.map((phoneNumber) =>
-        this.promobileSmsService.sendSms({
-          to: phoneNumber,
-          content: `${message.subject}\n\n${message.content}`,
-        }),
+      const users = await this.loadUsersForPersonalization(
+        recipientUserIds,
+        [],
+        message.phoneNumbers ?? [],
       );
+
+      const hasTemplateVariables =
+        messageHasTemplateVariables(message.subject) ||
+        messageHasTemplateVariables(message.content);
+
+      const sendPromises = (message.phoneNumbers ?? []).map((phoneNumber) => {
+        const user = this.findUserByPhone(users, phoneNumber);
+        const personalized = hasTemplateVariables
+          ? this.personalizeMessageParts(
+              message.subject,
+              message.content,
+              user,
+              false,
+            )
+          : { subject: message.subject, content: message.content };
+
+        return this.promobileSmsService.sendSms({
+          to: phoneNumber,
+          content: `${personalized.subject}\n\n${personalized.content}`,
+        });
+      });
 
       await Promise.all(sendPromises);
 
@@ -770,7 +950,7 @@ export class MessageService {
     }
   }
 
-  private async sendWhatsapp(message: Message) {
+  private async sendWhatsapp(message: Message, recipientUserIds: string[] = []) {
     try {
       logger.info(`---MESSAGE.SERVICE.SEND_WHATSAPP INIT---`);
 
@@ -781,15 +961,33 @@ export class MessageService {
         );
       }
 
-      // Pour l'instant, on utilise le même service SMS pour WhatsApp
-      // TODO: Implémenter un service WhatsApp dédié si nécessaire
-      const sendPromises = message.phoneNumbers.map((phoneNumber) =>
-        this.promobileSmsService.sendSms({
+      const users = await this.loadUsersForPersonalization(
+        recipientUserIds,
+        [],
+        message.phoneNumbers ?? [],
+      );
+
+      const hasTemplateVariables =
+        messageHasTemplateVariables(message.subject) ||
+        messageHasTemplateVariables(message.content);
+
+      const sendPromises = (message.phoneNumbers ?? []).map((phoneNumber) => {
+        const user = this.findUserByPhone(users, phoneNumber);
+        const personalized = hasTemplateVariables
+          ? this.personalizeMessageParts(
+              message.subject,
+              message.content,
+              user,
+              false,
+            )
+          : { subject: message.subject, content: message.content };
+
+        return this.promobileSmsService.sendSms({
           from: 'Fasili',
           to: phoneNumber,
-          content: `${message.subject}\n\n${message.content}`,
-        }),
-      );
+          content: `${personalized.subject}\n\n${personalized.content}`,
+        });
+      });
 
       await Promise.all(sendPromises);
 
