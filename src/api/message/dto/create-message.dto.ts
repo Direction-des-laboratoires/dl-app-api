@@ -148,7 +148,7 @@ export class CreateMessageDto {
   recipients: MessageRecipientsDto;
 
   @IsOptional()
-  @IsDateString()
+  //@IsDateString()
   startDate?: string;
 
   @IsOptional()
