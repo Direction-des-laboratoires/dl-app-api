@@ -16,6 +16,10 @@ import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
 
 import { uploadFile } from 'src/utils/functions/file.upload';
+import {
+  flattenPhoneNumbers,
+  parsePhoneNumbers,
+} from 'src/utils/functions/format-senegal-phone';
 
 type RegionRecipientFilter = {
   regionId: mongoose.Types.ObjectId;
@@ -195,8 +199,7 @@ export class MessageService {
     );
     const allowedPhoneNumbers = new Set(
       users
-        .map((user) => user.phoneNumber)
-        .filter((phone) => phone && phone.trim() !== '')
+        .flatMap((user) => parsePhoneNumbers(user.phoneNumber))
         .map((phone) => this.normalizeContact(phone)),
     );
 
@@ -204,7 +207,7 @@ export class MessageService {
       emails: emails.filter((email) =>
         allowedEmails.has(this.normalizeContact(email)),
       ),
-      phoneNumbers: phoneNumbers.filter((phone) =>
+      phoneNumbers: flattenPhoneNumbers(phoneNumbers).filter((phone) =>
         allowedPhoneNumbers.has(this.normalizeContact(phone)),
       ),
     };
@@ -462,7 +465,9 @@ export class MessageService {
 
       // Supprimer les doublons
       const uniqueEmails = [...new Set(allEmails)];
-      const uniquePhoneNumbers = [...new Set(allPhoneNumbers)];
+      const uniquePhoneNumbers = [
+        ...new Set(flattenPhoneNumbers(allPhoneNumbers)),
+      ];
       const regionFilteredContacts = await this.filterContactsByRegion(
         uniqueEmails,
         uniquePhoneNumbers,
@@ -475,7 +480,10 @@ export class MessageService {
       const finalPhoneNumbers =
         createMessageDto.canal === CanalEnum.SMS ||
         createMessageDto.canal === CanalEnum.WHATSAPP
-          ? this.excludeContacts(regionFilteredContacts.phoneNumbers, exclusions)
+          ? this.excludeContacts(
+              regionFilteredContacts.phoneNumbers,
+              flattenPhoneNumbers(exclusions),
+            )
           : regionFilteredContacts.phoneNumbers;
 
       // Validation selon le canal
