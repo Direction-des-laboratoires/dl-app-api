@@ -268,55 +268,143 @@ export class MailTemplates {
   ): string {
     return `
       <!DOCTYPE html>
-      <html>
+      <html lang="fr">
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { 
-            font-family: Arial, sans-serif; 
-            line-height: 1.6; 
-            color: #333; 
+          body {
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
+            background-color: #eef2f7;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #1f2937;
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
           }
-          .container { 
-            max-width: 600px; 
-            margin: 0 auto; 
-            padding: 20px; 
+          .email-wrapper {
+            width: 100%;
+            padding: 32px 16px;
+            box-sizing: border-box;
+          }
+          .email-card {
+            max-width: 640px;
+            margin: 0 auto;
             background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
           }
-          .content { 
-            padding: 30px 20px; 
-            background-color: #ffffff;
+          .email-accent {
+            height: 4px;
+            background: linear-gradient(90deg, #1565C0 0%, #42a5f5 100%);
           }
-          .button { 
-            display: inline-block; 
-            padding: 15px 30px; 
-            background-color: #1565C0; 
-            color: white; 
-            text-decoration: none; 
-            border-radius: 4px; 
-            margin: 20px 0;
-            font-weight: bold;
+          .email-body {
+            padding: 32px 28px;
+            font-size: 15px;
+          }
+          .email-body p {
+            margin: 0 0 16px 0;
+            color: #374151;
+          }
+          .email-body p:last-child {
+            margin-bottom: 0;
+          }
+          .email-body strong {
+            color: #111827;
+            font-weight: 600;
+          }
+          .email-body a {
+            color: #1565C0;
+            text-decoration: none;
+            font-weight: 500;
+          }
+          .email-body a:hover {
+            text-decoration: underline;
+          }
+          .email-body ul,
+          .email-body ol {
+            margin: 0 0 16px 0;
+            padding-left: 22px;
+            color: #374151;
+          }
+          .email-body li {
+            margin-bottom: 8px;
+          }
+          .email-body h1,
+          .email-body h2,
+          .email-body h3 {
+            margin: 0 0 12px 0;
+            color: #111827;
+            line-height: 1.4;
+          }
+          .email-body h2 {
+            font-size: 20px;
+          }
+          .email-body h3 {
+            font-size: 17px;
+          }
+          .info-box {
+            background-color: #f8fafc;
+            border: 1px solid #dbeafe;
+            border-left: 4px solid #1565C0;
+            border-radius: 8px;
+            padding: 18px 20px;
+            margin: 24px 0;
+          }
+          .info-box p {
+            margin: 0 0 10px 0;
+          }
+          .info-box p:last-child {
+            margin-bottom: 0;
+          }
+          .info-box strong {
+            color: #1565C0;
+          }
+          .button-wrapper {
+            text-align: center;
+            margin: 28px 0 8px;
+          }
+          .button {
+            display: inline-block;
+            padding: 14px 28px;
+            background-color: #1565C0;
+            color: #ffffff !important;
+            text-decoration: none !important;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            box-shadow: 0 4px 12px rgba(21, 101, 192, 0.25);
           }
           .button:hover {
-            background-color: #0D47A1;
+            background-color: #0d47a1;
+          }
+          @media only screen and (max-width: 600px) {
+            .email-wrapper {
+              padding: 16px 10px;
+            }
+            .email-body {
+              padding: 24px 18px;
+              font-size: 14px;
+            }
           }
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="content">
-            ${content}
-            ${
-              buttonText && buttonUrl
-                ? `<p style="text-align: center;">
-                    <a href="${buttonUrl}" class="button">${buttonText}</a>
-                  </p>`
-                : ''
-            }
+        <div class="email-wrapper">
+          <div class="email-card">
+            <div class="email-accent"></div>
+            <div class="email-body">
+              ${content}
+              ${
+                buttonText && buttonUrl
+                  ? `<div class="button-wrapper">
+                      <a href="${buttonUrl}" class="button">${buttonText}</a>
+                    </div>`
+                  : ''
+              }
+            </div>
           </div>
         </div>
       </body>

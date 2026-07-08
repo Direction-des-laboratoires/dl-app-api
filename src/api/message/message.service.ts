@@ -652,6 +652,14 @@ export class MessageService {
         phoneNumbers: finalPhoneNumbers,
         exclusions,
         region,
+        cc:
+          createMessageDto.canal === CanalEnum.EMAIL
+            ? createMessageDto.cc ?? []
+            : [],
+        cci:
+          createMessageDto.canal === CanalEnum.EMAIL
+            ? createMessageDto.cci ?? []
+            : [],
         sentBy,
         status: 'pending',
         attachments: attachmentsUrls,
@@ -847,6 +855,11 @@ export class MessageService {
         messageHasTemplateVariables(message.subject) ||
         messageHasTemplateVariables(message.content);
 
+      const mailOptions = {
+        cc: message.cc?.length ? message.cc : undefined,
+        bcc: message.cci?.length ? message.cci : undefined,
+      };
+
       if (!hasTemplateVariables) {
         const html = MailTemplates.genericEmail(message.subject, message.content);
         await this.mailService.sendMail({
@@ -854,6 +867,7 @@ export class MessageService {
           subject: message.subject,
           html,
           attachments,
+          ...mailOptions,
         });
       } else {
         const users = await this.loadUsersForPersonalization(
@@ -881,6 +895,7 @@ export class MessageService {
               subject: personalized.subject,
               html,
               attachments,
+              ...mailOptions,
             });
           }),
         );

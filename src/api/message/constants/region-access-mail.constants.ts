@@ -30,7 +30,7 @@ export function buildRegionAccessMailHtml({
 
   return `
     ${paragraphs}
-    <div style="background-color: #f9f9f9; border-left: 4px solid #1565C0; padding: 15px; margin: 20px 0; border-radius: 4px;">
+    <div class="info-box">
       <p><strong>Espace sécurisé :</strong> <a href="${regionAccessSecureUrl}">${regionAccessSecureUrl}</a></p>
       <p><strong>Email :</strong> ${email}</p>
       <p><strong>Mot de passe temporaire :</strong> ${password}</p>

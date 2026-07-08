@@ -8,6 +8,8 @@ export interface Message extends Document {
   phoneNumbers?: string[];
   exclusions?: string[];
   region?: string;
+  cc?: string[];
+  cci?: string[];
   sentBy: string;
   status: 'pending' | 'sent' | 'failed';
   sentAt?: Date;

@@ -32,6 +32,14 @@ export const MessageSchema = new mongoose.Schema({
     ref: 'Region',
     default: null,
   },
+  cc: {
+    type: [String],
+    default: [],
+  },
+  cci: {
+    type: [String],
+    default: [],
+  },
   sentBy: {
     type: mongoose.Schema.ObjectId,
     ref: 'User',
