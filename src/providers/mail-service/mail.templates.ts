@@ -287,17 +287,6 @@ export class MailTemplates {
             padding: 20px; 
             background-color: #ffffff;
           }
-          .header { 
-            background-color: #1565C0; 
-            color: white; 
-            padding: 30px 20px; 
-            text-align: center; 
-            border-radius: 5px 5px 0 0;
-          }
-          .header h1 {
-            margin: 0;
-            font-size: 24px;
-          }
           .content { 
             padding: 30px 20px; 
             background-color: #ffffff;
@@ -315,21 +304,10 @@ export class MailTemplates {
           .button:hover {
             background-color: #0D47A1;
           }
-          .footer { 
-            text-align: center; 
-            padding: 20px; 
-            font-size: 12px; 
-            color: #666;
-            background-color: #f9f9f9;
-            border-radius: 0 0 5px 5px;
-          }
         </style>
       </head>
       <body>
         <div class="container">
-          <div class="header">
-            <h1>${title}</h1>
-          </div>
           <div class="content">
             ${content}
             ${
@@ -339,11 +317,6 @@ export class MailTemplates {
                   </p>`
                 : ''
             }
-            <p>Cordialement,<br><strong>L'équipe de gestion</strong></p>
-          </div>
-          <div class="footer">
-            <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
-            <p>&copy; ${new Date().getFullYear()} - Système de gestion de personnel des laboratoires</p>
           </div>
         </div>
       </body>
