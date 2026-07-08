@@ -25,6 +25,11 @@ import {
   messageHasTemplateVariables,
   renderMessageTemplate,
 } from 'src/utils/functions/render-message-template';
+import {
+  buildRegionAccessMailHtml,
+  regionAccessMailSubject,
+  regionAccesMailContent,
+} from './constants/region-access-mail.constants';
 
 type RecipientContacts = {
   emails: string[];
@@ -235,29 +240,19 @@ export class MessageService {
     user: User,
     temporaryPassword: string,
   ): Promise<void> {
-    const fullName =
-      `${user.firstname || ''} ${user.lastname || ''}`.trim() ||
-      'Utilisateur';
-    const safeName = this.escapeHtml(fullName);
     const safeEmail = this.escapeHtml(user.email);
     const safePassword = this.escapeHtml(temporaryPassword);
     const html = MailTemplates.genericEmail(
-      'Vos accès à la plateforme',
-      `
-        <p>Bonjour <strong>${safeName}</strong>,</p>
-        <p>Vos accès à la plateforme de gestion du personnel des laboratoires ont été générés.</p>
-        <div style="background-color: #f9f9f9; border-left: 4px solid #1565C0; padding: 15px; margin: 20px 0; border-radius: 4px;">
-          <p><strong>Identifiants de connexion :</strong></p>
-          <p>Email : <strong>${safeEmail}</strong></p>
-          <p>Mot de passe temporaire : <strong>${safePassword}</strong></p>
-        </div>
-        <p>Veuillez vous connecter avec votre email et le mot de passe fourni, puis changer ce mot de passe lors de votre première connexion.</p>
-      `,
+      regionAccessMailSubject,
+      buildRegionAccessMailHtml({
+        email: safeEmail,
+        password: safePassword,
+      }),
     );
 
     await this.mailService.sendMail({
       to: user.email,
-      subject: 'Vos accès à la plateforme',
+      subject: regionAccessMailSubject,
       html,
     });
   }
@@ -452,9 +447,8 @@ export class MessageService {
       }
 
       const message = await this.messageModel.create({
-        subject: 'Envoi des accès utilisateurs',
-        content:
-          'Génération et envoi des accès aux utilisateurs des laboratoires de la région sélectionnée.',
+        subject: regionAccessMailSubject,
+        content: regionAccesMailContent,
         canal: CanalEnum.EMAIL,
         emails: sent.map((item) => item.email),
         phoneNumbers: [],
