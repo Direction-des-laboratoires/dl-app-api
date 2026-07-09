@@ -11,11 +11,7 @@ Votre collaboration est essentielle pour optimiser le pilotage de nos équipemen
 
 Après votre connexion, vous compléterez deux questionnaires dédiés au personnel et aux équipements de votre laboratoire.
 
-Nous vous remercions pour votre engagement dans la modernisation de notre système de santé.
-
-Bien cordialement,
-La Direction des Laboratoires
-Ministère de la Santé et de l'Hygiène publique`;
+Nous vous remercions pour votre engagement dans la modernisation de notre système de santé.`;
 
 export const regionAccessMailNote =
   "Note : Si ce message vous est parvenu par erreur ou si vous n'occupez pas la fonction de responsable de laboratoire, merci de nous en informer sans délai par retour de courriel.";
@@ -39,13 +35,12 @@ export function buildRegionAccessMailText({
   email,
   password,
 }: RegionAccessMailParams): string {
-  const paragraphs = [
+  const bodyParagraphs = [
     `Madame, Monsieur le Responsable du laboratoire de ${labName},`,
     "Suite à la communication du Ministre de la Santé et de l'Hygiène publique, la Direction des Laboratoires vous transmet vos accès confidentiels à la plateforme nationale de gouvernance.",
     'Votre collaboration est essentielle pour optimiser le pilotage de nos équipements et valoriser les données de votre personnel.',
     'Après votre connexion, vous compléterez deux questionnaires dédiés au personnel et aux équipements de votre laboratoire.',
     'Nous vous remercions pour votre engagement dans la modernisation de notre système de santé.',
-    'Bien cordialement,\nLa Direction des Laboratoires\nMinistère de la Santé et de l\'Hygiène publique',
   ];
 
   const connectionBlock = [
@@ -56,9 +51,15 @@ export function buildRegionAccessMailText({
     `Mot de passe provisoire : ${password}`,
   ].join('\n');
 
-  return [paragraphs.join('\n\n'), connectionBlock, regionAccessMailNote].join(
-    '\n\n\n',
-  );
+  const signatureBlock =
+    "Bien cordialement,\nLa Direction des Laboratoires\nMinistère de la Santé et de l'Hygiène publique";
+
+  return [
+    bodyParagraphs.join('\n\n'),
+    connectionBlock,
+    signatureBlock,
+    regionAccessMailNote,
+  ].join('\n\n\n');
 }
 
 export function buildRegionAccessMailHtml(
