@@ -30,11 +30,11 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function buildRegionAccessMailText({
+function buildRegionAccessMailSections({
   labName,
   email,
   password,
-}: RegionAccessMailParams): string {
+}: RegionAccessMailParams) {
   const bodyParagraphs = [
     `Madame, Monsieur le Responsable du laboratoire de ${labName},`,
     "Suite à la communication du Ministre de la Santé et de l'Hygiène publique, la Direction des Laboratoires vous transmet vos accès confidentiels à la plateforme nationale de gouvernance.",
@@ -54,18 +54,35 @@ export function buildRegionAccessMailText({
   const signatureBlock =
     "Bien cordialement,\nLa Direction des Laboratoires\nMinistère de la Santé et de l'Hygiène publique";
 
+  return { bodyParagraphs, connectionBlock, signatureBlock };
+}
+
+export function buildRegionAccessMailText(
+  params: RegionAccessMailParams,
+): string {
+  const { bodyParagraphs, connectionBlock, signatureBlock } =
+    buildRegionAccessMailSections(params);
+
   return [
     bodyParagraphs.join('\n\n'),
     connectionBlock,
-    signatureBlock,
     regionAccessMailNote,
+    signatureBlock,
   ].join('\n\n\n');
 }
 
 export function buildRegionAccessMailHtml(
   params: RegionAccessMailParams,
 ): string {
-  const text = buildRegionAccessMailText(params);
+  const { bodyParagraphs, connectionBlock, signatureBlock } =
+    buildRegionAccessMailSections(params);
 
-  return `<div style="white-space:pre-wrap;line-height:1.6;font-size:14px;font-family:Arial,sans-serif;">${escapeHtml(text)}</div>`;
+  const sections = [
+    escapeHtml(bodyParagraphs.join('\n\n')),
+    escapeHtml(connectionBlock),
+    `<strong>${escapeHtml(regionAccessMailNote)}</strong>`,
+    escapeHtml(signatureBlock),
+  ];
+
+  return `<div style="white-space:pre-wrap;line-height:1.6;font-size:14px;font-family:Arial,sans-serif;">${sections.join('\n\n\n')}</div>`;
 }
