@@ -27,6 +27,7 @@ import {
 } from 'src/utils/functions/render-message-template';
 import {
   buildRegionAccessMailHtml,
+  buildRegionAccessMailText,
   regionAccessMailSubject,
   regionAccesMailContent,
 } from './constants/region-access-mail.constants';
@@ -240,20 +241,23 @@ export class MessageService {
     user: User,
     temporaryPassword: string,
   ): Promise<void> {
-    const safeEmail = this.escapeHtml(user.email);
-    const safePassword = this.escapeHtml(temporaryPassword);
-    const html = MailTemplates.genericEmail(
-      regionAccessMailSubject,
-      buildRegionAccessMailHtml({
-        email: safeEmail,
-        password: safePassword,
-      }),
-    );
+    await user.populate({ path: 'lab', select: 'name' });
+
+    const labName =
+      (user.lab as { name?: string } | undefined)?.name?.trim() ||
+      'votre laboratoire';
+
+    const mailParams = {
+      labName,
+      email: user.email,
+      password: temporaryPassword,
+    };
 
     await this.mailService.sendMail({
       to: user.email,
       subject: regionAccessMailSubject,
-      html,
+      text: buildRegionAccessMailText(mailParams),
+      html: buildRegionAccessMailHtml(mailParams),
     });
   }
 
@@ -386,6 +390,7 @@ export class MessageService {
 
       const users = await this.userModel
         .find(userFilters)
+        .populate({ path: 'lab', select: 'name' })
         .select(
           'firstname lastname email password active isFirstLogin lab role region',
         )
