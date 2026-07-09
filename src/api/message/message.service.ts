@@ -6,6 +6,7 @@ import {
   CanalEnum,
   CreateMessageDto,
   SendRegionAccessesDto,
+  SendUserAccessesDto,
 } from './dto/create-message.dto';
 import { MailService } from 'src/providers/mail-service/mail.service';
 import { MailTemplates } from 'src/providers/mail-service/mail.templates';
@@ -356,6 +357,103 @@ export class MessageService {
     };
   }
 
+  private async deliverAccessesToUsers(params: {
+    targetUsers: User[];
+    skippedUsers: Array<{ userId: unknown; email: string; reason: string }>;
+    totalFound: number;
+    exclusions: string[];
+    sentBy: string;
+    region?: string;
+    notFoundUserIds?: string[];
+    emptyTargetMessage: string;
+  }) {
+    const {
+      targetUsers,
+      skippedUsers,
+      totalFound,
+      exclusions,
+      sentBy,
+      region,
+      notFoundUserIds = [],
+      emptyTargetMessage,
+    } = params;
+
+    if (targetUsers.length === 0) {
+      throw new HttpException(emptyTargetMessage, HttpStatus.BAD_REQUEST);
+    }
+
+    const sent: Array<{ userId: unknown; email: string }> = [];
+    const failed: Array<{ userId: unknown; email: string; error: string }> = [];
+
+    for (const user of targetUsers) {
+      const previousState = {
+        password: user.password,
+        active: user.active,
+        isFirstLogin: user.isFirstLogin,
+        updated_at: user.updated_at,
+      };
+      const temporaryPassword = this.generateRandomPassword(8);
+
+      try {
+        user.password = temporaryPassword;
+        user.active = true;
+        user.isFirstLogin = true;
+        user.updated_at = new Date();
+        await user.save();
+
+        await this.sendGeneratedAccessEmail(user, temporaryPassword);
+        sent.push({
+          userId: user._id,
+          email: user.email,
+        });
+      } catch (error) {
+        await this.userModel.updateOne(
+          { _id: user._id },
+          { $set: previousState },
+        );
+        failed.push({
+          userId: user._id,
+          email: user.email,
+          error: error.message || "Erreur lors de l'envoi des accès",
+        });
+      }
+    }
+
+    const message = await this.messageModel.create({
+      subject: regionAccessMailSubject,
+      content: regionAccesMailContent,
+      canal: CanalEnum.EMAIL,
+      emails: sent.map((item) => item.email),
+      phoneNumbers: [],
+      exclusions,
+      region: region ?? null,
+      sentBy,
+      status: failed.length > 0 ? 'failed' : 'sent',
+      sentAt: sent.length > 0 ? new Date() : null,
+      errorMessage:
+        failed.length > 0
+          ? `${failed.length} envoi(s) échoué(s) sur ${targetUsers.length}`
+          : null,
+      attachments: [],
+    });
+
+    return {
+      message,
+      summary: {
+        totalFound,
+        totalTargeted: targetUsers.length,
+        sent: sent.length,
+        failed: failed.length,
+        skipped: skippedUsers.length,
+        notFound: notFoundUserIds.length,
+      },
+      sent,
+      failed,
+      skipped: skippedUsers,
+      notFound: notFoundUserIds,
+    };
+  }
+
   async sendRegionAccesses(
     sendRegionAccessesDto: SendRegionAccessesDto,
     sentBy: string,
@@ -414,78 +512,86 @@ export class MessageService {
         );
       }
 
-      const sent: Array<{ userId: unknown; email: string }> = [];
-      const failed: Array<{ userId: unknown; email: string; error: string }> = [];
-
-      for (const user of targetUsers) {
-        const previousState = {
-          password: user.password,
-          active: user.active,
-          isFirstLogin: user.isFirstLogin,
-          updated_at: user.updated_at,
-        };
-        const temporaryPassword = this.generateRandomPassword(8);
-
-        try {
-          user.password = temporaryPassword;
-          user.active = true;
-          user.isFirstLogin = true;
-          user.updated_at = new Date();
-          await user.save();
-
-          await this.sendGeneratedAccessEmail(user, temporaryPassword);
-          sent.push({
-            userId: user._id,
-            email: user.email,
-          });
-        } catch (error) {
-          await this.userModel.updateOne(
-            { _id: user._id },
-            { $set: previousState },
-          );
-          failed.push({
-            userId: user._id,
-            email: user.email,
-            error: error.message || "Erreur lors de l'envoi des accès",
-          });
-        }
-      }
-
-      const message = await this.messageModel.create({
-        subject: regionAccessMailSubject,
-        content: regionAccesMailContent,
-        canal: CanalEnum.EMAIL,
-        emails: sent.map((item) => item.email),
-        phoneNumbers: [],
+      const result = await this.deliverAccessesToUsers({
+        targetUsers,
+        skippedUsers,
+        totalFound: users.length,
         exclusions,
-        region,
         sentBy,
-        status: failed.length > 0 ? 'failed' : 'sent',
-        sentAt: sent.length > 0 ? new Date() : null,
-        errorMessage:
-          failed.length > 0
-            ? `${failed.length} envoi(s) échoué(s) sur ${targetUsers.length}`
-            : null,
-        attachments: [],
+        region,
+        emptyTargetMessage:
+          'Aucun utilisateur avec email trouvé pour les laboratoires de cette région',
       });
 
       logger.info(`---MESSAGE.SERVICE.SEND_REGION_ACCESSES SUCCESS---`);
-      return {
-        message,
-        summary: {
-          totalFound: users.length,
-          totalTargeted: targetUsers.length,
-          sent: sent.length,
-          failed: failed.length,
-          skipped: skippedUsers.length,
-        },
-        sent,
-        failed,
-        skipped: skippedUsers,
-      };
+      return result;
     } catch (error) {
       logger.error(
         `---MESSAGE.SERVICE.SEND_REGION_ACCESSES ERROR--- ${error.message}`,
+      );
+      throw new HttpException(
+        error.message || "Erreur lors de l'envoi des accès",
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async sendUserAccesses(
+    sendUserAccessesDto: SendUserAccessesDto,
+    sentBy: string,
+  ) {
+    try {
+      logger.info(`---MESSAGE.SERVICE.SEND_USER_ACCESSES INIT---`);
+
+      const { userIds, exclusions = [] } = sendUserAccessesDto;
+
+      const excludedEmails = new Set(
+        exclusions
+          .filter((item) => item && item.trim() !== '')
+          .map((item) => this.normalizeContact(item)),
+      );
+
+      const users = await this.userModel
+        .find({
+          _id: { $in: userIds },
+          email: { $exists: true, $ne: '' },
+        })
+        .populate({ path: 'lab', select: 'name' })
+        .select(
+          'firstname lastname email password active isFirstLogin lab role region',
+        )
+        .exec();
+
+      const foundUserIds = new Set(users.map((user) => user._id.toString()));
+      const notFoundUserIds = userIds.filter((id) => !foundUserIds.has(id));
+
+      const targetUsers = users.filter(
+        (user) => !excludedEmails.has(this.normalizeContact(user.email)),
+      );
+      const skippedUsers = users
+        .filter((user) => excludedEmails.has(this.normalizeContact(user.email)))
+        .map((user) => ({
+          userId: user._id,
+          email: user.email,
+          reason: 'excluded',
+        }));
+
+      const result = await this.deliverAccessesToUsers({
+        targetUsers,
+        skippedUsers,
+        totalFound: users.length,
+        exclusions,
+        sentBy,
+        notFoundUserIds,
+        emptyTargetMessage:
+          'Aucun utilisateur avec email trouvé pour les identifiants fournis',
+      });
+
+      logger.info(`---MESSAGE.SERVICE.SEND_USER_ACCESSES SUCCESS---`);
+      return result;
+    } catch (error) {
+      logger.error(
+        `---MESSAGE.SERVICE.SEND_USER_ACCESSES ERROR--- ${error.message}`,
       );
       throw new HttpException(
         error.message || "Erreur lors de l'envoi des accès",

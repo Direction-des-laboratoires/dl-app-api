@@ -15,6 +15,7 @@ import { MessageService } from './message.service';
 import {
   CreateMessageDto,
   SendRegionAccessesDto,
+  SendUserAccessesDto,
 } from './dto/create-message.dto';
 import { Roles } from 'src/utils/decorators/role.decorator';
 import { Role } from 'src/utils/enums/roles.enum';
@@ -49,6 +50,35 @@ export class MessageController {
     } catch (error) {
       logger.error(
         `---MESSAGE.CONTROLLER.SEND_REGION_ACCESSES ERROR--- ${error.message}`,
+      );
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json(error.response || { message: error.message });
+    }
+  }
+
+  @Post('user-accesses')
+  @Roles(Role.SuperAdmin)
+  async sendUserAccesses(
+    @Body() sendUserAccessesDto: SendUserAccessesDto,
+    @Req() req,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---MESSAGE.CONTROLLER.SEND_USER_ACCESSES INIT---`);
+      const sentBy = req.user._id || req.user.userId || req.user.id;
+      const result = await this.messageService.sendUserAccesses(
+        sendUserAccessesDto,
+        sentBy,
+      );
+      logger.info(`---MESSAGE.CONTROLLER.SEND_USER_ACCESSES SUCCESS---`);
+      return res.status(HttpStatus.CREATED).json({
+        message: 'Accès générés et envoyés aux utilisateurs sélectionnés',
+        data: result,
+      });
+    } catch (error) {
+      logger.error(
+        `---MESSAGE.CONTROLLER.SEND_USER_ACCESSES ERROR--- ${error.message}`,
       );
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)

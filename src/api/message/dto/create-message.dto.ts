@@ -10,6 +10,7 @@ import {
   ValidateNested,
   IsDate,
   IsDateString,
+  ArrayNotEmpty,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
@@ -238,4 +239,48 @@ export class SendRegionAccessesDto {
   @IsArray()
   @IsMongoId({ each: true })
   userIds?: string[];
+}
+
+function transformStringArray(value: unknown): unknown {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+      if (typeof parsed === 'string') return [parsed];
+      return [value];
+    } catch (e) {
+      return value
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item !== '');
+    }
+  }
+  return value;
+}
+
+function transformMongoIdArray(value: unknown): unknown {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item !== '');
+  }
+  return value;
+}
+
+export class SendUserAccessesDto {
+  @IsNotEmpty()
+  @Transform(({ value }) => transformMongoIdArray(value))
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsMongoId({ each: true })
+  userIds: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => transformStringArray(value))
+  @IsArray()
+  @IsString({ each: true })
+  exclusions?: string[];
 }
