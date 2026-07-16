@@ -8,6 +8,8 @@ export interface Message extends Document {
   phoneNumbers?: string[];
   exclusions?: string[];
   region?: string;
+  excludedRegions?: string[];
+  excludedLabs?: string[];
   cc?: string[];
   cci?: string[];
   sentBy: string;

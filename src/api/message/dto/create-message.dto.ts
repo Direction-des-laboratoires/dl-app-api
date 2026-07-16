@@ -200,45 +200,36 @@ export class CreateMessageDto {
 }
 
 export class SendRegionAccessesDto {
-  @IsNotEmpty()
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined ? undefined : value,
+  )
   @IsMongoId()
-  region: string;
+  region?: string;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) return parsed;
-        if (typeof parsed === 'string') return [parsed];
-        return [value];
-      } catch (e) {
-        return value
-          .split(',')
-          .map((item) => item.trim())
-          .filter((item) => item !== '');
-      }
-    }
-    return value;
-  })
+  @Transform(({ value }) => transformStringArray(value))
   @IsArray()
   @IsString({ each: true })
   exclusions?: string[];
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (Array.isArray(value)) return value;
-    if (typeof value === 'string') {
-      return value
-        .split(',')
-        .map((item) => item.trim())
-        .filter((item) => item !== '');
-    }
-    return value;
-  })
+  @Transform(({ value }) => transformMongoIdArray(value))
   @IsArray()
   @IsMongoId({ each: true })
   userIds?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => transformMongoIdArray(value))
+  @IsArray()
+  @IsMongoId({ each: true })
+  excludedRegions?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => transformMongoIdArray(value))
+  @IsArray()
+  @IsMongoId({ each: true })
+  excludedLabs?: string[];
 }
 
 function transformStringArray(value: unknown): unknown {

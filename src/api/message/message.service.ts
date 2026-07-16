@@ -303,6 +303,67 @@ export class MessageService {
     return { regionId, labIds, userIds };
   }
 
+  private validateMongoIds(
+    ids: string[],
+    errorLabel: string,
+  ): mongoose.Types.ObjectId[] {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const invalidIds = ids.filter((id) => !mongoose.Types.ObjectId.isValid(id));
+
+    if (invalidIds.length > 0) {
+      throw new HttpException(`${errorLabel} invalide(s)`, HttpStatus.BAD_REQUEST);
+    }
+
+    return ids.map((id) => new mongoose.Types.ObjectId(id));
+  }
+
+  private async getExcludedLabIds(
+    excludedRegionIds: mongoose.Types.ObjectId[],
+    excludedLabIds: mongoose.Types.ObjectId[],
+  ): Promise<mongoose.Types.ObjectId[]> {
+    const labsToExclude = new Set<string>();
+
+    if (excludedRegionIds.length > 0) {
+      const regionLabIds = await this.getLabIdsInRegions(excludedRegionIds);
+      regionLabIds.forEach((id) => labsToExclude.add(id.toString()));
+    }
+
+    excludedLabIds.forEach((id) => labsToExclude.add(id.toString()));
+
+    return Array.from(labsToExclude).map(
+      (id) => new mongoose.Types.ObjectId(id),
+    );
+  }
+
+  private async getLabIdsInRegions(
+    regionIds: mongoose.Types.ObjectId[],
+  ): Promise<mongoose.Types.ObjectId[]> {
+    if (regionIds.length === 0) {
+      return [];
+    }
+
+    const labs = await this.labModel
+      .aggregate([
+        {
+          $lookup: {
+            from: 'structures',
+            localField: 'structure',
+            foreignField: '_id',
+            as: 'structureInfo',
+          },
+        },
+        { $unwind: '$structureInfo' },
+        { $match: { 'structureInfo.region': { $in: regionIds } } },
+        { $project: { _id: 1 } },
+      ])
+      .exec();
+
+    return labs.map((lab) => lab._id as mongoose.Types.ObjectId);
+  }
+
   private buildRegionUserMatch(regionFilter: RegionRecipientFilter): any {
     const conditions: any[] = [{ region: regionFilter.regionId }];
 
@@ -364,6 +425,8 @@ export class MessageService {
     exclusions: string[];
     sentBy: string;
     region?: string;
+    excludedRegions?: mongoose.Types.ObjectId[];
+    excludedLabs?: mongoose.Types.ObjectId[];
     notFoundUserIds?: string[];
     emptyTargetMessage: string;
   }) {
@@ -375,6 +438,8 @@ export class MessageService {
       sentBy,
       region,
       notFoundUserIds = [],
+      excludedRegions = [],
+      excludedLabs = [],
       emptyTargetMessage,
     } = params;
 
@@ -427,6 +492,8 @@ export class MessageService {
       phoneNumbers: [],
       exclusions,
       region: region ?? null,
+      excludedRegions,
+      excludedLabs,
       sentBy,
       status: failed.length > 0 ? 'failed' : 'sent',
       sentAt: sent.length > 0 ? new Date() : null,
@@ -461,20 +528,69 @@ export class MessageService {
     try {
       logger.info(`---MESSAGE.SERVICE.SEND_REGION_ACCESSES INIT---`);
 
-      const { region, exclusions = [], userIds } = sendRegionAccessesDto;
-      const regionFilter = await this.buildRegionRecipientFilter(region);
+      const {
+        region,
+        exclusions = [],
+        excludedRegions = [],
+        excludedLabs = [],
+        userIds,
+      } = sendRegionAccessesDto;
 
-      if (!regionFilter || regionFilter.labIds.length === 0) {
+      const excludedRegionIds = this.validateMongoIds(
+        excludedRegions,
+        'Région(s) exclue(s)',
+      );
+      const excludedLabIds = this.validateMongoIds(
+        excludedLabs,
+        'Laboratoire(s) exclu(s)',
+      );
+
+      if (region && excludedRegions.includes(region)) {
         throw new HttpException(
-          'Aucun laboratoire trouvé pour cette région',
-          HttpStatus.NOT_FOUND,
+          'La région cible ne peut pas figurer parmi les régions exclues',
+          HttpStatus.BAD_REQUEST,
         );
       }
 
-      const userFilters: any = {
-        lab: { $in: regionFilter.labIds },
+      const allExcludedLabIds = await this.getExcludedLabIds(
+        excludedRegionIds,
+        excludedLabIds,
+      );
+      const excludedLabIdSet = new Set(
+        allExcludedLabIds.map((id) => id.toString()),
+      );
+
+      const userFilters: Record<string, unknown> = {
         email: { $exists: true, $ne: '' },
       };
+
+      if (region) {
+        const regionFilter = await this.buildRegionRecipientFilter(region);
+
+        if (!regionFilter || regionFilter.labIds.length === 0) {
+          throw new HttpException(
+            'Aucun laboratoire trouvé pour cette région',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+
+        const labIds = regionFilter.labIds.filter(
+          (id) => !excludedLabIdSet.has(id.toString()),
+        );
+
+        if (labIds.length === 0) {
+          throw new HttpException(
+            'Aucun laboratoire éligible trouvé pour cette région après exclusions',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+
+        userFilters.lab = { $in: labIds };
+      } else if (allExcludedLabIds.length > 0) {
+        userFilters.lab = { $exists: true, $ne: null, $nin: allExcludedLabIds };
+      } else {
+        userFilters.lab = { $exists: true, $ne: null };
+      }
 
       if (userIds && userIds.length > 0) {
         userFilters._id = { $in: userIds };
@@ -505,12 +621,9 @@ export class MessageService {
           reason: 'excluded',
         }));
 
-      if (targetUsers.length === 0) {
-        throw new HttpException(
-          'Aucun utilisateur avec email trouvé pour les laboratoires de cette région',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
+      const emptyTargetMessage = region
+        ? 'Aucun utilisateur avec email trouvé pour les laboratoires de cette région'
+        : 'Aucun utilisateur avec email trouvé pour les laboratoires';
 
       const result = await this.deliverAccessesToUsers({
         targetUsers,
@@ -519,8 +632,9 @@ export class MessageService {
         exclusions,
         sentBy,
         region,
-        emptyTargetMessage:
-          'Aucun utilisateur avec email trouvé pour les laboratoires de cette région',
+        excludedRegions: excludedRegionIds,
+        excludedLabs: excludedLabIds,
+        emptyTargetMessage,
       });
 
       logger.info(`---MESSAGE.SERVICE.SEND_REGION_ACCESSES SUCCESS---`);

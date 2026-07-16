@@ -43,8 +43,11 @@ export class MessageController {
         sentBy,
       );
       logger.info(`---MESSAGE.CONTROLLER.SEND_REGION_ACCESSES SUCCESS---`);
+      const successMessage = sendRegionAccessesDto.region
+        ? 'Accès générés et envoyés aux utilisateurs de la région'
+        : 'Accès générés et envoyés aux utilisateurs de toutes les régions';
       return res.status(HttpStatus.CREATED).json({
-        message: 'Accès générés et envoyés aux utilisateurs de la région',
+        message: successMessage,
         data: result,
       });
     } catch (error) {

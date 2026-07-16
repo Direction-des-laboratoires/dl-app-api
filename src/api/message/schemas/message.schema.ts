@@ -32,6 +32,14 @@ export const MessageSchema = new mongoose.Schema({
     ref: 'Region',
     default: null,
   },
+  excludedRegions: {
+    type: [{ type: mongoose.Schema.ObjectId, ref: 'Region' }],
+    default: [],
+  },
+  excludedLabs: {
+    type: [{ type: mongoose.Schema.ObjectId, ref: 'Lab' }],
+    default: [],
+  },
   cc: {
     type: [String],
     default: [],
