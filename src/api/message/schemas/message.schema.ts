@@ -40,6 +40,10 @@ export const MessageSchema = new mongoose.Schema({
     type: [{ type: mongoose.Schema.ObjectId, ref: 'Lab' }],
     default: [],
   },
+  excludedStructures: {
+    type: [{ type: mongoose.Schema.ObjectId, ref: 'Structure' }],
+    default: [],
+  },
   cc: {
     type: [String],
     default: [],

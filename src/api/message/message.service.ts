@@ -322,6 +322,7 @@ export class MessageService {
 
   private async getExcludedLabIds(
     excludedRegionIds: mongoose.Types.ObjectId[],
+    excludedStructureIds: mongoose.Types.ObjectId[],
     excludedLabIds: mongoose.Types.ObjectId[],
   ): Promise<mongoose.Types.ObjectId[]> {
     const labsToExclude = new Set<string>();
@@ -329,6 +330,12 @@ export class MessageService {
     if (excludedRegionIds.length > 0) {
       const regionLabIds = await this.getLabIdsInRegions(excludedRegionIds);
       regionLabIds.forEach((id) => labsToExclude.add(id.toString()));
+    }
+
+    if (excludedStructureIds.length > 0) {
+      const structureLabIds =
+        await this.getLabIdsInStructures(excludedStructureIds);
+      structureLabIds.forEach((id) => labsToExclude.add(id.toString()));
     }
 
     excludedLabIds.forEach((id) => labsToExclude.add(id.toString()));
@@ -359,6 +366,22 @@ export class MessageService {
         { $match: { 'structureInfo.region': { $in: regionIds } } },
         { $project: { _id: 1 } },
       ])
+      .exec();
+
+    return labs.map((lab) => lab._id as mongoose.Types.ObjectId);
+  }
+
+  private async getLabIdsInStructures(
+    structureIds: mongoose.Types.ObjectId[],
+  ): Promise<mongoose.Types.ObjectId[]> {
+    if (structureIds.length === 0) {
+      return [];
+    }
+
+    const labs = await this.labModel
+      .find({ structure: { $in: structureIds } })
+      .select('_id')
+      .lean()
       .exec();
 
     return labs.map((lab) => lab._id as mongoose.Types.ObjectId);
@@ -426,6 +449,7 @@ export class MessageService {
     sentBy: string;
     region?: string;
     excludedRegions?: mongoose.Types.ObjectId[];
+    excludedStructures?: mongoose.Types.ObjectId[];
     excludedLabs?: mongoose.Types.ObjectId[];
     notFoundUserIds?: string[];
     emptyTargetMessage: string;
@@ -439,6 +463,7 @@ export class MessageService {
       region,
       notFoundUserIds = [],
       excludedRegions = [],
+      excludedStructures = [],
       excludedLabs = [],
       emptyTargetMessage,
     } = params;
@@ -493,6 +518,7 @@ export class MessageService {
       exclusions,
       region: region ?? null,
       excludedRegions,
+      excludedStructures,
       excludedLabs,
       sentBy,
       status: failed.length > 0 ? 'failed' : 'sent',
@@ -532,6 +558,7 @@ export class MessageService {
         region,
         exclusions = [],
         excludedRegions = [],
+        excludedStructures = [],
         excludedLabs = [],
         userIds,
       } = sendRegionAccessesDto;
@@ -539,6 +566,10 @@ export class MessageService {
       const excludedRegionIds = this.validateMongoIds(
         excludedRegions,
         'Région(s) exclue(s)',
+      );
+      const excludedStructureIds = this.validateMongoIds(
+        excludedStructures,
+        'Structure(s) exclue(s)',
       );
       const excludedLabIds = this.validateMongoIds(
         excludedLabs,
@@ -554,6 +585,7 @@ export class MessageService {
 
       const allExcludedLabIds = await this.getExcludedLabIds(
         excludedRegionIds,
+        excludedStructureIds,
         excludedLabIds,
       );
       const excludedLabIdSet = new Set(
@@ -633,6 +665,7 @@ export class MessageService {
         sentBy,
         region,
         excludedRegions: excludedRegionIds,
+        excludedStructures: excludedStructureIds,
         excludedLabs: excludedLabIds,
         emptyTargetMessage,
       });

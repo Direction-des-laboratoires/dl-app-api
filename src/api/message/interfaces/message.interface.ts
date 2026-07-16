@@ -10,6 +10,7 @@ export interface Message extends Document {
   region?: string;
   excludedRegions?: string[];
   excludedLabs?: string[];
+  excludedStructures?: string[];
   cc?: string[];
   cci?: string[];
   sentBy: string;

@@ -230,6 +230,12 @@ export class SendRegionAccessesDto {
   @IsArray()
   @IsMongoId({ each: true })
   excludedLabs?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => transformMongoIdArray(value))
+  @IsArray()
+  @IsMongoId({ each: true })
+  excludedStructures?: string[];
 }
 
 function transformStringArray(value: unknown): unknown {
