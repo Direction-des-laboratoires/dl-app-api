@@ -149,9 +149,28 @@ export class AuthController {
     @Req() req,
     @Res() res,
   ) {
+    return this.handleChangeMyPasswordFirstLogin(changePasswordDto, req, res);
+  }
+
+  /**
+   * Changer le mot de passe à la première connexion (utilisateur connecté)
+   */
+  @Post('changeMyPasswordFirstLogin')
+  async changeMyPasswordFirstLogin(
+    @Body() changePasswordDto: ChangePasswordDto,
+    @Req() req,
+    @Res() res,
+  ) {
+    return this.handleChangeMyPasswordFirstLogin(changePasswordDto, req, res);
+  }
+
+  private async handleChangeMyPasswordFirstLogin(
+    changePasswordDto: ChangePasswordDto,
+    req,
+    res,
+  ) {
     try {
       logger.info(`---AUTH.CONTROLLER.CHANGE_PASSWORD_FIRST_LOGIN INIT---`);
-      // Récupérer userId depuis req.user (peut être _id ou userId selon le format)
       const userId = req.user._id || req.user.userId || req.user.id;
       if (!userId) {
         throw new HttpException(
@@ -208,6 +227,42 @@ export class AuthController {
       });
     } catch (error) {
       logger.error(`---AUTH.CONTROLLER.UPDATE_PASSWORD ERROR ${error}---`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: error.message });
+    }
+  }
+
+  /**
+   * Changer le mot de passe de l'utilisateur connecté
+   */
+  @Post('changeMyPassword')
+  async changeMyPassword(
+    @Body() updatePasswordDto: UpdatePasswordDto,
+    @Req() req,
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---AUTH.CONTROLLER.CHANGE_MY_PASSWORD INIT---`);
+      const userId = req.user._id || req.user.userId || req.user.id;
+      if (!userId) {
+        throw new HttpException(
+          'User ID not found in token',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const result = await this.authService.updatePassword(
+        userId,
+        updatePasswordDto.currentPassword,
+        updatePasswordDto.newPassword,
+      );
+      logger.info(`---AUTH.CONTROLLER.CHANGE_MY_PASSWORD SUCCESS---`);
+      return res.status(HttpStatus.OK).json({
+        message: result.message,
+        data: result,
+      });
+    } catch (error) {
+      logger.error(`---AUTH.CONTROLLER.CHANGE_MY_PASSWORD ERROR ${error}---`);
       return res
         .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: error.message });

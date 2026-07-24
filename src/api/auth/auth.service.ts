@@ -68,6 +68,15 @@ export class AuthService {
       logger.info(
         `---AUTH.SERVICE.CHANGE_PASSWORD_FIRST_LOGIN INIT--- userId=${userId}`,
       );
+
+      const user = await this.userService.findOneWithPassword(userId);
+      if (!user.isFirstLogin) {
+        throw new HttpException(
+          "Ce compte n'est plus en première connexion. Utilisez changeMyPassword.",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const updatedUser = await this.userService.changePassword(
         userId,
         newPassword,
@@ -98,8 +107,8 @@ export class AuthService {
     try {
       logger.info(`---AUTH.SERVICE.UPDATE_PASSWORD INIT--- userId=${userId}`);
 
-      // Récupérer l'utilisateur
-      const user = await this.userService.findOne(userId);
+      // Récupérer l'utilisateur avec le mot de passe
+      const user = await this.userService.findOneWithPassword(userId);
       if (!user) {
         throw new HttpException('Utilisateur non trouvé', HttpStatus.NOT_FOUND);
       }

@@ -1004,6 +1004,21 @@ export class UserService {
     }
   }
 
+  async findOneWithPassword(userId: string): Promise<any> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new HttpException('Utilisateur non trouvé', HttpStatus.NOT_FOUND);
+      }
+      return user;
+    } catch (error) {
+      throw new HttpException(
+        error.message || "Erreur lors de la récupération de l'utilisateur",
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findByPhoneNumber(phoneNumber: string): Promise<any> {
     try {
       const user = await this.userModel
