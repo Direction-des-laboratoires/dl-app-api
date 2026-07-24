@@ -692,26 +692,55 @@ export class MessageService {
     jobLabel: string,
     payload: { success: true; data: unknown } | { success: false; error: string },
   ): Promise<void> {
-    let subject: string;
-    let body: string;
+    const success = !('error' in payload);
+    const subject = success
+      ? `[DirLabo] ${jobLabel} - terminé`
+      : `[DirLabo] ${jobLabel} - échec`;
 
-    if ('error' in payload) {
-      subject = `[DirLabo] ${jobLabel} - échec`;
-      body = `Le traitement "${jobLabel}" a échoué.\n\nErreur :\n${payload.error}`;
-    } else {
-      subject = `[DirLabo] ${jobLabel} - terminé`;
-      body = `Le traitement "${jobLabel}" est terminé.\n\nRésultat :\n${JSON.stringify(payload.data, null, 2)}`;
-    }
+    const resultData =
+      success && payload.data && typeof payload.data === 'object'
+        ? (payload.data as {
+            summary?: {
+              totalFound?: number;
+              totalTargeted?: number;
+              sent?: number;
+              failed?: number;
+              skipped?: number;
+              notFound?: number;
+              canal?: string;
+            };
+            sent?: Array<{
+              email?: string;
+              phoneNumber?: string;
+              channels?: string[];
+            }>;
+            failed?: Array<{
+              email?: string;
+              phoneNumber?: string;
+              error?: string;
+            }>;
+          })
+        : null;
+
+    const text = success
+      ? `Le traitement "${jobLabel}" est terminé.\n\nRésumé :\n${JSON.stringify(resultData?.summary || {}, null, 2)}\n\nEnvoyés : ${resultData?.sent?.length || 0}\nÉchoués : ${resultData?.failed?.length || 0}`
+      : `Le traitement "${jobLabel}" a échoué.\n\nErreur :\n${'error' in payload ? payload.error : 'Erreur inconnue'}`;
+
+    const html = MailTemplates.accessJobResultEmail({
+      jobLabel,
+      success,
+      error: 'error' in payload ? payload.error : undefined,
+      summary: resultData?.summary,
+      sent: resultData?.sent || [],
+      failed: resultData?.failed || [],
+    });
 
     try {
       await this.mailService.sendMail({
         to: ACCESS_RESULT_NOTIFICATION_EMAILS,
         subject,
-        text: body,
-        html: `<pre style="font-family:Arial,sans-serif;font-size:13px;white-space:pre-wrap;">${body
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')}</pre>`,
+        text,
+        html,
       });
       logger.info(
         `---MESSAGE.SERVICE.ACCESS_JOB_RESULT_EMAIL SUCCESS--- job=${jobLabel}`,

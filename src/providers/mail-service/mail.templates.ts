@@ -512,4 +512,179 @@ export class MailTemplates {
       </html>
     `;
   }
+
+  /**
+   * Template pour le mail de résultat d'un envoi d'accès différé
+   */
+  static accessJobResultEmail(params: {
+    jobLabel: string;
+    success: boolean;
+    error?: string;
+    summary?: {
+      totalFound?: number;
+      totalTargeted?: number;
+      sent?: number;
+      failed?: number;
+      skipped?: number;
+      notFound?: number;
+      canal?: string;
+    };
+    sent?: Array<{ email?: string; phoneNumber?: string; channels?: string[] }>;
+    failed?: Array<{ email?: string; phoneNumber?: string; error?: string }>;
+  }): string {
+    const {
+      jobLabel,
+      success,
+      error,
+      summary = {},
+      sent = [],
+      failed = [],
+    } = params;
+
+    const statusColor = success ? '#059669' : '#dc2626';
+    const statusBg = success ? '#ecfdf5' : '#fef2f2';
+    const statusBorder = success ? '#a7f3d0' : '#fecaca';
+    const statusLabel = success ? 'Terminé avec succès' : 'Échec du traitement';
+    const accent = success
+      ? 'linear-gradient(90deg, #059669 0%, #34d399 100%)'
+      : 'linear-gradient(90deg, #dc2626 0%, #f87171 100%)';
+
+    const escape = (value: unknown) =>
+      String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const statCard = (label: string, value: number | string, color: string) => `
+      <td style="width:33%;padding:6px;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:${color};line-height:1.2;">${escape(value)}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px;">${escape(label)}</div>
+        </div>
+      </td>
+    `;
+
+    const sentPreview = sent
+      .slice(0, 15)
+      .map((item) => {
+        const contact = item.email || item.phoneNumber || '—';
+        const channels = (item.channels || []).join(', ') || '—';
+        return `<tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #eef2f7;font-size:13px;color:#334155;">${escape(contact)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eef2f7;font-size:12px;color:#64748b;">${escape(channels)}</td>
+        </tr>`;
+      })
+      .join('');
+
+    const failedPreview = failed
+      .slice(0, 15)
+      .map((item) => {
+        const contact = item.email || item.phoneNumber || '—';
+        return `<tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #fee2e2;font-size:13px;color:#334155;">${escape(contact)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #fee2e2;font-size:12px;color:#b91c1c;">${escape(item.error || 'Erreur')}</td>
+        </tr>`;
+      })
+      .join('');
+
+    return `
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin:0;padding:0;background-color:#eef2f7;font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;">
+        <div style="width:100%;padding:32px 16px;box-sizing:border-box;">
+          <div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
+            <div style="height:4px;background:${accent};"></div>
+
+            <div style="background:#0f172a;padding:22px 28px;">
+              <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;">Direction des Laboratoires</div>
+              <div style="font-size:20px;font-weight:700;color:#ffffff;">Résultat d'envoi des accès</div>
+            </div>
+
+            <div style="padding:28px;">
+              <div style="display:inline-block;background:${statusBg};border:1px solid ${statusBorder};color:${statusColor};border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;margin-bottom:18px;">
+                ${statusLabel}
+              </div>
+
+              <p style="margin:0 0 8px 0;font-size:15px;color:#334155;">
+                Traitement : <strong style="color:#0f172a;">${escape(jobLabel)}</strong>
+              </p>
+              ${
+                summary.canal
+                  ? `<p style="margin:0 0 20px 0;font-size:14px;color:#64748b;">Canal : <strong style="color:#1565C0;">${escape(summary.canal)}</strong></p>`
+                  : '<div style="height:12px;"></div>'
+              }
+
+              ${
+                success
+                  ? `
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:8px 0 24px;">
+                <tr>
+                  ${statCard('Trouvés', summary.totalFound ?? 0, '#1565C0')}
+                  ${statCard('Ciblés', summary.totalTargeted ?? 0, '#0f766e')}
+                  ${statCard('Envoyés', summary.sent ?? 0, '#059669')}
+                </tr>
+                <tr>
+                  ${statCard('Échoués', summary.failed ?? 0, '#dc2626')}
+                  ${statCard('Exclus', summary.skipped ?? 0, '#d97706')}
+                  ${statCard('Introuvables', summary.notFound ?? 0, '#7c3aed')}
+                </tr>
+              </table>
+
+              ${
+                sent.length > 0
+                  ? `
+              <div style="margin-bottom:22px;">
+                <h3 style="margin:0 0 10px 0;font-size:15px;color:#0f172a;">Envois réussis ${sent.length > 15 ? `(aperçu 15/${sent.length})` : ''}</h3>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                  <tr style="background:#f8fafc;">
+                    <th align="left" style="padding:8px 10px;font-size:12px;color:#64748b;border-bottom:1px solid #e2e8f0;">Contact</th>
+                    <th align="left" style="padding:8px 10px;font-size:12px;color:#64748b;border-bottom:1px solid #e2e8f0;">Canaux</th>
+                  </tr>
+                  ${sentPreview}
+                </table>
+              </div>`
+                  : ''
+              }
+
+              ${
+                failed.length > 0
+                  ? `
+              <div style="margin-bottom:8px;">
+                <h3 style="margin:0 0 10px 0;font-size:15px;color:#0f172a;">Échecs ${failed.length > 15 ? `(aperçu 15/${failed.length})` : ''}</h3>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #fecaca;border-radius:8px;overflow:hidden;">
+                  <tr style="background:#fef2f2;">
+                    <th align="left" style="padding:8px 10px;font-size:12px;color:#b91c1c;border-bottom:1px solid #fecaca;">Contact</th>
+                    <th align="left" style="padding:8px 10px;font-size:12px;color:#b91c1c;border-bottom:1px solid #fecaca;">Erreur</th>
+                  </tr>
+                  ${failedPreview}
+                </table>
+              </div>`
+                  : ''
+              }
+              `
+                  : `
+              <div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:8px;padding:16px 18px;margin-top:8px;">
+                <p style="margin:0 0 6px 0;font-size:13px;font-weight:600;color:#b91c1c;">Détail de l'erreur</p>
+                <p style="margin:0;font-size:14px;color:#7f1d1d;white-space:pre-wrap;">${escape(error || 'Erreur inconnue')}</p>
+              </div>
+              `
+              }
+            </div>
+
+            <div style="padding:16px 28px 22px;background:#f8fafc;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center;">
+                Email automatique DirLabo — ${new Date().toLocaleString('fr-FR')}
+              </p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
 }
