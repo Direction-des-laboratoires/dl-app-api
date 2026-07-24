@@ -16,7 +16,7 @@ Nous vous remercions pour votre engagement dans la modernisation de notre systè
 export const regionAccessMailNote =
   "Note : Si ce message vous est parvenu par erreur ou si vous n'occupez pas la fonction de responsable de laboratoire, merci de nous en informer sans délai par retour de courriel.";
 
-export const regionAccessSmsContent = `Bonjour {{firstName}} {{lastName}}, voici vos accès dirlabo.sn
+export const regionAccessSmsContent = `Bonjour {{fullName}}, voici vos accès dirlabo.sn
 email:{{email}}
 mot de passe temporaire:{{password}}`;
 
