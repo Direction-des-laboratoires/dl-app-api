@@ -43,12 +43,21 @@ export class MessageController {
         sentBy,
       );
       logger.info(`---MESSAGE.CONTROLLER.SEND_REGION_ACCESSES SUCCESS---`);
+
+      if (result.deferred === true) {
+        return res.status(HttpStatus.ACCEPTED).json({
+          message: result.message,
+          deferred: true,
+        });
+      }
+
       const successMessage = sendRegionAccessesDto.region
         ? 'Accès générés et envoyés aux utilisateurs de la région'
         : 'Accès générés et envoyés aux utilisateurs de toutes les régions';
       return res.status(HttpStatus.CREATED).json({
         message: successMessage,
-        data: result,
+        deferred: false,
+        data: result.data,
       });
     } catch (error) {
       logger.error(
@@ -75,9 +84,18 @@ export class MessageController {
         sentBy,
       );
       logger.info(`---MESSAGE.CONTROLLER.SEND_USER_ACCESSES SUCCESS---`);
+
+      if (result.deferred === true) {
+        return res.status(HttpStatus.ACCEPTED).json({
+          message: result.message,
+          deferred: true,
+        });
+      }
+
       return res.status(HttpStatus.CREATED).json({
         message: 'Accès générés et envoyés aux utilisateurs sélectionnés',
-        data: result,
+        deferred: false,
+        data: result.data,
       });
     } catch (error) {
       logger.error(

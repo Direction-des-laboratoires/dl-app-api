@@ -5,6 +5,7 @@ import { Message } from './interfaces/message.interface';
 import {
   CanalEnum,
   CreateMessageDto,
+  RegionAccessCanalEnum,
   SendRegionAccessesDto,
   SendUserAccessesDto,
 } from './dto/create-message.dto';
@@ -29,8 +30,12 @@ import {
 import {
   buildRegionAccessMailHtml,
   buildRegionAccessMailText,
+  buildRegionAccessSmsText,
   regionAccessMailSubject,
   regionAccesMailContent,
+  regionAccessSmsContent,
+  ACCESS_JOB_DEFER_TIMEOUT_MS,
+  ACCESS_RESULT_NOTIFICATION_EMAILS,
 } from './constants/region-access-mail.constants';
 
 type RecipientContacts = {
@@ -262,6 +267,77 @@ export class MessageService {
     });
   }
 
+  private getUserPhoneNumber(user: User): string | null {
+    const primary = user.phoneNumber?.trim();
+    if (primary) {
+      return primary;
+    }
+
+    const secondary = user.phoneNumber2?.trim();
+    return secondary || null;
+  }
+
+  private async sendGeneratedAccessSms(
+    user: User,
+    temporaryPassword: string,
+  ): Promise<string> {
+    const phoneNumber = this.getUserPhoneNumber(user);
+    if (!phoneNumber) {
+      throw new HttpException(
+        'Aucun numéro de téléphone trouvé pour cet utilisateur',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    await this.promobileSmsService.sendSms({
+      to: phoneNumber,
+      content: buildRegionAccessSmsText(user.email || '', temporaryPassword),
+    });
+
+    return phoneNumber;
+  }
+
+  private buildAccessContactFilter(
+    canal: RegionAccessCanalEnum,
+  ): Record<string, unknown> {
+    const hasEmail = { email: { $exists: true, $ne: '' } };
+    const hasPhone = {
+      $or: [
+        { phoneNumber: { $exists: true, $nin: [null, ''] } },
+        { phoneNumber2: { $exists: true, $nin: [null, ''] } },
+      ],
+    };
+
+    if (canal === RegionAccessCanalEnum.SMS) {
+      return hasPhone;
+    }
+
+    if (canal === RegionAccessCanalEnum.ALL) {
+      return { $and: [hasEmail, hasPhone] };
+    }
+
+    return hasEmail;
+  }
+
+  private getAccessEmptyTargetMessage(
+    canal: RegionAccessCanalEnum,
+    region?: string,
+  ): string {
+    const scope = region
+      ? 'pour les laboratoires de cette région'
+      : 'pour les laboratoires';
+
+    if (canal === RegionAccessCanalEnum.SMS) {
+      return `Aucun utilisateur avec numéro de téléphone trouvé ${scope}`;
+    }
+
+    if (canal === RegionAccessCanalEnum.ALL) {
+      return `Aucun utilisateur avec email et numéro de téléphone trouvé ${scope}`;
+    }
+
+    return `Aucun utilisateur avec email trouvé ${scope}`;
+  }
+
   private async buildRegionRecipientFilter(
     region?: string,
   ): Promise<RegionRecipientFilter | null> {
@@ -453,6 +529,7 @@ export class MessageService {
     excludedLabs?: mongoose.Types.ObjectId[];
     notFoundUserIds?: string[];
     emptyTargetMessage: string;
+    canal?: RegionAccessCanalEnum;
   }) {
     const {
       targetUsers,
@@ -466,14 +543,31 @@ export class MessageService {
       excludedStructures = [],
       excludedLabs = [],
       emptyTargetMessage,
+      canal = RegionAccessCanalEnum.EMAIL,
     } = params;
 
     if (targetUsers.length === 0) {
       throw new HttpException(emptyTargetMessage, HttpStatus.BAD_REQUEST);
     }
 
-    const sent: Array<{ userId: unknown; email: string }> = [];
-    const failed: Array<{ userId: unknown; email: string; error: string }> = [];
+    const sendEmail =
+      canal === RegionAccessCanalEnum.EMAIL ||
+      canal === RegionAccessCanalEnum.ALL;
+    const sendSms =
+      canal === RegionAccessCanalEnum.SMS || canal === RegionAccessCanalEnum.ALL;
+
+    const sent: Array<{
+      userId: unknown;
+      email?: string;
+      phoneNumber?: string;
+      channels: string[];
+    }> = [];
+    const failed: Array<{
+      userId: unknown;
+      email?: string;
+      phoneNumber?: string;
+      error: string;
+    }> = [];
 
     for (const user of targetUsers) {
       const previousState = {
@@ -483,6 +577,7 @@ export class MessageService {
         updated_at: user.updated_at,
       };
       const temporaryPassword = this.generateRandomPassword(8);
+      const phoneNumber = this.getUserPhoneNumber(user);
 
       try {
         user.password = temporaryPassword;
@@ -491,10 +586,27 @@ export class MessageService {
         user.updated_at = new Date();
         await user.save();
 
-        await this.sendGeneratedAccessEmail(user, temporaryPassword);
+        const channels: string[] = [];
+
+        if (sendEmail) {
+          await this.sendGeneratedAccessEmail(user, temporaryPassword);
+          channels.push('EMAIL');
+        }
+
+        let sentPhoneNumber: string | undefined;
+        if (sendSms) {
+          sentPhoneNumber = await this.sendGeneratedAccessSms(
+            user,
+            temporaryPassword,
+          );
+          channels.push('SMS');
+        }
+
         sent.push({
           userId: user._id,
           email: user.email,
+          phoneNumber: sentPhoneNumber || phoneNumber || undefined,
+          channels,
         });
       } catch (error) {
         await this.userModel.updateOne(
@@ -504,17 +616,32 @@ export class MessageService {
         failed.push({
           userId: user._id,
           email: user.email,
+          phoneNumber: phoneNumber || undefined,
           error: error.message || "Erreur lors de l'envoi des accès",
         });
       }
     }
 
+    const messageCanal =
+      canal === RegionAccessCanalEnum.ALL
+        ? CanalEnum.ALL
+        : canal === RegionAccessCanalEnum.SMS
+          ? CanalEnum.SMS
+          : CanalEnum.EMAIL;
+
     const message = await this.messageModel.create({
       subject: regionAccessMailSubject,
-      content: regionAccesMailContent,
-      canal: CanalEnum.EMAIL,
-      emails: sent.map((item) => item.email),
-      phoneNumbers: [],
+      content:
+        canal === RegionAccessCanalEnum.SMS
+          ? regionAccessSmsContent
+          : regionAccesMailContent,
+      canal: messageCanal,
+      emails: sent
+        .map((item) => item.email)
+        .filter((email): email is string => Boolean(email)),
+      phoneNumbers: sent
+        .map((item) => item.phoneNumber)
+        .filter((phone): phone is string => Boolean(phone)),
       exclusions,
       region: region ?? null,
       excludedRegions,
@@ -539,6 +666,7 @@ export class MessageService {
         failed: failed.length,
         skipped: skippedUsers.length,
         notFound: notFoundUserIds.length,
+        canal,
       },
       sent,
       failed,
@@ -547,7 +675,93 @@ export class MessageService {
     };
   }
 
+  private async sendAccessJobResultEmail(
+    jobLabel: string,
+    payload: { success: true; data: unknown } | { success: false; error: string },
+  ): Promise<void> {
+    let subject: string;
+    let body: string;
+
+    if ('error' in payload) {
+      subject = `[DirLabo] ${jobLabel} - échec`;
+      body = `Le traitement "${jobLabel}" a échoué.\n\nErreur :\n${payload.error}`;
+    } else {
+      subject = `[DirLabo] ${jobLabel} - terminé`;
+      body = `Le traitement "${jobLabel}" est terminé.\n\nRésultat :\n${JSON.stringify(payload.data, null, 2)}`;
+    }
+
+    try {
+      await this.mailService.sendMail({
+        to: ACCESS_RESULT_NOTIFICATION_EMAILS,
+        subject,
+        text: body,
+        html: `<pre style="font-family:Arial,sans-serif;font-size:13px;white-space:pre-wrap;">${body
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')}</pre>`,
+      });
+      logger.info(
+        `---MESSAGE.SERVICE.ACCESS_JOB_RESULT_EMAIL SUCCESS--- job=${jobLabel}`,
+      );
+    } catch (error) {
+      logger.error(
+        `---MESSAGE.SERVICE.ACCESS_JOB_RESULT_EMAIL ERROR--- job=${jobLabel} ${error.message}`,
+      );
+    }
+  }
+
+  private async runAccessJobWithDeferral<T>(
+    jobLabel: string,
+    job: () => Promise<T>,
+  ): Promise<{ deferred: false; data: T } | { deferred: true; message: string }> {
+    const workPromise = job();
+
+    const raced = await Promise.race([
+      workPromise.then((data) => ({ type: 'done' as const, data })),
+      new Promise<{ type: 'timeout' }>((resolve) => {
+        setTimeout(
+          () => resolve({ type: 'timeout' }),
+          ACCESS_JOB_DEFER_TIMEOUT_MS,
+        );
+      }),
+    ]);
+
+    if (raced.type === 'done') {
+      return { deferred: false, data: raced.data };
+    }
+
+    logger.info(
+      `---MESSAGE.SERVICE.ACCESS_JOB_DEFERRED--- job=${jobLabel} timeout=${ACCESS_JOB_DEFER_TIMEOUT_MS}ms`,
+    );
+
+    workPromise
+      .then((data) =>
+        this.sendAccessJobResultEmail(jobLabel, { success: true, data }),
+      )
+      .catch((error) =>
+        this.sendAccessJobResultEmail(jobLabel, {
+          success: false,
+          error: error?.message || String(error),
+        }),
+      );
+
+    return {
+      deferred: true,
+      message: `Le traitement dépasse ${ACCESS_JOB_DEFER_TIMEOUT_MS / 1000}s. La réponse sera envoyée par email à ${ACCESS_RESULT_NOTIFICATION_EMAILS.join(', ')}.`,
+    };
+  }
+
   async sendRegionAccesses(
+    sendRegionAccessesDto: SendRegionAccessesDto,
+    sentBy: string,
+  ) {
+    return this.runAccessJobWithDeferral(
+      'Envoi des accès (région)',
+      () => this.executeSendRegionAccesses(sendRegionAccessesDto, sentBy),
+    );
+  }
+
+  private async executeSendRegionAccesses(
     sendRegionAccessesDto: SendRegionAccessesDto,
     sentBy: string,
   ) {
@@ -561,6 +775,7 @@ export class MessageService {
         excludedStructures = [],
         excludedLabs = [],
         userIds,
+        canal = RegionAccessCanalEnum.EMAIL,
       } = sendRegionAccessesDto;
 
       const excludedRegionIds = this.validateMongoIds(
@@ -593,7 +808,7 @@ export class MessageService {
       );
 
       const userFilters: Record<string, unknown> = {
-        email: { $exists: true, $ne: '' },
+        ...this.buildAccessContactFilter(canal),
       };
 
       if (region) {
@@ -638,24 +853,26 @@ export class MessageService {
         .find(userFilters)
         .populate({ path: 'lab', select: 'name' })
         .select(
-          'firstname lastname email password active isFirstLogin lab role region',
+          'firstname lastname email phoneNumber phoneNumber2 password active isFirstLogin lab role region',
         )
         .exec();
 
       const targetUsers = users.filter(
-        (user) => !excludedEmails.has(this.normalizeContact(user.email)),
+        (user) =>
+          !user.email ||
+          !excludedEmails.has(this.normalizeContact(user.email)),
       );
       const skippedUsers = users
-        .filter((user) => excludedEmails.has(this.normalizeContact(user.email)))
+        .filter(
+          (user) =>
+            user.email &&
+            excludedEmails.has(this.normalizeContact(user.email)),
+        )
         .map((user) => ({
           userId: user._id,
           email: user.email,
           reason: 'excluded',
         }));
-
-      const emptyTargetMessage = region
-        ? 'Aucun utilisateur avec email trouvé pour les laboratoires de cette région'
-        : 'Aucun utilisateur avec email trouvé pour les laboratoires';
 
       const result = await this.deliverAccessesToUsers({
         targetUsers,
@@ -667,7 +884,8 @@ export class MessageService {
         excludedRegions: excludedRegionIds,
         excludedStructures: excludedStructureIds,
         excludedLabs: excludedLabIds,
-        emptyTargetMessage,
+        emptyTargetMessage: this.getAccessEmptyTargetMessage(canal, region),
+        canal,
       });
 
       logger.info(`---MESSAGE.SERVICE.SEND_REGION_ACCESSES SUCCESS---`);
@@ -687,10 +905,21 @@ export class MessageService {
     sendUserAccessesDto: SendUserAccessesDto,
     sentBy: string,
   ) {
+    return this.runAccessJobWithDeferral(
+      'Envoi des accès (utilisateurs)',
+      () => this.executeSendUserAccesses(sendUserAccessesDto, sentBy),
+    );
+  }
+
+  private async executeSendUserAccesses(
+    sendUserAccessesDto: SendUserAccessesDto,
+    sentBy: string,
+  ) {
     try {
       logger.info(`---MESSAGE.SERVICE.SEND_USER_ACCESSES INIT---`);
 
-      const { userIds, exclusions = [] } = sendUserAccessesDto;
+      const { userIds, exclusions = [], canal = RegionAccessCanalEnum.EMAIL } =
+        sendUserAccessesDto;
 
       const excludedEmails = new Set(
         exclusions
@@ -701,11 +930,11 @@ export class MessageService {
       const users = await this.userModel
         .find({
           _id: { $in: userIds },
-          email: { $exists: true, $ne: '' },
+          ...this.buildAccessContactFilter(canal),
         })
         .populate({ path: 'lab', select: 'name' })
         .select(
-          'firstname lastname email password active isFirstLogin lab role region',
+          'firstname lastname email phoneNumber phoneNumber2 password active isFirstLogin lab role region',
         )
         .exec();
 
@@ -713,10 +942,16 @@ export class MessageService {
       const notFoundUserIds = userIds.filter((id) => !foundUserIds.has(id));
 
       const targetUsers = users.filter(
-        (user) => !excludedEmails.has(this.normalizeContact(user.email)),
+        (user) =>
+          !user.email ||
+          !excludedEmails.has(this.normalizeContact(user.email)),
       );
       const skippedUsers = users
-        .filter((user) => excludedEmails.has(this.normalizeContact(user.email)))
+        .filter(
+          (user) =>
+            user.email &&
+            excludedEmails.has(this.normalizeContact(user.email)),
+        )
         .map((user) => ({
           userId: user._id,
           email: user.email,
@@ -731,7 +966,12 @@ export class MessageService {
         sentBy,
         notFoundUserIds,
         emptyTargetMessage:
-          'Aucun utilisateur avec email trouvé pour les identifiants fournis',
+          canal === RegionAccessCanalEnum.SMS
+            ? 'Aucun utilisateur avec numéro de téléphone trouvé pour les identifiants fournis'
+            : canal === RegionAccessCanalEnum.ALL
+              ? 'Aucun utilisateur avec email et numéro de téléphone trouvé pour les identifiants fournis'
+              : 'Aucun utilisateur avec email trouvé pour les identifiants fournis',
+        canal,
       });
 
       logger.info(`---MESSAGE.SERVICE.SEND_USER_ACCESSES SUCCESS---`);

@@ -18,6 +18,13 @@ export enum CanalEnum {
   EMAIL = 'EMAIL',
   SMS = 'SMS',
   WHATSAPP = 'WHATSAPP',
+  ALL = 'ALL',
+}
+
+export enum RegionAccessCanalEnum {
+  EMAIL = 'EMAIL',
+  SMS = 'SMS',
+  ALL = 'ALL',
 }
 
 export class MessageRecipientsDto {
@@ -236,6 +243,10 @@ export class SendRegionAccessesDto {
   @IsArray()
   @IsMongoId({ each: true })
   excludedStructures?: string[];
+
+  @IsOptional()
+  @IsEnum(RegionAccessCanalEnum)
+  canal?: RegionAccessCanalEnum;
 }
 
 function transformStringArray(value: unknown): unknown {
@@ -280,4 +291,8 @@ export class SendUserAccessesDto {
   @IsArray()
   @IsString({ each: true })
   exclusions?: string[];
+
+  @IsOptional()
+  @IsEnum(RegionAccessCanalEnum)
+  canal?: RegionAccessCanalEnum;
 }

@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 export interface Message extends Document {
   subject: string;
   content: string;
-  canal: 'EMAIL' | 'SMS' | 'WHATSAPP';
+  canal: 'EMAIL' | 'SMS' | 'WHATSAPP' | 'ALL';
   emails?: string[];
   phoneNumbers?: string[];
   exclusions?: string[];

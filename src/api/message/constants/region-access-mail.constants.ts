@@ -16,11 +16,28 @@ Nous vous remercions pour votre engagement dans la modernisation de notre systè
 export const regionAccessMailNote =
   "Note : Si ce message vous est parvenu par erreur ou si vous n'occupez pas la fonction de responsable de laboratoire, merci de nous en informer sans délai par retour de courriel.";
 
+export const regionAccessSmsContent = `Bonjour {{firstName}} {{lastName}}, voici vos accès dirlabo.sn
+email:{{email}}
+mot de passe temporaire:{{password}}`;
+
+export const ACCESS_JOB_DEFER_TIMEOUT_MS = 60_000;
+
+export const ACCESS_RESULT_NOTIFICATION_EMAILS = [
+  'ndongbabacar100@gmail.com',
+  'passane98@gmail.com',
+];
+
 type RegionAccessMailParams = {
   labName: string;
   email: string;
   password: string;
 };
+
+export function buildRegionAccessSmsText(email: string, password: string): string {
+  return regionAccessSmsContent
+    .replace(/\{\{\s*email\s*\}\}/g, email)
+    .replace(/\{\{\s*password\s*\}\}/g, password);
+}
 
 function escapeHtml(text: string): string {
   return text
