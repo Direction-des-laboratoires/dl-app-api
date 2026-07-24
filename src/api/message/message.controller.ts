@@ -23,6 +23,7 @@ import logger from 'src/utils/logger';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { UploadHelper } from 'src/utils/functions/upload-image.helper';
+import { ACCESS_RESULT_NOTIFICATION_EMAILS } from './constants/region-access-mail.constants';
 
 @Controller('messages')
 export class MessageController {
@@ -38,26 +39,15 @@ export class MessageController {
     try {
       logger.info(`---MESSAGE.CONTROLLER.SEND_REGION_ACCESSES INIT---`);
       const sentBy = req.user._id || req.user.userId || req.user.id;
-      const result = await this.messageService.sendRegionAccesses(
+      const result = this.messageService.sendRegionAccesses(
         sendRegionAccessesDto,
         sentBy,
       );
-      logger.info(`---MESSAGE.CONTROLLER.SEND_REGION_ACCESSES SUCCESS---`);
-
-      if (result.deferred === true) {
-        return res.status(HttpStatus.ACCEPTED).json({
-          message: result.message,
-          deferred: true,
-        });
-      }
-
-      const successMessage = sendRegionAccessesDto.region
-        ? 'Accès générés et envoyés aux utilisateurs de la région'
-        : 'Accès générés et envoyés aux utilisateurs de toutes les régions';
-      return res.status(HttpStatus.CREATED).json({
-        message: successMessage,
-        deferred: false,
-        data: result.data,
+      logger.info(`---MESSAGE.CONTROLLER.SEND_REGION_ACCESSES ACCEPTED---`);
+      return res.status(HttpStatus.ACCEPTED).json({
+        message: result.message,
+        accepted: true,
+        notifyEmails: ACCESS_RESULT_NOTIFICATION_EMAILS,
       });
     } catch (error) {
       logger.error(
@@ -79,23 +69,15 @@ export class MessageController {
     try {
       logger.info(`---MESSAGE.CONTROLLER.SEND_USER_ACCESSES INIT---`);
       const sentBy = req.user._id || req.user.userId || req.user.id;
-      const result = await this.messageService.sendUserAccesses(
+      const result = this.messageService.sendUserAccesses(
         sendUserAccessesDto,
         sentBy,
       );
-      logger.info(`---MESSAGE.CONTROLLER.SEND_USER_ACCESSES SUCCESS---`);
-
-      if (result.deferred === true) {
-        return res.status(HttpStatus.ACCEPTED).json({
-          message: result.message,
-          deferred: true,
-        });
-      }
-
-      return res.status(HttpStatus.CREATED).json({
-        message: 'Accès générés et envoyés aux utilisateurs sélectionnés',
-        deferred: false,
-        data: result.data,
+      logger.info(`---MESSAGE.CONTROLLER.SEND_USER_ACCESSES ACCEPTED---`);
+      return res.status(HttpStatus.ACCEPTED).json({
+        message: result.message,
+        accepted: true,
+        notifyEmails: ACCESS_RESULT_NOTIFICATION_EMAILS,
       });
     } catch (error) {
       logger.error(

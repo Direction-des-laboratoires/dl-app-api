@@ -34,7 +34,6 @@ import {
   regionAccessMailSubject,
   regionAccesMailContent,
   regionAccessSmsContent,
-  ACCESS_JOB_DEFER_TIMEOUT_MS,
   ACCESS_RESULT_NOTIFICATION_EMAILS,
 } from './constants/region-access-mail.constants';
 
@@ -710,52 +709,36 @@ export class MessageService {
     }
   }
 
-  private async runAccessJobWithDeferral<T>(
+  private runAccessJobInBackground<T>(
     jobLabel: string,
     job: () => Promise<T>,
-  ): Promise<{ deferred: false; data: T } | { deferred: true; message: string }> {
-    const workPromise = job();
+  ): { accepted: true; message: string } {
+    logger.info(`---MESSAGE.SERVICE.ACCESS_JOB_ACCEPTED--- job=${jobLabel}`);
 
-    const raced = await Promise.race([
-      workPromise.then((data) => ({ type: 'done' as const, data })),
-      new Promise<{ type: 'timeout' }>((resolve) => {
-        setTimeout(
-          () => resolve({ type: 'timeout' }),
-          ACCESS_JOB_DEFER_TIMEOUT_MS,
+    setImmediate(() => {
+      job()
+        .then((data) =>
+          this.sendAccessJobResultEmail(jobLabel, { success: true, data }),
+        )
+        .catch((error) =>
+          this.sendAccessJobResultEmail(jobLabel, {
+            success: false,
+            error: error?.message || String(error),
+          }),
         );
-      }),
-    ]);
-
-    if (raced.type === 'done') {
-      return { deferred: false, data: raced.data };
-    }
-
-    logger.info(
-      `---MESSAGE.SERVICE.ACCESS_JOB_DEFERRED--- job=${jobLabel} timeout=${ACCESS_JOB_DEFER_TIMEOUT_MS}ms`,
-    );
-
-    workPromise
-      .then((data) =>
-        this.sendAccessJobResultEmail(jobLabel, { success: true, data }),
-      )
-      .catch((error) =>
-        this.sendAccessJobResultEmail(jobLabel, {
-          success: false,
-          error: error?.message || String(error),
-        }),
-      );
+    });
 
     return {
-      deferred: true,
-      message: `Le traitement dépasse ${ACCESS_JOB_DEFER_TIMEOUT_MS / 1000}s. La réponse sera envoyée par email à ${ACCESS_RESULT_NOTIFICATION_EMAILS.join(', ')}.`,
+      accepted: true,
+      message: `Traitement lancé en arrière-plan. Le résultat sera envoyé par email à ${ACCESS_RESULT_NOTIFICATION_EMAILS.join(', ')}.`,
     };
   }
 
-  async sendRegionAccesses(
+  sendRegionAccesses(
     sendRegionAccessesDto: SendRegionAccessesDto,
     sentBy: string,
   ) {
-    return this.runAccessJobWithDeferral(
+    return this.runAccessJobInBackground(
       'Envoi des accès (région)',
       () => this.executeSendRegionAccesses(sendRegionAccessesDto, sentBy),
     );
@@ -901,11 +884,11 @@ export class MessageService {
     }
   }
 
-  async sendUserAccesses(
+  sendUserAccesses(
     sendUserAccessesDto: SendUserAccessesDto,
     sentBy: string,
   ) {
-    return this.runAccessJobWithDeferral(
+    return this.runAccessJobInBackground(
       'Envoi des accès (utilisateurs)',
       () => this.executeSendUserAccesses(sendUserAccessesDto, sentBy),
     );

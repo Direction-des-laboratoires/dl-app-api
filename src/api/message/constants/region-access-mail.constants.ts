@@ -20,8 +20,6 @@ export const regionAccessSmsContent = `Bonjour {{firstName}} {{lastName}}, voici
 email:{{email}}
 mot de passe temporaire:{{password}}`;
 
-export const ACCESS_JOB_DEFER_TIMEOUT_MS = 60_000;
-
 export const ACCESS_RESULT_NOTIFICATION_EMAILS = [
   'ndongbabacar100@gmail.com',
   'passane98@gmail.com',
