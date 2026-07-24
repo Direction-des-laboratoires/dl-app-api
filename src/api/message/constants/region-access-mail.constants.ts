@@ -16,7 +16,7 @@ Nous vous remercions pour votre engagement dans la modernisation de notre systè
 export const regionAccessMailNote =
   "Note : Si ce message vous est parvenu par erreur ou si vous n'occupez pas la fonction de responsable de laboratoire, merci de nous en informer sans délai par retour de courriel.";
 
-export const regionAccessSmsContent = `Bonjour {{fullName}}, voici vos accès dirlabo.sn
+export const regionAccessSmsContent = `Madame, Monsieur le Responsable du laboratoire de {{labName}}, voici vos accès dirlabo.sn
 email:{{email}}
 mot de passe temporaire:{{password}}`;
 
@@ -31,10 +31,21 @@ type RegionAccessMailParams = {
   password: string;
 };
 
-export function buildRegionAccessSmsText(email: string, password: string): string {
+export function buildRegionAccessSmsText(params: {
+  labName?: string;
+  email: string;
+  password: string;
+  firstname?: string;
+  lastname?: string;
+}): string {
   return regionAccessSmsContent
-    .replace(/\{\{\s*email\s*\}\}/g, email)
-    .replace(/\{\{\s*password\s*\}\}/g, password);
+    .replace(/\{\{\s*labName\s*\}\}/g, params.labName || 'votre laboratoire')
+    .replace(/\{\{\s*email\s*\}\}/g, params.email)
+    .replace(/\{\{\s*password\s*\}\}/g, params.password)
+    .replace(/\{\{\s*firstname\s*\}\}/gi, params.firstname || '')
+    .replace(/\{\{\s*lastname\s*\}\}/gi, params.lastname || '')
+    .replace(/\{\{\s*firstName\s*\}\}/g, params.firstname || '')
+    .replace(/\{\{\s*lastName\s*\}\}/g, params.lastname || '');
 }
 
 function escapeHtml(text: string): string {

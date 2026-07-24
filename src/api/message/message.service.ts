@@ -209,12 +209,15 @@ export class MessageService {
     const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const lowercase = 'abcdefghijklmnopqrstuvwxyz';
     const numbers = '0123456789';
-    const allChars = uppercase + lowercase + numbers;
+    // Caractères spéciaux compatibles SMS (évite & + = qui peuvent casser certaines passerelles)
+    const specials = '!@#*?-_';
+    const allChars = uppercase + lowercase + numbers + specials;
 
     let password = '';
     password += uppercase[Math.floor(Math.random() * uppercase.length)];
     password += lowercase[Math.floor(Math.random() * lowercase.length)];
     password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += specials[Math.floor(Math.random() * specials.length)];
 
     for (let i = password.length; i < length; i++) {
       password += allChars[Math.floor(Math.random() * allChars.length)];
@@ -288,9 +291,20 @@ export class MessageService {
       );
     }
 
+    await user.populate({ path: 'lab', select: 'name' });
+    const labName =
+      (user.lab as { name?: string } | undefined)?.name?.trim() ||
+      'votre laboratoire';
+
     await this.promobileSmsService.sendSms({
       to: phoneNumber,
-      content: buildRegionAccessSmsText(user.email || '', temporaryPassword),
+      content: buildRegionAccessSmsText({
+        labName,
+        email: user.email || '',
+        password: temporaryPassword,
+        firstname: user.firstname,
+        lastname: user.lastname,
+      }),
     });
 
     return phoneNumber;
