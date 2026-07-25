@@ -340,14 +340,14 @@ export class MessageService {
       : 'pour les laboratoires';
 
     if (canal === RegionAccessCanalEnum.SMS) {
-      return `Aucun utilisateur avec numéro de téléphone trouvé ${scope}`;
+      return `Aucun LabAdmin avec numéro de téléphone trouvé ${scope}`;
     }
 
     if (canal === RegionAccessCanalEnum.ALL) {
-      return `Aucun utilisateur avec email et numéro de téléphone trouvé ${scope}`;
+      return `Aucun LabAdmin avec email et numéro de téléphone trouvé ${scope}`;
     }
 
-    return `Aucun utilisateur avec email trouvé ${scope}`;
+    return `Aucun LabAdmin avec email trouvé ${scope}`;
   }
 
   private async buildRegionRecipientFilter(
@@ -852,6 +852,7 @@ export class MessageService {
       }
 
       const userFilters: Record<string, unknown> = {
+        role: Role.LabAdmin,
         ...this.buildAccessContactFilter(canal),
       };
 
