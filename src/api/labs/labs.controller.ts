@@ -190,6 +190,32 @@ export class LabsController {
     }
   }
 
+  @Roles(Role.SuperAdmin)
+  @Post('directors/to-lab-staff')
+  async convertDirectorsToLabStaff(@Res() res) {
+    try {
+      logger.info(`---LABS.CONTROLLER.CONVERT_DIRECTORS_TO_LAB_STAFF INIT---`);
+      const result = await this.labsService.convertDirectorsToLabStaff();
+      logger.info(
+        `---LABS.CONTROLLER.CONVERT_DIRECTORS_TO_LAB_STAFF SUCCESS---`,
+      );
+      return res.status(HttpStatus.OK).json({
+        message:
+          'Rôles des directeurs de laboratoires mis à jour en lab_staff',
+        data: result,
+      });
+    } catch (error: any) {
+      logger.error(
+        `---LABS.CONTROLLER.CONVERT_DIRECTORS_TO_LAB_STAFF ERROR ${error}---`,
+      );
+      return res.status(error.status || HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message:
+          error.message ||
+          'Erreur lors de la mise à jour des rôles des directeurs',
+      });
+    }
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @Res() res) {
     try {

@@ -282,6 +282,91 @@ export class LabsService {
     }
   }
 
+  async convertDirectorsToLabStaff(): Promise<{
+    labsWithDirector: number;
+    uniqueDirectors: number;
+    updated: number;
+    alreadyLabStaff: number;
+    directorIds: string[];
+  }> {
+    try {
+      logger.info(`---LABS.SERVICE.CONVERT_DIRECTORS_TO_LAB_STAFF INIT---`);
+
+      const labs = await this.labModel
+        .find({ director: { $exists: true, $ne: null } })
+        .select('_id name director')
+        .lean()
+        .exec();
+
+      const directorIds = Array.from(
+        new Set(
+          labs
+            .map((lab) => {
+              const director = lab.director as unknown;
+              if (!director) return null;
+              if (typeof director === 'string') return director;
+              if (typeof director === 'object' && '_id' in (director as object)) {
+                return String((director as { _id: unknown })._id);
+              }
+              return String(director);
+            })
+            .filter((id): id is string => Boolean(id)),
+        ),
+      );
+
+      if (directorIds.length === 0) {
+        return {
+          labsWithDirector: labs.length,
+          uniqueDirectors: 0,
+          updated: 0,
+          alreadyLabStaff: 0,
+          directorIds: [],
+        };
+      }
+
+      const alreadyLabStaff = await this.userModel.countDocuments({
+        _id: { $in: directorIds },
+        role: Role.LabStaff,
+      });
+
+      const updateResult = await this.userModel.updateMany(
+        {
+          _id: { $in: directorIds },
+          role: { $ne: Role.LabStaff },
+        },
+        {
+          $set: {
+            role: Role.LabStaff,
+            updated_at: new Date(),
+          },
+        },
+      );
+
+      const updated = updateResult.modifiedCount ?? 0;
+
+      logger.info(
+        `---LABS.SERVICE.CONVERT_DIRECTORS_TO_LAB_STAFF SUCCESS--- labs=${labs.length} directors=${directorIds.length} updated=${updated}`,
+      );
+
+      return {
+        labsWithDirector: labs.length,
+        uniqueDirectors: directorIds.length,
+        updated,
+        alreadyLabStaff,
+        directorIds,
+      };
+    } catch (error) {
+      logger.error(
+        `---LABS.SERVICE.CONVERT_DIRECTORS_TO_LAB_STAFF ERROR--- ${error.message}`,
+      );
+      throw new HttpException(
+        error.message ||
+          'Erreur lors de la mise à jour des rôles des directeurs',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async findAll(query: FindLabsDto): Promise<any> {
     try {
       const {
