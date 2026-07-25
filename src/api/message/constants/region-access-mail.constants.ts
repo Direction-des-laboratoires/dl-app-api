@@ -17,8 +17,9 @@ export const regionAccessMailNote =
   "Note : Si ce message vous est parvenu par erreur ou si vous n'occupez pas la fonction de responsable de laboratoire, merci de nous en informer sans délai par retour de courriel.";
 
 export const regionAccessSmsContent = `Madame, Monsieur le Responsable du laboratoire de {{labName}}, voici vos accès https://dirlabo.sn/fr/auth
-email:{{email}}
-mot de passe temporaire:{{password}}`;
+email: {{email}}
+mot de passe: {{password}}
+Pour plus de détails, consultez votre email`;
 
 export const ACCESS_RESULT_NOTIFICATION_EMAILS = [
   'ndongbabacar100@gmail.com',
