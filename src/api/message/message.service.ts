@@ -14,6 +14,7 @@ import { MailTemplates } from 'src/providers/mail-service/mail.templates';
 import { PromobileSmsService } from 'src/providers/sms-service/promobile.service';
 import { User } from 'src/api/user/interfaces/user.interface';
 import { Lab } from 'src/api/labs/interfaces/labs.interface';
+import { Region } from 'src/api/region/interfaces/region.interface';
 import { Role } from 'src/utils/enums/roles.enum';
 import logger from 'src/utils/logger';
 
@@ -55,6 +56,7 @@ export class MessageService {
     @InjectModel('Message') private messageModel: Model<Message>,
     @InjectModel('User') private userModel: Model<User>,
     @InjectModel('Lab') private labModel: Model<Lab>,
+    @InjectModel('Region') private regionModel: Model<Region>,
     private mailService: MailService,
     private promobileSmsService: PromobileSmsService,
   ) {}
@@ -529,11 +531,17 @@ export class MessageService {
 
   private async deliverAccessesToUsers(params: {
     targetUsers: User[];
-    skippedUsers: Array<{ userId: unknown; email: string; reason: string }>;
+    skippedUsers: Array<{
+      userId: unknown;
+      email: string;
+      phoneNumber?: string;
+      reason: string;
+    }>;
     totalFound: number;
     exclusions: string[];
     sentBy: string;
     region?: string;
+    regionName?: string;
     excludedRegions?: mongoose.Types.ObjectId[];
     excludedStructures?: mongoose.Types.ObjectId[];
     excludedLabs?: mongoose.Types.ObjectId[];
@@ -548,6 +556,7 @@ export class MessageService {
       exclusions,
       sentBy,
       region,
+      regionName,
       notFoundUserIds = [],
       excludedRegions = [],
       excludedStructures = [],
@@ -677,6 +686,7 @@ export class MessageService {
         skipped: skippedUsers.length,
         notFound: notFoundUserIds.length,
         canal,
+        regionName: regionName || null,
       },
       sent,
       failed,
@@ -705,6 +715,7 @@ export class MessageService {
               skipped?: number;
               notFound?: number;
               canal?: string;
+              regionName?: string | null;
             };
             sent?: Array<{
               email?: string;
@@ -830,6 +841,16 @@ export class MessageService {
         allExcludedLabIds.map((id) => id.toString()),
       );
 
+      let regionName = 'Toutes les régions';
+      if (region) {
+        const regionDoc = await this.regionModel
+          .findById(region)
+          .select('name')
+          .lean()
+          .exec();
+        regionName = regionDoc?.name || 'Région inconnue';
+      }
+
       const userFilters: Record<string, unknown> = {
         ...this.buildAccessContactFilter(canal),
       };
@@ -894,6 +915,7 @@ export class MessageService {
         .map((user) => ({
           userId: user._id,
           email: user.email,
+          phoneNumber: this.getUserPhoneNumber(user) || undefined,
           reason: 'excluded',
         }));
 
@@ -904,6 +926,7 @@ export class MessageService {
         exclusions,
         sentBy,
         region,
+        regionName,
         excludedRegions: excludedRegionIds,
         excludedStructures: excludedStructureIds,
         excludedLabs: excludedLabIds,

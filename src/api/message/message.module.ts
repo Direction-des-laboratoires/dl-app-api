@@ -7,6 +7,7 @@ import { MailModule } from 'src/providers/mail-service/mail.module';
 import { PromobileSmsService } from 'src/providers/sms-service/promobile.service';
 import { UserSchema } from 'src/api/user/schemas/user.schema';
 import { LabSchema } from 'src/api/labs/schemas/lab.schema';
+import { RegionSchema } from 'src/api/region/schemas/region.schema';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { LabSchema } from 'src/api/labs/schemas/lab.schema';
       { name: 'Message', schema: MessageSchema },
       { name: 'User', schema: UserSchema },
       { name: 'Lab', schema: LabSchema },
+      { name: 'Region', schema: RegionSchema },
     ]),
     MailModule,
   ],

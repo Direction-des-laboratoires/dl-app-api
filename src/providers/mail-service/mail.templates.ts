@@ -528,6 +528,7 @@ export class MailTemplates {
       skipped?: number;
       notFound?: number;
       canal?: string;
+      regionName?: string | null;
     };
     sent?: Array<{ email?: string; phoneNumber?: string; channels?: string[] }>;
     failed?: Array<{ email?: string; phoneNumber?: string; error?: string }>;
@@ -568,10 +569,10 @@ export class MailTemplates {
     const sentPreview = sent
       .slice(0, 15)
       .map((item) => {
-        const contact = item.email || item.phoneNumber || '—';
         const channels = (item.channels || []).join(', ') || '—';
         return `<tr>
-          <td style="padding:8px 10px;border-bottom:1px solid #eef2f7;font-size:13px;color:#334155;">${escape(contact)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eef2f7;font-size:13px;color:#334155;">${escape(item.email || '—')}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eef2f7;font-size:13px;color:#334155;">${escape(item.phoneNumber || '—')}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #eef2f7;font-size:12px;color:#64748b;">${escape(channels)}</td>
         </tr>`;
       })
@@ -580,9 +581,9 @@ export class MailTemplates {
     const failedPreview = failed
       .slice(0, 15)
       .map((item) => {
-        const contact = item.email || item.phoneNumber || '—';
         return `<tr>
-          <td style="padding:8px 10px;border-bottom:1px solid #fee2e2;font-size:13px;color:#334155;">${escape(contact)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #fee2e2;font-size:13px;color:#334155;">${escape(item.email || '—')}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #fee2e2;font-size:13px;color:#334155;">${escape(item.phoneNumber || '—')}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #fee2e2;font-size:12px;color:#b91c1c;">${escape(item.error || 'Erreur')}</td>
         </tr>`;
       })
@@ -614,6 +615,11 @@ export class MailTemplates {
                 Traitement : <strong style="color:#0f172a;">${escape(jobLabel)}</strong>
               </p>
               ${
+                summary.regionName
+                  ? `<p style="margin:0 0 8px 0;font-size:14px;color:#64748b;">Région : <strong style="color:#0f172a;">${escape(summary.regionName)}</strong></p>`
+                  : ''
+              }
+              ${
                 summary.canal
                   ? `<p style="margin:0 0 20px 0;font-size:14px;color:#64748b;">Canal : <strong style="color:#1565C0;">${escape(summary.canal)}</strong></p>`
                   : '<div style="height:12px;"></div>'
@@ -642,7 +648,8 @@ export class MailTemplates {
                 <h3 style="margin:0 0 10px 0;font-size:15px;color:#0f172a;">Envois réussis ${sent.length > 15 ? `(aperçu 15/${sent.length})` : ''}</h3>
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
                   <tr style="background:#f8fafc;">
-                    <th align="left" style="padding:8px 10px;font-size:12px;color:#64748b;border-bottom:1px solid #e2e8f0;">Contact</th>
+                    <th align="left" style="padding:8px 10px;font-size:12px;color:#64748b;border-bottom:1px solid #e2e8f0;">Email</th>
+                    <th align="left" style="padding:8px 10px;font-size:12px;color:#64748b;border-bottom:1px solid #e2e8f0;">Téléphone</th>
                     <th align="left" style="padding:8px 10px;font-size:12px;color:#64748b;border-bottom:1px solid #e2e8f0;">Canaux</th>
                   </tr>
                   ${sentPreview}
@@ -658,7 +665,8 @@ export class MailTemplates {
                 <h3 style="margin:0 0 10px 0;font-size:15px;color:#0f172a;">Échecs ${failed.length > 15 ? `(aperçu 15/${failed.length})` : ''}</h3>
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #fecaca;border-radius:8px;overflow:hidden;">
                   <tr style="background:#fef2f2;">
-                    <th align="left" style="padding:8px 10px;font-size:12px;color:#b91c1c;border-bottom:1px solid #fecaca;">Contact</th>
+                    <th align="left" style="padding:8px 10px;font-size:12px;color:#b91c1c;border-bottom:1px solid #fecaca;">Email</th>
+                    <th align="left" style="padding:8px 10px;font-size:12px;color:#b91c1c;border-bottom:1px solid #fecaca;">Téléphone</th>
                     <th align="left" style="padding:8px 10px;font-size:12px;color:#b91c1c;border-bottom:1px solid #fecaca;">Erreur</th>
                   </tr>
                   ${failedPreview}
