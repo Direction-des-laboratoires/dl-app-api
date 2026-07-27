@@ -98,6 +98,7 @@ export class ResponsesService {
     question: string;
     responseValue: string | number;
     responseValuePrecision?: string;
+    precisionOptionAutre?: string;
   }) {
     await this.validateInvestigationContext(
       payload.investigation,
@@ -160,6 +161,7 @@ export class ResponsesService {
         question: createResponseDto.question,
         responseValue: createResponseDto.responseValue,
         responseValuePrecision: createResponseDto.responseValuePrecision,
+        precisionOptionAutre: createResponseDto.precisionOptionAutre,
       });
       logger.info(`---RESPONSES.SERVICE.CREATE SUCCESS---`);
       return response;
@@ -235,6 +237,7 @@ export class ResponsesService {
           question: item.question,
           responseValue: item.responseValue,
           responseValuePrecision: item.responseValuePrecision,
+          precisionOptionAutre: item.precisionOptionAutre,
         };
       });
 

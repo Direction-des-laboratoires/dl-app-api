@@ -19,4 +19,8 @@ export class CreateResponseDto {
   @IsOptional()
   @IsString()
   responseValuePrecision?: string;
+
+  @IsOptional()
+  @IsString()
+  precisionOptionAutre?: string;
 }

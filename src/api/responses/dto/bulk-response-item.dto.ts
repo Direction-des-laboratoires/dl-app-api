@@ -11,4 +11,8 @@ export class BulkResponseItemDto {
   @IsOptional()
   @IsString()
   responseValuePrecision?: string;
+
+  @IsOptional()
+  @IsString()
+  precisionOptionAutre?: string;
 }

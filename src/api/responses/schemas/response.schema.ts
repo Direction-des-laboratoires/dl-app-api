@@ -24,6 +24,10 @@ export const ResponseSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  precisionOptionAutre: {
+    type: String,
+    default: null,
+  },
   created_at: {
     type: Date,
     default: Date.now,

@@ -8,6 +8,7 @@ export interface Response extends Document {
   question: Types.ObjectId | Question;
   responseValue: string | number;
   responseValuePrecision?: string;
+  precisionOptionAutre?: string;
   created_at: Date;
   updated_at: Date;
 }
