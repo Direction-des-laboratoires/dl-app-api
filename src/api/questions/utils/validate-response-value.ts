@@ -16,7 +16,7 @@ export function validateResponseValue(
         !Object.values(YesNoResponseEnum).includes(responseValue as YesNoResponseEnum)
       ) {
         throw new HttpException(
-          `responseValue doit être "${YesNoResponseEnum.YES}" ou "${YesNoResponseEnum.NO}" pour une question de type YES_NO`,
+          `responseValue doit être "${YesNoResponseEnum.YES}", "${YesNoResponseEnum.NO}" ou "${YesNoResponseEnum.NA}" pour une question de type YES_NO`,
           HttpStatus.BAD_REQUEST,
         );
       }
