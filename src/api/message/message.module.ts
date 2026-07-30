@@ -5,6 +5,7 @@ import { MessageController } from './message.controller';
 import { MessageSchema } from './schemas/message.schema';
 import { MailModule } from 'src/providers/mail-service/mail.module';
 import { PromobileSmsService } from 'src/providers/sms-service/promobile.service';
+import { OsmsSmsService } from 'src/providers/sms-service/osms.service';
 import { UserSchema } from 'src/api/user/schemas/user.schema';
 import { LabSchema } from 'src/api/labs/schemas/lab.schema';
 import { RegionSchema } from 'src/api/region/schemas/region.schema';
@@ -20,7 +21,7 @@ import { RegionSchema } from 'src/api/region/schemas/region.schema';
     MailModule,
   ],
   controllers: [MessageController],
-  providers: [MessageService, PromobileSmsService],
+  providers: [MessageService, PromobileSmsService, OsmsSmsService],
   exports: [MessageService],
 })
 export class MessageModule {}

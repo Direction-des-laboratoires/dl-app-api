@@ -90,6 +90,34 @@ export class MessageController {
   }
 
   /**
+   * Endpoint de test : envoie un SMS via Orange SMS Pro.
+   * Public (aucun rôle requis) — à retirer/protéger en production.
+   *
+   * Body : { "to": "221771234567" | ["221...","221..."], "content": "...", "subject"?: "..." }
+   */
+  @Post('test-sms')
+  async testSms(
+    @Body()
+    body: { to: string | string[]; content: string; subject?: string },
+    @Res() res,
+  ) {
+    try {
+      logger.info(`---MESSAGE.CONTROLLER.TEST_SMS INIT---`);
+      const result = await this.messageService.testSendSms(body);
+      logger.info(`---MESSAGE.CONTROLLER.TEST_SMS SUCCESS---`);
+      return res.status(HttpStatus.OK).json({
+        message: 'SMS de test envoyé',
+        data: result,
+      });
+    } catch (error) {
+      logger.error(`---MESSAGE.CONTROLLER.TEST_SMS ERROR--- ${error.message}`);
+      return res
+        .status(error.status || HttpStatus.INTERNAL_SERVER_ERROR)
+        .json(error.response || { message: error.message });
+    }
+  }
+
+  /**
    * Créer et envoyer un message (mail ou SMS)
    * Seul le SuperAdmin peut envoyer des messages
    */

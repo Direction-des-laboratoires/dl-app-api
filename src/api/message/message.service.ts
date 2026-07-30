@@ -12,6 +12,7 @@ import {
 import { MailService } from 'src/providers/mail-service/mail.service';
 import { MailTemplates } from 'src/providers/mail-service/mail.templates';
 import { PromobileSmsService } from 'src/providers/sms-service/promobile.service';
+import { OsmsSmsService } from 'src/providers/sms-service/osms.service';
 import { User } from 'src/api/user/interfaces/user.interface';
 import { Lab } from 'src/api/labs/interfaces/labs.interface';
 import { Region } from 'src/api/region/interfaces/region.interface';
@@ -59,7 +60,8 @@ export class MessageService {
     @InjectModel('Region') private regionModel: Model<Region>,
     private mailService: MailService,
     private promobileSmsService: PromobileSmsService,
-  ) {}
+    private osmsSmsService: OsmsSmsService,
+  ) { }
 
   private readonly userPopulateForTemplate = [
     {
@@ -707,27 +709,27 @@ export class MessageService {
     const resultData =
       success && payload.data && typeof payload.data === 'object'
         ? (payload.data as {
-            summary?: {
-              totalFound?: number;
-              totalTargeted?: number;
-              sent?: number;
-              failed?: number;
-              skipped?: number;
-              notFound?: number;
-              canal?: string;
-              regionName?: string | null;
-            };
-            sent?: Array<{
-              email?: string;
-              phoneNumber?: string;
-              channels?: string[];
-            }>;
-            failed?: Array<{
-              email?: string;
-              phoneNumber?: string;
-              error?: string;
-            }>;
-          })
+          summary?: {
+            totalFound?: number;
+            totalTargeted?: number;
+            sent?: number;
+            failed?: number;
+            skipped?: number;
+            notFound?: number;
+            canal?: string;
+            regionName?: string | null;
+          };
+          sent?: Array<{
+            email?: string;
+            phoneNumber?: string;
+            channels?: string[];
+          }>;
+          failed?: Array<{
+            email?: string;
+            phoneNumber?: string;
+            error?: string;
+          }>;
+        })
         : null;
 
     const text = success
@@ -1148,11 +1150,11 @@ export class MessageService {
           : regionFilteredContacts.emails;
       const finalPhoneNumbers =
         createMessageDto.canal === CanalEnum.SMS ||
-        createMessageDto.canal === CanalEnum.WHATSAPP
+          createMessageDto.canal === CanalEnum.WHATSAPP
           ? this.excludeContacts(
-              regionFilteredContacts.phoneNumbers,
-              flattenPhoneNumbers(exclusions),
-            )
+            regionFilteredContacts.phoneNumbers,
+            flattenPhoneNumbers(exclusions),
+          )
           : regionFilteredContacts.phoneNumbers;
 
       // Validation selon le canal
@@ -1218,7 +1220,7 @@ export class MessageService {
         if (createMessageDto.canal === CanalEnum.EMAIL) {
           await this.sendMail(message, allUserIds);
         } else if (createMessageDto.canal === CanalEnum.SMS) {
-          await this.sendSms(message, allUserIds);
+          await this.sendSmsWithOSMS(message, allUserIds);
         } else if (createMessageDto.canal === CanalEnum.WHATSAPP) {
           await this.sendWhatsapp(message, allUserIds);
         }
@@ -1480,11 +1482,11 @@ export class MessageService {
         const user = this.findUserByPhone(users, phoneNumber);
         const personalized = hasTemplateVariables
           ? this.personalizeMessageParts(
-              message.subject,
-              message.content,
-              user,
-              false,
-            )
+            message.subject,
+            message.content,
+            user,
+            false,
+          )
           : { subject: message.subject, content: message.content };
 
         return this.promobileSmsService.sendSms({
@@ -1500,6 +1502,56 @@ export class MessageService {
       );
     } catch (error) {
       logger.error(`---MESSAGE.SERVICE.SEND_SMS ERROR--- ${error.message}`);
+      throw error;
+    }
+  }
+
+  private async sendSmsWithOSMS(message: Message, recipientUserIds: string[] = []) {
+    try {
+      logger.info(`---MESSAGE.SERVICE.SEND_SMS OSMS INIT---`);
+
+      if (!message.phoneNumbers || message.phoneNumbers.length === 0) {
+        throw new HttpException(
+          'Aucun numéro de téléphone fourni',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const users = await this.loadUsersForPersonalization(
+        recipientUserIds,
+        [],
+        message.phoneNumbers ?? [],
+      );
+
+      const hasTemplateVariables =
+        messageHasTemplateVariables(message.subject) ||
+        messageHasTemplateVariables(message.content);
+
+      const sendPromises = (message.phoneNumbers ?? []).map((phoneNumber) => {
+        const user = this.findUserByPhone(users, phoneNumber);
+        const personalized = hasTemplateVariables
+          ? this.personalizeMessageParts(
+            message.subject,
+            message.content,
+            user,
+            false,
+          )
+          : { subject: message.subject, content: message.content };
+
+        return this.osmsSmsService.sendSms({
+          to: phoneNumber,
+          subject: personalized.subject,
+          content: `${personalized.subject}\n\n${personalized.content}`,
+        });
+      });
+
+      await Promise.all(sendPromises);
+
+      logger.info(
+        `---MESSAGE.SERVICE.SEND_SMS OSMS SUCCESS--- Sent to ${message.phoneNumbers.length} recipients`,
+      );
+    } catch (error) {
+      logger.error(`---MESSAGE.SERVICE.SEND_SMS OSMS ERROR--- ${error.message}`);
       throw error;
     }
   }
@@ -1529,11 +1581,11 @@ export class MessageService {
         const user = this.findUserByPhone(users, phoneNumber);
         const personalized = hasTemplateVariables
           ? this.personalizeMessageParts(
-              message.subject,
-              message.content,
-              user,
-              false,
-            )
+            message.subject,
+            message.content,
+            user,
+            false,
+          )
           : { subject: message.subject, content: message.content };
 
         return this.promobileSmsService.sendSms({
@@ -1553,6 +1605,51 @@ export class MessageService {
         `---MESSAGE.SERVICE.SEND_WHATSAPP ERROR--- ${error.message}`,
       );
       throw error;
+    }
+  }
+
+  /**
+   * Endpoint de test : envoie un SMS via Orange SMS Pro à un ou plusieurs
+   * numéros, sans passer par la logique de destinataires/persistance.
+   */
+  async testSendSms(params: {
+    to: string | string[];
+    content: string;
+    subject?: string;
+  }) {
+    try {
+      logger.info(`---MESSAGE.SERVICE.TEST_SEND_SMS INIT---`);
+
+      const numbers = Array.isArray(params.to) ? params.to : [params.to];
+      const to = flattenPhoneNumbers(numbers).join('/');
+
+      if (!to) {
+        throw new HttpException(
+          'Aucun numéro de téléphone fourni',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (!params.content || params.content.trim() === '') {
+        throw new HttpException(
+          'Le contenu du SMS est vide',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const result = await this.osmsSmsService.sendSms({
+        to,
+        content: params.content,
+        subject: params.subject || 'Test SMS',
+      });
+
+      logger.info(`---MESSAGE.SERVICE.TEST_SEND_SMS SUCCESS--- to=${to}`);
+      return result;
+    } catch (error) {
+      logger.error(`---MESSAGE.SERVICE.TEST_SEND_SMS ERROR--- ${error.message}`);
+      throw new HttpException(
+        error.message || "Erreur lors de l'envoi du SMS de test",
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 

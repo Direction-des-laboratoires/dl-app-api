@@ -13,6 +13,13 @@ export default () => ({
   promobileSmsUrl: process.env.PROMOBILE_SMS_URL,
   promobileSmsAccessKey: process.env.PROMOBILE_SMS_ACCESS_KEY,
   promobileSmsFrom: process.env.PROMOBILE_SMS_FROM || 'EBD-ECOLE',
+  // Configuration Orange SMS Pro (OSMS)
+  osmsSmsUrl:
+    process.env.OSMS_SMS_URL || 'https://api.orangesmspro.sn:8443/api',
+  osmsToken: process.env.OSMS_TOKEN,
+  osmsPrivateKey: process.env.OSMS_PRIVATE_KEY,
+  osmsSignature: process.env.OSMS_SIGNATURE,
+  osmsAlgo: process.env.OSMS_ALGO || 'HMAC',
   // Configuration Mail
   MAIL_HOST: process.env.MAIL_HOST,
   MAIL_PORT: parseInt(process.env.MAIL_PORT || '587', 10),
