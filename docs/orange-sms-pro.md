@@ -3,10 +3,10 @@
 Ce document décrit l'intégration de l'API SMS HTTP d'**Orange SMS Pro** dans
 `dl-app-api`, et comment l'exploiter/maintenir.
 
-- Provider : [`src/providers/sms-service/osms.service.ts`](../src/providers/sms-service/osms.service.ts)
-- Câblage : [`src/api/message/message.module.ts`](../src/api/message/message.module.ts)
-- Utilisation : [`src/api/message/message.service.ts`](../src/api/message/message.service.ts) (`sendSmsWithOSMS`)
-- Config : [`src/config/configuration.ts`](../src/config/configuration.ts)
+- Provider : `[src/providers/sms-service/osms.service.ts](../src/providers/sms-service/osms.service.ts)`
+- Câblage : `[src/api/message/message.module.ts](../src/api/message/message.module.ts)`
+- Utilisation : `[src/api/message/message.service.ts](../src/api/message/message.service.ts)` (`sendSmsWithOSMS`)
+- Config : `[src/config/configuration.ts](../src/config/configuration.ts)`
 
 ---
 
@@ -24,12 +24,12 @@ dérivée d'un HMAC-SHA1 (ou MD5) de la concaténation des paramètres.
 
 Différences notables vs l'ancien provider Promobile :
 
-| Aspect | Promobile | Orange SMS Pro |
-|---|---|---|
-| Authentification | Header `Token` | Signature `key` (HMAC) recalculée par requête |
-| Destinataires | plusieurs par requête | **un seul** `recipient` par requête |
-| Champ `subject` | absent | **obligatoire** |
-| Réponse | JSON | **texte clé/valeur** à parser |
+| Aspect           | Promobile             | Orange SMS Pro                                |
+| ---------------- | --------------------- | --------------------------------------------- |
+| Authentification | Header `Token`        | Signature `key` (HMAC) recalculée par requête |
+| Destinataires    | plusieurs par requête | **un seul** `recipient` par requête           |
+| Champ `subject`  | absent                | **obligatoire**                               |
+| Réponse          | JSON                  | **texte clé/valeur** à parser                 |
 
 ---
 
@@ -38,11 +38,11 @@ Différences notables vs l'ancien provider Promobile :
 Trois secrets sont fournis depuis le compte Orange SMS Pro
 (_Paramètres > API_) :
 
-| Élément | Rôle |
-|---|---|
-| **Token** | identifie le compte (≈ login/mot de passe) |
-| **Clé privée** | secret HMAC, **jamais transmise** dans la requête |
-| **Clé publique (`key`)** | signature calculée à chaque envoi, valable **une seule fois** |
+| Élément                      | Rôle                                                          |
+| ---------------------------- | ------------------------------------------------------------- |
+| **Token**                    | identifie le compte (≈ login/mot de passe)                    |
+| **Clé privée**               | secret HMAC, **jamais transmise** dans la requête             |
+| **Clé publique (**`key`**)** | signature calculée à chaque envoi, valable **une seule fois** |
 
 ### Variables d'environnement
 
@@ -56,7 +56,7 @@ OSMS_SIGNATURE=<Sender validé par Orange, ex: nom entreprise>
 OSMS_ALGO=HMAC                                       # HMAC (défaut) ou md5
 ```
 
-> ⚠️ La **`signature`** (Sender affiché au destinataire) doit être **validée
+> ⚠️ La `signature` (Sender affiché au destinataire) doit être **validée
 > côté Orange**, sinon l'envoi échoue avec le code `102`.
 
 ---
@@ -80,7 +80,10 @@ const chaine = token + subject + signature + recipient + content + timestamp;
 // HMAC (défaut)
 crypto.createHmac('sha1', privateKey).update(chaine).digest('hex');
 // MD5
-crypto.createHash('md5').update(chaine + privateKey).digest('hex');
+crypto
+  .createHash('md5')
+  .update(chaine + privateKey)
+  .digest('hex');
 ```
 
 Règles à respecter (sinon erreurs `115` / `121`) :
@@ -97,16 +100,16 @@ Règles à respecter (sinon erreurs `115` / `121`) :
 
 ## 4. Paramètres de la requête
 
-| Nom | Obligatoire | Description |
-|---|---|---|
-| `token` | Oui | token du compte |
-| `subject` | Oui | objet du message (métadonnée) |
-| `signature` | Oui | Sender (nom affiché) — doit être validé par Orange |
-| `content` | Oui | contenu du SMS |
-| `recipient` | Oui | **un seul** numéro, format `<indicatif><numéro>` sans `+` (ex. `221771234567`) |
-| `key` | Oui | clé publique calculée (cf. §3) |
-| `timestamp` | Oui | timestamp Unix (secondes) de la requête |
-| `algo` | Non | `HMAC` (défaut) ou `md5` |
+| Nom         | Obligatoire | Description                                                                    |
+| ----------- | ----------- | ------------------------------------------------------------------------------ |
+| `token`     | Oui         | token du compte                                                                |
+| `subject`   | Oui         | objet du message (métadonnée)                                                  |
+| `signature` | Oui         | Sender (nom affiché) — doit être validé par Orange                             |
+| `content`   | Oui         | contenu du SMS                                                                 |
+| `recipient` | Oui         | **un seul** numéro, format `<indicatif><numéro>` sans `+` (ex. `221771234567`) |
+| `key`       | Oui         | clé publique calculée (cf. §3)                                                 |
+| `timestamp` | Oui         | timestamp Unix (secondes) de la requête                                        |
+| `algo`      | Non         | `HMAC` (défaut) ou `md5`                                                       |
 
 Le formatage du numéro est assuré par `formatPhoneForSenegalSms`
 (produit `221…` sans `+`).
@@ -141,20 +144,20 @@ reviendrait au format documenté.
 
 Principaux codes d'erreur :
 
-| Code | Signification | Solution |
-|---|---|---|
-| `200` | Message envoyé | — |
-| `401` | Échec d'authentification | vérifier le `token` |
-| `100` | Indicatif inconnu | le numéro n'existe pas |
-| `101` | Message vide | `content` vide |
-| `102` | Signature invalide | faire valider le Sender par le support Kiwi |
-| `104` / `113` | Erreur interne serveur | contacter le support |
-| `105` / `106` | Numéro vide / incorrect | fournir un destinataire valide |
-| `110` | Numéro trop court/long | format `<indicatif><numéro>` sans `+` |
-| `107` | Paramètres URL invalides | vérifier tous les paramètres |
-| `115` | Requête expirée | clé publique déjà utilisée → en régénérer une |
-| `116` | Token invalide | recopier le token depuis le compte |
-| `121` | Clé `key` invalide | clé calculée ≠ clé serveur (cf. §3, vérifier la clé privée) |
+| Code          | Signification            | Solution                                                    |
+| ------------- | ------------------------ | ----------------------------------------------------------- |
+| `200`         | Message envoyé           | —                                                           |
+| `401`         | Échec d'authentification | vérifier le `token`                                         |
+| `100`         | Indicatif inconnu        | le numéro n'existe pas                                      |
+| `101`         | Message vide             | `content` vide                                              |
+| `102`         | Signature invalide       | faire valider le Sender par le support Kiwi                 |
+| `104` / `113` | Erreur interne serveur   | contacter le support                                        |
+| `105` / `106` | Numéro vide / incorrect  | fournir un destinataire valide                              |
+| `110`         | Numéro trop court/long   | format `<indicatif><numéro>` sans `+`                       |
+| `107`         | Paramètres URL invalides | vérifier tous les paramètres                                |
+| `115`         | Requête expirée          | clé publique déjà utilisée → en régénérer une               |
+| `116`         | Token invalide           | recopier le token depuis le compte                          |
+| `121`         | Clé `key` invalide       | clé calculée ≠ clé serveur (cf. §3, vérifier la clé privée) |
 
 ---
 
@@ -167,7 +170,7 @@ qui :
 2. personnalise `subject`/`content` par destinataire si nécessaire ;
 3. appelle `osmsSmsService.sendSms({ to, subject, content })`.
 
-Le contenu envoyé au destinataire est `` `${subject}\n\n${content}` `` (le
+Le contenu envoyé au destinataire est `${subject}\n\n${content}` (le
 `subject` sert aussi de métadonnée obligatoire OSMS).
 
 > Le canal **WhatsApp** et l'envoi des **accès** restent sur le provider
@@ -195,7 +198,7 @@ Body : { "to": "221771234567" | ["221...","221..."], "content": "...", "subject"
 > **Authentification requise.** Bien que la route ne porte pas de `@Roles`,
 > l'`AuthMiddleware` global (JWT) s'applique à toutes les routes non exclues.
 > Il faut donc un header `Authorization: Bearer <JWT>` valide, sinon la réponse
-> est **`401 Unauthorized`** (indépendant du token OSMS).
+> est `401 Unauthorized` (indépendant du token OSMS).
 >
 > - Obtenir un JWT : `POST /api/auth/login` (email + mot de passe).
 > - Le JWT expire (~24 h) → en régénérer un après expiration.
@@ -269,7 +272,7 @@ Deux mécanismes existent côté Orange, à ajouter si un suivi de statut est re
 > mémoire. Une modification du `.env` **n'est pas relue à chaud** — même en
 > `npm run start:dev` (le watch ne recharge que les fichiers `.ts`).
 >
-> **Après toute modif du `.env`, arrêter (Ctrl+C) puis relancer le serveur.**
+> **Après toute modif du** `.env`**, arrêter (Ctrl+C) puis relancer le serveur.**
 
 C'est la cause classique d'un `116`/`121` **persistant** alors que le `.env`
 semble correct : le process tourne encore avec l'ancienne paire
@@ -287,16 +290,16 @@ node -e 'const fs=require("fs");const e={};fs.readFileSync(".env","utf8").split(
 
 Ordre de résolution constaté en pratique : `401` → `116` → `121`.
 
-| Symptôme | Piste |
-|---|---|
-| **HTTP `401 Unauthorized`** | JWT manquant/expiré — ajouter `Authorization: Bearer <JWT>` (cf. §6). N'a **rien** à voir avec le token OSMS. |
-| Code `116` « Token invalide » | `OSMS_TOKEN` erroné. ⚠️ Doit être **distinct** de `OSMS_PRIVATE_KEY` (2 secrets différents dans _Paramètres > API_). **Redémarrer** après modif `.env` (§8). |
-| Code `121` « KEY invalide » | La clé publique calculée ≠ celle du serveur Orange. Causes : (1) `.env` corrigé mais serveur **non redémarré** (cause n°1 en pratique, §8) ; (2) paire `OSMS_TOKEN`/`OSMS_PRIVATE_KEY` incohérente ; (3) ordre de concaténation ou encodage (cf. §3). |
-| `Configuration Orange SMS Pro incomplète` | `OSMS_TOKEN` / `OSMS_PRIVATE_KEY` / `OSMS_SIGNATURE` manquants |
-| Code `115` « Requête expirée » | `key` réutilisée — le provider régénère `timestamp`+`key` par requête |
-| Code `102` « Signature invalide » | Sender (`OSMS_SIGNATURE`) non validé par Orange |
-| Réponse toujours en échec malgré token valide | l'API renvoie du **JSON** (`response[0].status_code`), pas du texte (cf. §5) |
-| Accents mal affichés | contenu normalisé en NFC + query params encodés UTF-8 (déjà géré) |
+| Symptôme                                      | Piste                                                                                                                                                                                                                                                 |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **HTTP** `401 Unauthorized`                   | JWT manquant/expiré — ajouter `Authorization: Bearer <JWT>` (cf. §6). N'a **rien** à voir avec le token OSMS.                                                                                                                                         |
+| Code `116` « Token invalide »                 | `OSMS_TOKEN` erroné. ⚠️ Doit être **distinct** de `OSMS_PRIVATE_KEY` (2 secrets différents dans _Paramètres > API_). **Redémarrer** après modif `.env` (§8).                                                                                          |
+| Code `121` « KEY invalide »                   | La clé publique calculée ≠ celle du serveur Orange. Causes : (1) `.env` corrigé mais serveur **non redémarré** (cause n°1 en pratique, §8) ; (2) paire `OSMS_TOKEN`/`OSMS_PRIVATE_KEY` incohérente ; (3) ordre de concaténation ou encodage (cf. §3). |
+| `Configuration Orange SMS Pro incomplète`     | `OSMS_TOKEN` / `OSMS_PRIVATE_KEY` / `OSMS_SIGNATURE` manquants                                                                                                                                                                                        |
+| Code `115` « Requête expirée »                | `key` réutilisée — le provider régénère `timestamp`+`key` par requête                                                                                                                                                                                 |
+| Code `102` « Signature invalide »             | Sender (`OSMS_SIGNATURE`) non validé par Orange                                                                                                                                                                                                       |
+| Réponse toujours en échec malgré token valide | l'API renvoie du **JSON** (`response[0].status_code`), pas du texte (cf. §5)                                                                                                                                                                          |
+| Accents mal affichés                          | contenu normalisé en NFC + query params encodés UTF-8 (déjà géré)                                                                                                                                                                                     |
 
 ### Vérifier un envoi hors serveur
 
