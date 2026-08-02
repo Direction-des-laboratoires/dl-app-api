@@ -210,9 +210,9 @@ export class MessageService {
   }
 
   private generateRandomPassword(length: number = 8): string {
-    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-    const numbers = '0123456789';
+    const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijkmnopqrstuvwxyz';
+    const numbers = '123456789';
     const allChars = uppercase + lowercase + numbers;
 
     let password = '';
@@ -297,8 +297,9 @@ export class MessageService {
       (user.lab as { name?: string } | undefined)?.name?.trim() ||
       'votre laboratoire';
 
-    await this.promobileSmsService.sendSms({
+    await this.osmsSmsService.sendSms({
       to: phoneNumber,
+      subject: regionAccessMailSubject,
       content: buildRegionAccessSmsText({
         labName,
         email: user.email || '',
@@ -1004,6 +1005,7 @@ export class MessageService {
         .map((user) => ({
           userId: user._id,
           email: user.email,
+          phoneNumber: this.getUserPhoneNumber(user) || undefined,
           reason: 'excluded',
         }));
 

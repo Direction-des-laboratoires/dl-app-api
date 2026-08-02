@@ -1,5 +1,20 @@
 /**
- * Décompose une chaîne pouvant contenir plusieurs numéros séparés par "/" ou "-".
+ * Nettoie un numéro : conserve uniquement les chiffres (et un éventuel "+"
+ * en tête), en supprimant espaces, lettres et caractères spéciaux
+ * (ex : "76 638 47 29 (num de l'hôpital)" -> "766384729").
+ */
+export function sanitizePhoneNumber(value: string): string {
+  const hasPlus = value.trim().startsWith('+');
+  const digits = value.replace(/\D/g, '');
+  if (!digits) {
+    return '';
+  }
+  return hasPlus ? `+${digits}` : digits;
+}
+
+/**
+ * Décompose une chaîne pouvant contenir plusieurs numéros séparés par "/".
+ * Chaque numéro est nettoyé (lettres et caractères spéciaux supprimés).
  */
 export function parsePhoneNumbers(
   value: string | null | undefined,
@@ -14,8 +29,8 @@ export function parsePhoneNumbers(
   }
 
   return trimmed
-    .split(/[\/\-]/)
-    .map((part) => part.replace(/\s+/g, '').trim())
+    .split('/')
+    .map((part) => sanitizePhoneNumber(part))
     .filter((part) => part.length > 0);
 }
 
@@ -33,7 +48,7 @@ export function flattenPhoneNumbers(
  * N'altère pas la valeur stockée en base : à utiliser uniquement au moment de l'envoi.
  */
 export function formatPhoneForSenegalSms(phone: string): string {
-  const cleaned = phone.trim().replace(/\s+/g, '');
+  const cleaned = sanitizePhoneNumber(phone);
   if (!cleaned) {
     return cleaned;
   }
