@@ -15,6 +15,11 @@ export const MessageSchema = new mongoose.Schema({
     required: true,
     enum: CanalEnum,
   },
+  source: {
+    type: String,
+    enum: ['DATABASE', 'FILE'],
+    default: 'DATABASE',
+  },
   emails: {
     type: [String],
     default: [],

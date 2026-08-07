@@ -1047,6 +1047,17 @@ export class MessageService {
       logger.info(`---MESSAGE.SERVICE.CREATE INIT---`);
 
       const { recipients } = createMessageDto;
+
+      logger.info(
+        `---MESSAGE.SERVICE.CREATE MODE--- canal=${createMessageDto.canal} fileRecipients=${recipients?.fileRecipients?.length ?? 0}`,
+      );
+
+      // Mode "envoi par fichier" : les destinataires proviennent d'un fichier
+      // (Excel) importé, transformé côté front en une liste d'objets JSON dont
+      // les clés sont les paramètres mappés (email, phoneNumber, firstname, ...).
+      if (recipients?.fileRecipients && recipients.fileRecipients.length > 0) {
+        return this.createFromFileRecipients(createMessageDto, sentBy, files);
+      }
       const exclusions = [
         ...(createMessageDto.exclusions ?? []),
         ...(recipients.exclusions ?? []),
@@ -1250,6 +1261,218 @@ export class MessageService {
       }
     } catch (error) {
       logger.error(`---MESSAGE.SERVICE.CREATE ERROR--- ${error.message}`);
+      throw new HttpException(
+        error.message || 'Erreur lors de la création du message',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Découpe le contenu d'une cellule pouvant contenir plusieurs valeurs
+   * (emails ou numéros) séparées par "/", ",", ";" ou un retour à la ligne.
+   */
+  private splitCellValues(value: unknown): string[] {
+    if (value === null || value === undefined) {
+      return [];
+    }
+    return String(value)
+      .split(/[/;,\n\r]+/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+
+  /**
+   * Construit le contexte de personnalisation à partir d'une ligne du fichier.
+   * Les clés correspondent aux paramètres mappés côté front (firstname,
+   * phoneNumber, email, ...) et sont directement utilisables dans le template
+   * ({{firstname}}, {{phoneNumber}}, ...).
+   */
+  private buildFileRowContext(
+    row: Record<string, any>,
+    escapeHtml: boolean,
+  ): Record<string, string> {
+    const context: Record<string, string> = {};
+    for (const [key, value] of Object.entries(row)) {
+      const stringValue = value === null || value === undefined ? '' : String(value);
+      context[key] = escapeHtml ? this.escapeHtml(stringValue) : stringValue;
+    }
+    return context;
+  }
+
+  /**
+   * Envoi d'un message à une liste de destinataires fournie via un fichier.
+   * Chaque ligne peut contenir plusieurs emails et/ou numéros : le message
+   * est alors envoyé à chacun d'eux avec les mêmes informations de la ligne.
+   */
+  private async createFromFileRecipients(
+    createMessageDto: CreateMessageDto,
+    sentBy: string,
+    files?: Express.Multer.File[],
+  ) {
+    try {
+      logger.info(`---MESSAGE.SERVICE.CREATE_FROM_FILE INIT---`);
+
+      const canal = createMessageDto.canal;
+      const rows = createMessageDto.recipients.fileRecipients ?? [];
+
+      const needEmail =
+        canal === CanalEnum.EMAIL || canal === CanalEnum.ALL;
+      const needPhone =
+        canal === CanalEnum.SMS ||
+        canal === CanalEnum.WHATSAPP ||
+        canal === CanalEnum.ALL;
+
+      // Vérifier que les colonnes obligatoires ont bien été mappées.
+      const hasEmailKey = rows.some((row) => 'email' in row);
+      const hasPhoneKey = rows.some((row) => 'phoneNumber' in row);
+
+      if (needEmail && !hasEmailKey) {
+        throw new HttpException(
+          "Une colonne mappée sur le paramètre 'email' est obligatoire pour ce canal",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (needPhone && !hasPhoneKey) {
+        throw new HttpException(
+          "Une colonne mappée sur le paramètre 'phoneNumber' est obligatoire pour ce canal",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      type FileDelivery = {
+        channel: 'EMAIL' | 'SMS';
+        to: string;
+        row: Record<string, any>;
+      };
+
+      const deliveries: FileDelivery[] = [];
+      const allEmails = new Set<string>();
+      const allPhoneNumbers = new Set<string>();
+
+      for (const row of rows) {
+        if (needEmail) {
+          for (const email of this.splitCellValues(row.email)) {
+            deliveries.push({ channel: 'EMAIL', to: email, row });
+            allEmails.add(email);
+          }
+        }
+        if (needPhone) {
+          const phones = flattenPhoneNumbers(
+            this.splitCellValues(row.phoneNumber),
+          );
+          for (const phone of phones) {
+            deliveries.push({ channel: 'SMS', to: phone, row });
+            allPhoneNumbers.add(phone);
+          }
+        }
+      }
+
+      if (deliveries.length === 0) {
+        throw new HttpException(
+          'Aucun destinataire valide trouvé dans le fichier',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // Traiter les pièces jointes
+      const attachmentsUrls: string[] = [];
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            const url = await uploadFile(file);
+            attachmentsUrls.push(url);
+          } catch (uploadError) {
+            logger.error(
+              `---MESSAGE.SERVICE.UPLOAD_FILE ERROR--- ${uploadError.message}`,
+            );
+          }
+        }
+      }
+
+      const message = new this.messageModel({
+        subject: createMessageDto.subject,
+        content: createMessageDto.content,
+        canal,
+        source: 'FILE',
+        emails: [...allEmails],
+        phoneNumbers: [...allPhoneNumbers],
+        cc: canal === CanalEnum.EMAIL ? createMessageDto.cc ?? [] : [],
+        cci: canal === CanalEnum.EMAIL ? createMessageDto.cci ?? [] : [],
+        sentBy,
+        status: 'pending',
+        attachments: attachmentsUrls,
+      });
+      await message.save();
+
+      try {
+        const attachments = message.attachments?.map((url) => {
+          const filename = url.split('/').pop() || 'attachment';
+          return { filename, path: url };
+        });
+
+        const mailOptions = {
+          cc: message.cc?.length ? message.cc : undefined,
+          bcc: message.cci?.length ? message.cci : undefined,
+        };
+
+        const emailDeliveries = deliveries.filter((d) => d.channel === 'EMAIL');
+        const smsDeliveries = deliveries.filter((d) => d.channel === 'SMS');
+
+        await Promise.all(
+          emailDeliveries.map(async (delivery) => {
+            const context = this.buildFileRowContext(delivery.row, true);
+            const subject = renderMessageTemplate(message.subject, context);
+            const content = renderMessageTemplate(message.content, context);
+            const html = MailTemplates.genericEmail(subject, content);
+            await this.mailService.sendMail({
+              to: delivery.to,
+              subject,
+              html,
+              attachments,
+              ...mailOptions,
+            });
+          }),
+        );
+
+        await Promise.all(
+          smsDeliveries.map((delivery) => {
+            const context = this.buildFileRowContext(delivery.row, false);
+            const subject = renderMessageTemplate(message.subject, context);
+            const content = renderMessageTemplate(message.content, context);
+            return this.osmsSmsService.sendSms({
+              to: delivery.to,
+              subject,
+              content: `${subject}\n\n${content}`,
+            });
+          }),
+        );
+
+        message.status = 'sent';
+        message.sentAt = new Date();
+        await message.save();
+
+        logger.info(
+          `---MESSAGE.SERVICE.CREATE_FROM_FILE SUCCESS--- deliveries=${deliveries.length}`,
+        );
+        return message;
+      } catch (sendError) {
+        message.status = 'failed';
+        message.errorMessage = sendError.message || "Erreur lors de l'envoi";
+        await message.save();
+
+        logger.error(
+          `---MESSAGE.SERVICE.CREATE_FROM_FILE SEND ERROR--- ${sendError.message}`,
+        );
+        throw new HttpException(
+          `Erreur lors de l'envoi du message: ${sendError.message}`,
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    } catch (error) {
+      logger.error(
+        `---MESSAGE.SERVICE.CREATE_FROM_FILE ERROR--- ${error.message}`,
+      );
       throw new HttpException(
         error.message || 'Erreur lors de la création du message',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,

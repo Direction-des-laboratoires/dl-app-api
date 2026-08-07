@@ -100,6 +100,18 @@ export class MessageRecipientsDto {
   @IsArray()
   @IsString({ each: true })
   environmentPositionIds?: string[];
+
+  /**
+   * Destinataires issus d'un fichier (Excel) importé côté front.
+   * Chaque entrée est un objet dont les clés sont les noms de paramètres
+   * choisis lors du mapping des colonnes (ex: firstname, email, phoneNumber, ...)
+   * et les valeurs, le contenu de la cellule. Ces paramètres servent à la fois
+   * de destinataires (email / phoneNumber) et de variables de personnalisation
+   * du message ({{firstname}}, {{phoneNumber}}, ...).
+   */
+  @IsOptional()
+  @IsArray()
+  fileRecipients?: Array<Record<string, any>>;
 }
 
 export class CreateMessageDto {

@@ -4,6 +4,7 @@ export interface Message extends Document {
   subject: string;
   content: string;
   canal: 'EMAIL' | 'SMS' | 'WHATSAPP' | 'ALL';
+  source?: 'DATABASE' | 'FILE';
   emails?: string[];
   phoneNumbers?: string[];
   exclusions?: string[];
