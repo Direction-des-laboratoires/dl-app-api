@@ -35,7 +35,10 @@ export class InvestigationsService {
     },
     {
       path: 'structure',
-      populate: [{ path: 'region department district', select: 'name code' }],
+      populate: [
+        { path: 'region department district', select: 'name code' },
+        { path: 'level', select: 'name code' },
+      ],
     },
     {
       path: 'specialities',
