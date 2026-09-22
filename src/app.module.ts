@@ -57,6 +57,7 @@ import { QuestionSectionsModule } from './api/question-sections/question-section
 import { ResponsesModule } from './api/responses/responses.module';
 import { InvestigationsModule } from './api/investigations/investigations.module';
 import { InvestigationQuestionsModule } from './api/investigation-questions/investigation-questions.module';
+import { ResponsibleHandoverModule } from './api/responsible-handover/responsible-handover.module';
 
 @Module({
   imports: [
@@ -133,6 +134,7 @@ import { InvestigationQuestionsModule } from './api/investigation-questions/inve
     ResponsesModule,
     InvestigationsModule,
     InvestigationQuestionsModule,
+    ResponsibleHandoverModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
@@ -151,6 +153,9 @@ export class AppModule {
         { path: 'amm-imports', method: RequestMethod.POST }, // Exclure la création de demande AMM (accessible sans authentification)
         { path: 'lab-openings', method: RequestMethod.POST }, // Exclure la création de demande Lab Opening (accessible sans authentification)
         { path: 'sdr-accreditations', method: RequestMethod.POST }, // Exclure la création de demande SDR (accessible sans authentification)
+        // Page publique de gestion des changements de responsable de labo (vérification + signalement)
+        { path: 'responsible-handovers/verify/:userId', method: RequestMethod.GET },
+        { path: 'responsible-handovers/verify/:userId', method: RequestMethod.POST },
         { path: 'regions', method: RequestMethod.GET },
         { path: 'districts', method: RequestMethod.GET },
         /** Liste des labos : accès public. Ne pas exclure `labs/:id` : cela capturait aussi `labs/stats`, `labs/stats-by-region`, etc. */
